@@ -40,11 +40,6 @@ dependencies {
 	// Fabric API. This is technically optional, but you probably want it anyway.
 	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
 
-	//REI
-	modCompileOnly "me.shedaniel:RoughlyEnoughItems-api-fabric:21.11.814"
-	modCompileOnly "me.shedaniel:RoughlyEnoughItems-fabric:21.11.814"
-	modRuntimeOnly "me.shedaniel:RoughlyEnoughItems-fabric:21.11.814"
-
 	modApi "dev.architectury:architectury-fabric:19.0.1"
 	modApi "me.shedaniel.cloth:cloth-config-fabric:21.11.153"
 }

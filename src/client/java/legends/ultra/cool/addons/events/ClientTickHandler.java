@@ -3,7 +3,6 @@ package legends.ultra.cool.addons.events;
 import legends.ultra.cool.addons.hud.HudManager;
 import legends.ultra.cool.addons.hud.widget.CounterWidget;
 import legends.ultra.cool.addons.hud.widget.TimerWidget;
-import legends.ultra.cool.addons.hud.widget.otherTypes.ReiWidget;
 import legends.ultra.cool.addons.overlay.ContainerOverlay;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.gui.screen.ingame.HandledScreen;
@@ -26,10 +25,6 @@ public class ClientTickHandler {
 
                 if (widget instanceof TimerWidget timer && timer.enabled) {
                     timer.tick(timer.getToggleState());
-                }
-
-                if (widget instanceof ReiWidget reiWidget) {
-                    reiWidget.enforceHiddenIfDisabled();
                 }
 
                 if ((client.currentScreen instanceof HandledScreen<?>)) ContainerOverlay.fTreeCheck();
