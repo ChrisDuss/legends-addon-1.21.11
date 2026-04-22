@@ -12,19 +12,21 @@ import net.minecraft.text.Text;
 import net.minecraft.util.ErrorReporter;
 import net.minecraft.util.Identifier;
 
-import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class EntityDebug {
+    private static final Pattern HEALTH_PATTERN = Pattern.compile("(\\d+(?:[.,]\\d+)?)\\s*/\\s*(\\d+(?:[.,]\\d+)?)");
 
     public static String dumpTargetFiltered(LivingEntity e) {
         MinecraftClient client = MinecraftClient.getInstance();
         if (client.player == null || client.world == null) return null;
         if (!(e instanceof LivingEntity mob)) {
-            client.player.sendMessage(Text.literal("[LegendsAddon] Target is not a LivingEntity"),false);
+            client.player.sendMessage(Text.literal("[LegendsAddon] Target is not a LivingEntity"), false);
             return null;
         }
 
-        String mobName =  mob.getDisplayName().getString();
+        String mobName = mob.getDisplayName().getString();
         double[] mobStats = getMobStats(mob);
         double maxHp = mobStats[1];
         double itemDef = mobStats[2];
@@ -34,30 +36,35 @@ public class EntityDebug {
     }
 
     public static double[] getMobStats(LivingEntity e) {
-
         ItemStack main = e.getMainHandStack();
-        String mobName;
+        String mobName = e.getDisplayName().getString();
 
         double maxHp = 0;
         double currentHp = 0;
-        Optional<Object> itemDef = readCustomInt(main, "def");
-        Optional<Object> itemDmg = readCustomInt(main, "dmg");
+        int itemDef = readCustomInt(main, "def");
+        int itemDmg = readCustomInt(main, "dmg");
 
-        mobName =  e.getDisplayName().getString();
-        if (mobName.matches(".*?(\\d+).*\\/(\\d+).*")) currentHp = Double.parseDouble(mobName.replaceAll(".*?(\\d+(?:[.,]\\d+)?).*?\\/.*?(\\d+(?:[.,]\\d+)?).*", "$1"));
-        if (mobName.matches(".*?(\\d+).*\\/(\\d+).*")) maxHp = Double.parseDouble(mobName.replaceAll(".*?(\\d+(?:[.,]\\d+)?).*?\\/.*?(\\d+(?:[.,]\\d+)?).*", "$2"));
+        Matcher matcher = HEALTH_PATTERN.matcher(mobName);
+        if (matcher.find()) {
+            currentHp = parseNumber(matcher.group(1));
+            maxHp = parseNumber(matcher.group(2));
+        }
 
-        return new double[]{currentHp, maxHp, (int) itemDef.get(), (int) itemDmg.get()};
+        return new double[]{currentHp, maxHp, itemDef, itemDmg};
     }
 
-    private static Optional<Object> readCustomInt(ItemStack stack, String key) {
-        if (stack.isEmpty()) return Optional.of(0);
+    private static int readCustomInt(ItemStack stack, String key) {
+        if (stack.isEmpty()) return 0;
 
         NbtComponent custom = stack.get(DataComponentTypes.CUSTOM_DATA);
-        if (custom == null || custom.isEmpty()) return Optional.of(0);
+        if (custom == null || custom.isEmpty()) return 0;
 
-        NbtCompound nbt = custom.copyNbt(); // copies the NBT payload :contentReference[oaicite:2]{index=2}
-        return java.util.Optional.of(nbt.contains(key) ? nbt.getInt(key) : 0);
+        NbtCompound nbt = custom.copyNbt();
+        return nbt.getInt(key).orElse(0);
+    }
+
+    private static double parseNumber(String value) {
+        return Double.parseDouble(value.replace(',', '.'));
     }
 
     public static NbtCompound getEntityFullNbt(LivingEntity entity) {
@@ -79,7 +86,4 @@ public class EntityDebug {
             return new NbtCompound();
         }
     }
-
 }
-
-

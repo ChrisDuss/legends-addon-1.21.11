@@ -7,7 +7,9 @@
     "EntityRendererDisplayNameMixin",
     "EntityRendererMultilineLabelMixin",
     "EntityRenderStateAccessor",
-    "HandledScreenAccessor"
+    "HandledScreenAccessor",
+    "HudManip",
+    "InGameHudAccessor"
   ],
   "injectors": {
     "defaultRequire": 1

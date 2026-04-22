@@ -9,9 +9,11 @@ import net.minecraft.client.gui.screen.ingame.HandledScreen;
 
 
 public class ClientTickHandler {
+    private static final int CONTAINER_SCAN_INTERVAL_TICKS = 20;
     private static boolean initialized = false;
 
     private static boolean wasOpen = false;
+    private static int containerTicks = 0;
 
     public static void init() {
         if (initialized) return;
@@ -26,11 +28,21 @@ public class ClientTickHandler {
                 if (widget instanceof TimerWidget timer && timer.enabled) {
                     timer.tick(timer.getToggleState());
                 }
-
-                if ((client.currentScreen instanceof HandledScreen<?>)) ContainerOverlay.fTreeCheck();
-
-
             });
+
+            boolean isContainerOpen = client.currentScreen instanceof HandledScreen<?>;
+            if (isContainerOpen) {
+                containerTicks++;
+            } else {
+                containerTicks = 0;
+            }
+
+            if (isContainerOpen && (!wasOpen || containerTicks >= CONTAINER_SCAN_INTERVAL_TICKS)) {
+                ContainerOverlay.fTreeCheck();
+                containerTicks = 0;
+            }
+
+            wasOpen = isContainerOpen;
         });
     }
 

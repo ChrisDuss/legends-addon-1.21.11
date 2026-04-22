@@ -1,6 +1,5 @@
 package legends.ultra.cool.addons.hud;
 
-import legends.ultra.cool.addons.data.WidgetConfigManager;
 import net.minecraft.client.gui.DrawContext;
 
 import java.util.List;
@@ -10,7 +9,7 @@ public abstract class HudWidget {
     public double y;
     public boolean enabled = false;
     protected final String name;
-    public HudWidget(String name, int x, int y) {
+    public HudWidget(String name, double x, double y) {
         this.name = name;
         this.x = x;
         this.y = y;
@@ -43,6 +42,8 @@ public abstract class HudWidget {
         x += dx;
         y += dy;
     }
+
+    public void onScreenSizeChanged(int oldWidth, int oldHeight, int newWidth, int newHeight) {}
 
     public boolean hasSettings() {
         return true;

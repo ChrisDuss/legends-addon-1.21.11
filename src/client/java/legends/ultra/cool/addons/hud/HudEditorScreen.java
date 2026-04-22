@@ -1,6 +1,7 @@
 package legends.ultra.cool.addons.hud;
 
 import legends.ultra.cool.addons.data.WidgetConfigManager;
+import legends.ultra.cool.addons.hud.widget.Health;
 import legends.ultra.cool.addons.hud.widget.settings.ColorPicker;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.Click;
@@ -28,6 +29,7 @@ public class HudEditorScreen extends Screen {
     private static final int RESET_H = 12;
 
     private HudWidget dragging;
+    private Health draggingHealthBar;
     private double lastMouseX, lastMouseY;
     private boolean panelExpanded = true;
 
@@ -108,6 +110,12 @@ public class HudEditorScreen extends Screen {
         if (!panelExpanded) {
             for (HudWidget widget : HudManager.getWidgets()) {
                 if (!widget.isEnabled()) continue;
+                if (widget instanceof Health health && health.isMouseOverBar(mouseX, mouseY)) {
+                    draggingHealthBar = health;
+                    lastMouseX = mouseX;
+                    lastMouseY = mouseY;
+                    return true;
+                }
                 if (widget.isMouseOver(mouseX, mouseY)) {
                     dragging = widget;
                     lastMouseX = mouseX;
@@ -157,6 +165,12 @@ public class HudEditorScreen extends Screen {
         // Canvas dragging selection
         for (HudWidget widget : HudManager.getWidgets()) {
             if (!widget.isEnabled()) continue;
+            if (widget instanceof Health health && health.isMouseOverBar(mouseX, mouseY)) {
+                draggingHealthBar = health;
+                lastMouseX = mouseX;
+                lastMouseY = mouseY;
+                return true;
+            }
             if (widget.isMouseOver(mouseX, mouseY)) {
                 dragging = widget;
                 lastMouseX = mouseX;
@@ -207,6 +221,12 @@ public class HudEditorScreen extends Screen {
         }
 
         // Normal canvas dragging
+        if (draggingHealthBar != null) {
+            draggingHealthBar.moveBar(dx, dy);
+            draggingHealthBar.clampBar(this.width, this.height);
+            return true;
+        }
+
         if (dragging != null) {
             dragging.x += dx;
             dragging.y += dy;
@@ -232,6 +252,12 @@ public class HudEditorScreen extends Screen {
                 WidgetConfigManager.updateWidget(settingsWidget);
                 return true;
             }
+            return true;
+        }
+
+        if (draggingHealthBar != null) {
+            draggingHealthBar.saveBarPosition();
+            draggingHealthBar = null;
             return true;
         }
 

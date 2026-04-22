@@ -11,12 +11,14 @@ import net.minecraft.client.gui.screen.ingame.HandledScreen;
 import net.minecraft.util.Identifier;
 
 public final class ContainerOverlay {
+    private static final String FORAGING_TREE_TITLE = "foraging tree";
+    private static final String TIER_ONE_TEXTURE = "textures/gui/t1_inv.png";
 
     private ContainerOverlay() {
     }
 
     private static Identifier texture =
-            Identifier.of(LegendsAddon.MOD_ID, "textures/gui/t1_inv.png");
+            Identifier.of(LegendsAddon.MOD_ID, TIER_ONE_TEXTURE);
 
 
     public static void init() {
@@ -44,20 +46,7 @@ public final class ContainerOverlay {
      * Decide which container(s) get the overlay
      */
     private static boolean shouldOverlay(HandledScreen<?> hs) {
-        if (!isThatTitle) return false;
-        return true;
-    }
-
-    static boolean isThatTitle = false;
-    public static Boolean isThatTitle(String thatTitle) {
-        ScreenEvents.AFTER_INIT.register((client, screen, scaledWidth, scaledHeight) -> {
-            ScreenEvents.afterRender(screen).register((scr, ctx, mouseX, mouseY, delta) -> {
-                if (!(scr instanceof HandledScreen<?> hs)) return;
-
-                isThatTitle = hs.getTitle().getString().toLowerCase().contains(thatTitle);
-            });
-        });
-        return isThatTitle;
+        return hasTitle(hs, FORAGING_TREE_TITLE);
     }
 
     /**
@@ -84,16 +73,26 @@ public final class ContainerOverlay {
     }
 
     public static void fTreeCheck() {
-        if (isThatTitle("foraging tree")) {
-            if (ContainerScan.containerHasNameAndLore("Tier Five", "100%"))
-                setTexture("textures/gui/t5_inv.png");
-            else if (ContainerScan.containerHasNameAndLore("Tier Four", "100%"))
-                setTexture("textures/gui/t4_inv.png");
-            else if (ContainerScan.containerHasNameAndLore("Tier Three", "100%"))
-                setTexture("textures/gui/t3_inv.png");
-            else if (ContainerScan.containerHasNameAndLore("Tier Two", "100%"))
-                setTexture("textures/gui/t2_inv.png");
-            else setTexture("textures/gui/t1_inv.png");
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (!(client.currentScreen instanceof HandledScreen<?> hs) || !hasTitle(hs, FORAGING_TREE_TITLE)) {
+            setTexture(TIER_ONE_TEXTURE);
+            return;
         }
+
+        if (ContainerScan.containerHasNameAndLore("Tier Five", "100%")) {
+            setTexture("textures/gui/t5_inv.png");
+        } else if (ContainerScan.containerHasNameAndLore("Tier Four", "100%")) {
+            setTexture("textures/gui/t4_inv.png");
+        } else if (ContainerScan.containerHasNameAndLore("Tier Three", "100%")) {
+            setTexture("textures/gui/t3_inv.png");
+        } else if (ContainerScan.containerHasNameAndLore("Tier Two", "100%")) {
+            setTexture("textures/gui/t2_inv.png");
+        } else {
+            setTexture(TIER_ONE_TEXTURE);
+        }
+    }
+
+    private static boolean hasTitle(HandledScreen<?> hs, String expectedTitle) {
+        return hs.getTitle().getString().toLowerCase().contains(expectedTitle);
     }
 }

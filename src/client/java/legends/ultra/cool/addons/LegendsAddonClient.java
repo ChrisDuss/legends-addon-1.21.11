@@ -6,6 +6,7 @@ import legends.ultra.cool.addons.events.WorldJoinLeaveHandler;
 import legends.ultra.cool.addons.hud.HudManager;
 import legends.ultra.cool.addons.hud.HudRenderer;
 import legends.ultra.cool.addons.hud.HudWidget;
+import legends.ultra.cool.addons.hud.widget.Health;
 import legends.ultra.cool.addons.hud.widget.TimerWidget;
 import legends.ultra.cool.addons.hud.widget.otherTypes.NameplateWidget;
 import legends.ultra.cool.addons.hud.widget.otherTypes.NpcChatWidget;
@@ -37,12 +38,14 @@ public class LegendsAddonClient implements ClientModInitializer {
         TimerWidget timerWidget = new TimerWidget(10, 50);
         NameplateWidget nameplateWidget = new NameplateWidget();
         NpcChatWidget npcChatWidget = new NpcChatWidget();
+        Health health = new Health("Health Display", 10, 60);
 
         addWidget(textWidget);
         addWidget(counterWidget);
         addWidget(timerWidget);
         addWidget(nameplateWidget);
         addWidget(npcChatWidget);
+        addWidget(health);
 
         for (HudWidget widget : HudManager.getWidgets()) {
             WidgetConfigManager.registerWidget(widget);

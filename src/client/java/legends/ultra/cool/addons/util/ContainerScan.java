@@ -17,8 +17,9 @@ public final class ContainerScan {
         MinecraftClient client = MinecraftClient.getInstance();
         if (!(client.currentScreen instanceof HandledScreen<?> screen)) return false;
 
-        for (int i = 0; i < screen.getScreenHandler().slots.toArray().length - 36; i++) {
-            DefaultedList<Slot> slots = screen.getScreenHandler().slots;
+        DefaultedList<Slot> slots = screen.getScreenHandler().slots;
+        int containerSlotCount = getContainerSlotCount(slots);
+        for (int i = 0; i < containerSlotCount; i++) {
             Slot slot = slots.get(i);
             ItemStack stack = slot.getStack();
             if (!stack.isEmpty() && stack.isOf(target)) {
@@ -32,8 +33,10 @@ public final class ContainerScan {
         MinecraftClient client = MinecraftClient.getInstance();
         if (!(client.currentScreen instanceof HandledScreen<?> screen)) return false;
 
-        for (int i = 0; i < screen.getScreenHandler().slots.toArray().length - 36; i++) {
-            Slot slot = screen.getScreenHandler().slots.get(i);
+        DefaultedList<Slot> slots = screen.getScreenHandler().slots;
+        int containerSlotCount = getContainerSlotCount(slots);
+        for (int i = 0; i < containerSlotCount; i++) {
+            Slot slot = slots.get(i);
             ItemStack stack = slot.getStack();
             if (!stack.isEmpty() && Objects.equals(stack.getName().toString().toLowerCase().replace(" ", "_"), "literal{"+name.toLowerCase()+"}")) {
                 return true;
@@ -49,11 +52,14 @@ public final class ContainerScan {
             return false;
         }
 
-        for (int i = 0; i < screen.getScreenHandler().slots.toArray().length - 36; i++) {
-            Slot slot = screen.getScreenHandler().slots.get(i);
+        DefaultedList<Slot> slots = screen.getScreenHandler().slots;
+        int containerSlotCount = getContainerSlotCount(slots);
+        for (int i = 0; i < containerSlotCount; i++) {
+            Slot slot = slots.get(i);
             ItemStack stack = slot.getStack();
+            var loreComponent = stack.get(DataComponentTypes.LORE);
             if (!stack.isEmpty() && stack.getName().getString().toLowerCase().replace(" ", "_").equals(name.toLowerCase().replace(" ", "_")) &&
-                    stack.get(DataComponentTypes.LORE).toString().contains(lore)) {
+                    loreComponent != null && loreComponent.toString().contains(lore)) {
                 return true;
             }
         }
@@ -84,6 +90,10 @@ public final class ContainerScan {
             if (!stack.isEmpty() && matcher.test(stack)) return true;
         }
         return false;
+    }
+
+    private static int getContainerSlotCount(DefaultedList<Slot> slots) {
+        return Math.max(0, slots.size() - 36);
     }
 
 }
