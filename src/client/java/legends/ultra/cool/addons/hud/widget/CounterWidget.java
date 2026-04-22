@@ -61,12 +61,12 @@ public class CounterWidget extends HudWidget {
     }
 
     @Override
-    public int getWidth() {
+    public double getWidth() {
         return MinecraftClient.getInstance().textRenderer.getWidth("Time: " + value);
     }
 
     @Override
-    public int getHeight() {
+    public double getHeight() {
         return MinecraftClient.getInstance().textRenderer.fontHeight;
     }
 

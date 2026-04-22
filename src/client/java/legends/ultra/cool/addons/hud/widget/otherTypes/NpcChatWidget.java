@@ -5,8 +5,6 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.text.Text;
 
-import java.util.List;
-
 public class NpcChatWidget extends HudWidget {
     public static final String WIDGET_NAME = "Better Dialogue";
     private static final String PREFIX = "[NPC]";
@@ -40,12 +38,12 @@ public class NpcChatWidget extends HudWidget {
     public void render(DrawContext context) {}
 
     @Override
-    public int getWidth() {
+    public double getWidth() {
         return 1;
     }
 
     @Override
-    public int getHeight() {
+    public double getHeight() {
         return 1;
     }
 

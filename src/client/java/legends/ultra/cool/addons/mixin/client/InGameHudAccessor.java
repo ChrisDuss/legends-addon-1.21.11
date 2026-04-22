@@ -9,4 +9,7 @@ import org.spongepowered.asm.mixin.gen.Accessor;
 public interface InGameHudAccessor {
     @Accessor("overlayMessage")
     Text legends$getOverlayMessage();
+
+    @Accessor("overlayMessage")
+    void legends$setOverlayMessage(Text text);
 }

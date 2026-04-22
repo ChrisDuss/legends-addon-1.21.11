@@ -26,12 +26,12 @@ public class NameplateWidget extends HudWidget {
     }
 
     @Override
-    public int getWidth() {
+    public double getWidth() {
         return 1; // non-interactive on canvas
     }
 
     @Override
-    public int getHeight() {
+    public double getHeight() {
         return 1;
     }
 

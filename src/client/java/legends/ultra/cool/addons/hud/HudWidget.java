@@ -28,8 +28,8 @@ public abstract class HudWidget {
     }
 
     public abstract void render(DrawContext context);
-    public abstract int getWidth();
-    public abstract int getHeight();
+    public abstract double getWidth();
+    public abstract double getHeight();
 
     public boolean isMouseOver(double mouseX, double mouseY) {
         int ix = (int) x;

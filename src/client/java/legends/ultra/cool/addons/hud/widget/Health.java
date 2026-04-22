@@ -12,15 +12,15 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class Health extends HudWidget {
-    private static final Pattern HEALTH_PATTERN = Pattern.compile("♥ ((.*?)/(.*?)) ♥");
+    private static final Pattern HEALTH_PATTERN = Pattern.compile("♥\\s*(\\d+(?:[.,]\\d+)?)\\s*/\\s*(\\d+(?:[.,]\\d+)?)\\s*♥|(?<!\\d)(\\d+(?:[.,]\\d+)?)\\s*/\\s*(\\d+(?:[.,]\\d+)?)(?!\\d)");
     private static final float DEFAULT_BAR_Y_OFFSET = 13f;
 
     private static Health INSTANCE;
 
     private String health = "Null";
-    private int maxHealth = 0;
-    private int currentHealth = 0;
-    private int cachedTextWidth = 0;
+    private double maxHealth = 0;
+    private double currentHealth = 0;
+    private double cachedTextWidth = 0;
     private int cachedTextHeight = 0;
 
     private final Bar hpBar;
@@ -35,6 +35,19 @@ public class Health extends HudWidget {
 
     public static boolean isEnabledGlobal() {
         return INSTANCE != null && INSTANCE.isEnabled();
+    }
+
+    public static boolean shouldHideOverlay(Text overlay) {
+        return isEnabledGlobal() && overlay != null && HEALTH_PATTERN.matcher(overlay.getString()).find();
+    }
+
+    public static Text stripHealthOverlay(Text overlay) {
+        if (!shouldHideOverlay(overlay)) {
+            return overlay;
+        }
+
+        String stripped = HEALTH_PATTERN.matcher(overlay.getString()).replaceAll("").trim();
+        return stripped.isEmpty() ? Text.empty() : Text.literal(stripped);
     }
 
     @Override
@@ -58,6 +71,10 @@ public class Health extends HudWidget {
         cachedTextWidth = width;
         cachedTextHeight = height;
 
+        if (barToggle) {
+            hpBar.render(context);
+        }
+
         if (bgToggle) {
             context.fill((int) (x - 3), (int) (y - 3), (int) (x + width + 2), (int) (y + height + 2), bgColor);
         }
@@ -68,9 +85,6 @@ public class Health extends HudWidget {
 
         context.drawText(client.textRenderer, text, (int) x, (int) y, textColor, false);
         syncBarPosition();
-        if (barToggle) {
-            hpBar.render(context);
-        }
     }
 
     private String getHealth() {
@@ -87,8 +101,14 @@ public class Health extends HudWidget {
 
         Matcher matcher = HEALTH_PATTERN.matcher(overlay.getString());
         if (matcher.find()) {
-            currentHealth = Integer.parseInt(matcher.group(2));
-            maxHealth = Integer.parseInt(matcher.group(3));
+            String current = firstNonNull(matcher.group(1), matcher.group(3));
+            String max = firstNonNull(matcher.group(2), matcher.group(4));
+            if (current == null || max == null) {
+                return health;
+            }
+
+            currentHealth = Double.parseDouble(current.replace(',', '.'));
+            maxHealth = Double.parseDouble(max.replace(',', '.'));
             health = currentHealth + "/" + maxHealth;
             hpBar.setMin(currentHealth);
             hpBar.setMax(maxHealth);
@@ -139,8 +159,12 @@ public class Health extends HudWidget {
         WidgetConfigManager.setAnchoredYSetting(name, "barY", (float) hpBar.y, autosave);
     }
 
+    private static String firstNonNull(String first, String second) {
+        return first != null ? first : second;
+    }
+
     @Override
-    public int getWidth() {
+    public double getWidth() {
         if (cachedTextWidth > 0) {
             return cachedTextWidth;
         }
@@ -154,7 +178,7 @@ public class Health extends HudWidget {
     }
 
     @Override
-    public int getHeight() {
+    public double getHeight() {
         if (cachedTextHeight > 0) {
             return cachedTextHeight;
         }

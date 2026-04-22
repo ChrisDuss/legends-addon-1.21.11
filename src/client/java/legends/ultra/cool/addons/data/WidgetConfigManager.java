@@ -80,7 +80,7 @@ public final class WidgetConfigManager {
 
         if (data == null) {
             data = new WidgetData();
-            writeAnchoredPosition(data, widget.x, widget.y);
+            seedInitialPosition(data, widget.x, widget.y);
             data.enabled = widget.enabled;
 
             for (HudWidget.HudSetting s : safeSettings(widget)) {
@@ -112,6 +112,9 @@ public final class WidgetConfigManager {
     public static void applyWidgetPosition(HudWidget widget) {
         if (widget == null) return;
         load();
+        if (!hasUsableWindowSize()) {
+            return;
+        }
 
         WidgetData data = widgetDataMap.get(widget.getName());
         if (data == null) {
@@ -119,8 +122,18 @@ public final class WidgetConfigManager {
         }
 
         migrateWidgetDataIfNeeded(data);
-        widget.x = resolveAnchoredX(data.horizontalAnchor, data.offsetX);
-        widget.y = resolveAnchoredY(data.verticalAnchor, data.offsetY);
+        double anchoredX = resolveAnchoredX(data.horizontalAnchor, data.offsetX);
+        double anchoredY = resolveAnchoredY(data.verticalAnchor, data.offsetY);
+
+        if (isOffscreen(widget, anchoredX, anchoredY) && isOnscreen(widget, data.x, data.y)) {
+            writeAnchoredPosition(data, data.x, data.y);
+            anchoredX = resolveAnchoredX(data.horizontalAnchor, data.offsetX);
+            anchoredY = resolveAnchoredY(data.verticalAnchor, data.offsetY);
+            save();
+        }
+
+        widget.x = anchoredX;
+        widget.y = anchoredY;
     }
 
     public static void updateWidget(HudWidget widget) {
@@ -317,6 +330,21 @@ public final class WidgetConfigManager {
         data.relativePosition = false;
     }
 
+    private static void seedInitialPosition(WidgetData data, double absoluteX, double absoluteY) {
+        if (!hasUsableWindowSize()) {
+            data.horizontalAnchor = HORIZONTAL_ANCHOR_LEFT;
+            data.verticalAnchor = VERTICAL_ANCHOR_TOP;
+            data.offsetX = absoluteX;
+            data.offsetY = absoluteY;
+            data.x = absoluteX;
+            data.y = absoluteY;
+            data.relativePosition = false;
+            return;
+        }
+
+        writeAnchoredPosition(data, absoluteX, absoluteY);
+    }
+
     private static AnchorPosition readSettingAnchorPosition(WidgetData data, String key, float defaultX, float defaultY) {
         JsonElement anchorX = data.settings.get(key + "_anchor_x");
         JsonElement anchorY = data.settings.get(key + "_anchor_y");
@@ -439,6 +467,26 @@ public final class WidgetConfigManager {
             return 1d;
         }
         return Math.max(1, client.getWindow().getScaledHeight());
+    }
+
+    private static boolean hasUsableWindowSize() {
+        MinecraftClient client = MinecraftClient.getInstance();
+        return client != null
+                && client.getWindow() != null
+                && client.getWindow().getScaledWidth() > 1
+                && client.getWindow().getScaledHeight() > 1;
+    }
+
+    private static boolean isOffscreen(HudWidget widget, double x, double y) {
+        double width = Math.max(1d, widget.getWidth());
+        double height = Math.max(1d, widget.getHeight());
+        double screenWidth = getScaledWidth();
+        double screenHeight = getScaledHeight();
+        return x + width < 0 || y + height < 0 || x > screenWidth || y > screenHeight;
+    }
+
+    private static boolean isOnscreen(HudWidget widget, double x, double y) {
+        return !isOffscreen(widget, x, y);
     }
 
     private static Iterable<HudWidget.HudSetting> safeSettings(HudWidget w) {

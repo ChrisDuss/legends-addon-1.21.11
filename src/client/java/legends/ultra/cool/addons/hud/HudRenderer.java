@@ -20,6 +20,10 @@ public class HudRenderer {
                 int scaledWidth = client.getWindow().getScaledWidth();
                 int scaledHeight = client.getWindow().getScaledHeight();
 
+                if (lastScaledWidth <= 0 || lastScaledHeight <= 0) {
+                    HudManager.getWidgets().forEach(WidgetConfigManager::applyWidgetPosition);
+                }
+
                 if (lastScaledWidth > 0 && lastScaledHeight > 0
                         && (scaledWidth != lastScaledWidth || scaledHeight != lastScaledHeight)) {
                     HudManager.getWidgets().forEach(w -> {
@@ -38,4 +42,3 @@ public class HudRenderer {
         });
     }
 }
-

@@ -67,12 +67,12 @@ public class TimerWidget extends HudWidget {
     }
 
     @Override
-    public int getWidth() {
+    public double getWidth() {
         return MinecraftClient.getInstance().textRenderer.getWidth("Stopwatch: 0.00");
     }
 
     @Override
-    public int getHeight() {
+    public double getHeight() {
         return MinecraftClient.getInstance().textRenderer.fontHeight;
     }
 

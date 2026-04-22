@@ -46,10 +46,6 @@ public class LegendsAddonClient implements ClientModInitializer {
         addWidget(nameplateWidget);
         addWidget(npcChatWidget);
         addWidget(health);
-
-        for (HudWidget widget : HudManager.getWidgets()) {
-            WidgetConfigManager.registerWidget(widget);
-        }
     }
 
     public void addWidget(HudWidget w) {

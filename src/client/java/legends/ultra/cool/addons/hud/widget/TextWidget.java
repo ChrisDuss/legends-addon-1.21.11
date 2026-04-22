@@ -41,12 +41,12 @@ public class TextWidget extends HudWidget {
     }
 
     @Override
-    public int getWidth() {
+    public double getWidth() {
         return MinecraftClient.getInstance().textRenderer.getWidth("Example text widget");
     }
 
     @Override
-    public int getHeight() {
+    public double getHeight() {
         return MinecraftClient.getInstance().textRenderer.fontHeight;
     }
 
