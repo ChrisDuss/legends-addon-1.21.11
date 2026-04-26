@@ -3,6 +3,7 @@ package legends.ultra.cool.addons.overlay;
 import legends.ultra.cool.addons.LegendsAddon;
 import legends.ultra.cool.addons.mixin.client.HandledScreenAccessor;
 import legends.ultra.cool.addons.util.ContainerScan;
+import legends.ultra.cool.addons.util.UiVisibility;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gl.RenderPipelines;
@@ -46,7 +47,7 @@ public final class ContainerOverlay {
      * Decide which container(s) get the overlay
      */
     private static boolean shouldOverlay(HandledScreen<?> hs) {
-        return hasTitle(hs, FORAGING_TREE_TITLE);
+        return !UiVisibility.isHudHidden() && hasTitle(hs, FORAGING_TREE_TITLE);
     }
 
     /**

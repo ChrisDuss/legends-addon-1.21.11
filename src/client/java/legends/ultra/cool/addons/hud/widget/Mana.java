@@ -15,25 +15,25 @@ import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class Health extends HudWidget implements BarDraggable {
-    private static final Pattern HEALTH_PATTERN = Pattern.compile("(♥\\s*(\\d+(?:[.,]\\d+)?)\\s*/\\s*(\\d+(?:[.,]\\d+)?)\\s*♥)");
+public class Mana extends HudWidget implements BarDraggable {
+    private static final Pattern MANA_PATTERN = Pattern.compile("✎(\\s*(\\d+(?:[.,]\\d+)?)\\s*/\\s*(\\d+(?:[.,]\\d+)?)\\s*)✎");
     private static final float DEFAULT_BAR_Y_OFFSET = 13f;
 
-    private static Health INSTANCE;
+    private static Mana INSTANCE;
 
-    private String health = "Null";
-    private double maxHealth = 0;
-    private double currentHealth = 0;
+    private String mana = "0";
+    private double maxMana = 0;
+    private double currentMana = 0;
     private double cachedTextWidth = 0;
     private int cachedTextHeight = 0;
 
-    private final Bar hpBar;
+    private final Bar manaBar;
 
     public static boolean barToggle = false;
 
-    public Health(String name, int x, int y) {
+    public Mana(String name, int x, int y) {
         super(name, x, y);
-        this.hpBar = new Bar(name, "HealthBar", x, y + DEFAULT_BAR_Y_OFFSET, currentHealth, maxHealth);
+        this.manaBar = new Bar(name, "ManaBar", x, y + DEFAULT_BAR_Y_OFFSET, currentMana, maxMana);
         INSTANCE = this;
     }
 
@@ -42,15 +42,15 @@ public class Health extends HudWidget implements BarDraggable {
     }
 
     public static boolean shouldHideOverlay(Text overlay) {
-        return isEnabledGlobal() && overlay != null && findHealthMatch(overlay.getString()) != null;
+        return isEnabledGlobal() && overlay != null && findManaMatch(overlay.getString()) != null;
     }
 
-    public static Text stripHealthOverlay(Text overlay) {
+    public static Text stripManaOverlay(Text overlay) {
         if (!isEnabledGlobal() || overlay == null) {
             return overlay;
         }
 
-        HealthMatch match = findHealthMatch(overlay.getString());
+        ManaMatch match = findManaMatch(overlay.getString());
         if (match == null) {
             return overlay;
         }
@@ -71,19 +71,19 @@ public class Health extends HudWidget implements BarDraggable {
         int bgColor = WidgetConfigManager.getInt(w, "bgColor", 0x80000000);
         boolean brdToggle = WidgetConfigManager.getBool(w, "brdToggle", true);
         int brdColor = WidgetConfigManager.getInt(w, "brdColor", 0xFFFFFFFF);
-        int textColor = WidgetConfigManager.getInt(w, "textColor", 0xFFFC5454);
+        int textColor = WidgetConfigManager.getInt(w, "textColor", 0xFF0b50ad);
         barToggle = WidgetConfigManager.getBool(w, "barToggle", false);
 
-        String text = getHealth();
+        String text = getMana();
         int width = client.textRenderer.getWidth(text);
         int height = client.textRenderer.fontHeight;
         cachedTextWidth = width;
         cachedTextHeight = height;
 
-        hpBar.setBarColor(0xFFFC5454);
+        manaBar.setBarColor(0xFF0b50ad);
 
         if (barToggle) {
-            hpBar.render(context);
+            manaBar.render(context);
         }
 
         if (bgToggle) {
@@ -98,28 +98,34 @@ public class Health extends HudWidget implements BarDraggable {
         syncBarPosition();
     }
 
-    private String getHealth() {
+    private String getMana() {
         MinecraftClient client = MinecraftClient.getInstance();
         if (client == null || client.inGameHud == null) {
-            return health = "0";
+            return mana = "0";
         }
 
         InGameHudAccessor hud = (InGameHudAccessor) client.inGameHud;
         Text overlay = hud.legends$getOverlayMessage();
         if (overlay == null) {
-            return health = "0";
+            return mana = "0";
         }
 
-        HealthMatch match = findHealthMatch(overlay.getString());
+        ManaMatch match = findManaMatch(overlay.getString());
         if (match != null) {
-            currentHealth = Double.parseDouble(match.current().replace(',', '.'));
-            maxHealth = Double.parseDouble(match.max().replace(',', '.'));
-            health = currentHealth + "/" + maxHealth;
-            hpBar.setMin(currentHealth);
-            hpBar.setMax(maxHealth);
+            currentMana = Double.parseDouble(match.current().replace(',', '.'));
+            maxMana = Double.parseDouble(match.max().replace(',', '.'));
+            mana = currentMana + "/" + maxMana;
+            manaBar.setMin(currentMana);
+            manaBar.setMax(maxMana);
+        } else {
+            currentMana = 0;
+            maxMana = 0;
+            mana = currentMana + "/" + maxMana;
+            manaBar.setMin(currentMana);
+            manaBar.setMax(maxMana);
         }
 
-        return health;
+        return mana;
     }
 
     public boolean isMouseOverBar(double mouseX, double mouseY) {
@@ -128,18 +134,18 @@ public class Health extends HudWidget implements BarDraggable {
         }
 
         syncBarPosition();
-        return hpBar.isMouseOver(mouseX, mouseY);
+        return manaBar.isMouseOver(mouseX, mouseY);
     }
 
     public void moveBar(double dx, double dy) {
         syncBarPosition();
-        hpBar.move(dx, dy);
+        manaBar.move(dx, dy);
         saveBarCoordinates(false);
     }
 
     public void clampBar(int screenWidth, int screenHeight) {
         syncBarPosition();
-        hpBar.clampToScreen(screenWidth, screenHeight);
+        manaBar.clampToScreen(screenWidth, screenHeight);
         saveBarCoordinates(false);
     }
 
@@ -154,21 +160,21 @@ public class Health extends HudWidget implements BarDraggable {
     }
 
     private void syncBarPosition() {
-        hpBar.x = WidgetConfigManager.getAnchoredXSetting(name, "barX", (float) x);
-        hpBar.y = WidgetConfigManager.getAnchoredYSetting(name, "barY", (float) (y + DEFAULT_BAR_Y_OFFSET));
+        manaBar.x = WidgetConfigManager.getAnchoredXSetting(name, "barX", (float) x);
+        manaBar.y = WidgetConfigManager.getAnchoredYSetting(name, "barY", (float) (y + DEFAULT_BAR_Y_OFFSET));
     }
 
     private void saveBarCoordinates(boolean autosave) {
-        WidgetConfigManager.setAnchoredXSetting(name, "barX", (float) hpBar.x, autosave);
-        WidgetConfigManager.setAnchoredYSetting(name, "barY", (float) hpBar.y, autosave);
+        WidgetConfigManager.setAnchoredXSetting(name, "barX", (float) manaBar.x, autosave);
+        WidgetConfigManager.setAnchoredYSetting(name, "barY", (float) manaBar.y, autosave);
     }
 
     private static String firstNonNull(String first, String second) {
         return first != null ? first : second;
     }
 
-    private static HealthMatch findHealthMatch(String text) {
-        Matcher matcher = HEALTH_PATTERN.matcher(text);
+    private static ManaMatch findManaMatch(String text) {
+        Matcher matcher = MANA_PATTERN.matcher(text);
         if (!matcher.find()) {
             return null;
         }
@@ -179,7 +185,7 @@ public class Health extends HudWidget implements BarDraggable {
             return null;
         }
 
-        return new HealthMatch(matcher.start(), matcher.end(), current, max);
+        return new ManaMatch(matcher.start(), matcher.end(), current, max);
     }
 
     private static Text removeMatchedRange(Text overlay, int start, int end) {
@@ -216,7 +222,7 @@ public class Health extends HudWidget implements BarDraggable {
         }
     }
 
-    private record HealthMatch(int start, int end, String current, String max) {
+    private record ManaMatch(int start, int end, String current, String max) {
     }
 
     @Override
@@ -230,7 +236,7 @@ public class Health extends HudWidget implements BarDraggable {
             return 0;
         }
 
-        return client.textRenderer.getWidth(health);
+        return client.textRenderer.getWidth(mana);
     }
 
     @Override
@@ -275,12 +281,12 @@ public class Health extends HudWidget implements BarDraggable {
                 ),
                 HudSetting.color("textColor", "Text Color",
                         () -> true,
-                        () -> WidgetConfigManager.getInt(w, "textColor", 0xFFFC5454),
+                        () -> WidgetConfigManager.getInt(w, "textColor", 0xFF0b50ad),
                         c -> WidgetConfigManager.setInt(w, "textColor", c, true),
-                        0xFFFC5454
+                        0xFF0b50ad
                 ),
                 HudSetting.section("Bar"),
-                HudSetting.toggle("barToggle", "Health Bar",
+                HudSetting.toggle("barToggle", "Mana Bar",
                         () -> true,
                         () -> WidgetConfigManager.getBool(w, "barToggle", false),
                         b -> WidgetConfigManager.setBool(w, "barToggle", b, true),
@@ -288,9 +294,9 @@ public class Health extends HudWidget implements BarDraggable {
                 ),
                 HudSetting.toggle("invertToggle", "Invert Bar",
                         () -> true,
-                        () -> WidgetConfigManager.getBool(w, "invertToggle", false),
+                        () -> WidgetConfigManager.getBool(w, "invertToggle", true),
                         b -> WidgetConfigManager.setBool(w, "invertToggle", b, true),
-                        false
+                        true
                 ),
                 HudSetting.slider(
                         "barWidth", "Bar width",
@@ -300,10 +306,10 @@ public class Health extends HudWidget implements BarDraggable {
                         v -> WidgetConfigManager.setFloat(w, "barWidth", (float) v, true),
                         80f
                 ),
-                HudSetting.toggle("heartsToggle", "Hide health bar",
+                HudSetting.toggle("foodToggle", "Hide Food bar",
                         () -> true,
-                        () -> WidgetConfigManager.getBool(w, "heartsToggle", false),
-                        b -> WidgetConfigManager.setBool(w, "heartsToggle", b, true),
+                        () -> WidgetConfigManager.getBool(w, "foodToggle", false),
+                        b -> WidgetConfigManager.setBool(w, "foodToggle", b, true),
                         false
                 )
         );

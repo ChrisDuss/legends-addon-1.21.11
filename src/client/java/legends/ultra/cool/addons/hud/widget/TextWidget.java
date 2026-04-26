@@ -37,7 +37,7 @@ public class TextWidget extends HudWidget {
             drawBorder(context, (int) (x - 3), (int) (y - 3), width + 5, height + 5, brdColor);
         }
 
-        context.drawText(client.textRenderer, text, (int) x, (int) y, textColor, false);
+        context.drawText(client.textRenderer, text, (int) x, (int) y, textColor, !bgToggle);
     }
 
     @Override

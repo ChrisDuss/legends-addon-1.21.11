@@ -72,7 +72,17 @@ public abstract class HudWidget {
             int defaultColor,
             float defaultFloat
     ) {
-        public enum Type { TOGGLE, COLOR, SLIDER }
+        public enum Type { SECTION, TOGGLE, COLOR, SLIDER }
+
+        public boolean storesValue() {
+            return type != Type.SECTION;
+        }
+
+        public static HudSetting section(String label) {
+            return new HudSetting("__section__" + label, label, Type.SECTION, 0,0,0,
+                    ()->false, ()->false, b->{},
+                    ()->0, c->{}, ()->0, v->{}, false, 0, 0f);
+        }
 
         public static HudSetting toggle(String key, String label,
                                         java.util.function.BooleanSupplier enabled,

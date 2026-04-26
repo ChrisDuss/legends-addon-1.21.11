@@ -2,14 +2,18 @@ package legends.ultra.cool.addons.mixin.client;
 
 import legends.ultra.cool.addons.data.WidgetConfigManager;
 import legends.ultra.cool.addons.hud.widget.otherTypes.NameplateWidget;
+import legends.ultra.cool.addons.hud.widget.otherTypes.NpcChatWidget;
+import legends.ultra.cool.addons.render.DialogueRenderStateExt;
 import legends.ultra.cool.addons.util.EntityDebug;
 import legends.ultra.cool.addons.util.TextHeathbar;
+import legends.ultra.cool.addons.util.UiVisibility;
 import net.minecraft.client.render.entity.EntityRenderer;
 import net.minecraft.client.render.entity.state.EntityRenderState;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityAttachmentType;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.decoration.ArmorStandEntity;
+import net.minecraft.entity.decoration.MannequinEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.Vec3d;
@@ -36,27 +40,31 @@ public abstract class EntityRendererDisplayNameMixin<T extends Entity, S extends
 
     @Inject(method = "updateRenderState", at = @At("TAIL"))
     private void legends$forceAndOverrideDisplayName(T entity, S state, float tickDelta, CallbackInfo ci) {
+        if (UiVisibility.isHudHidden()) return;
 
-        if (!NameplateWidget.isEnabledGlobal()) return;
-        if (!(entity instanceof LivingEntity living)) return;
-        if (!living.isAlive()) return;
-        if (entity instanceof PlayerEntity) return;
-        if (entity instanceof ArmorStandEntity) return;
+        EntityRenderStateAccessor acc = (EntityRenderStateAccessor) (Object) state;
+        DialogueRenderStateExt dialogue = (DialogueRenderStateExt) (Object) state;
+        dialogue.legends$setNpcDialogue(null);
+
+        Text npcDialogue = NpcChatWidget.getDialogueLabel(entity);
+        if (npcDialogue != null) {
+            ensureNameLabelPos(entity, tickDelta, acc);
+            dialogue.legends$setNpcDialogue(npcDialogue);
+            return;
+        }
 
         float range = WidgetConfigManager.getFloat("Nameplates", "range", 50f);
         double maxSq = (double) range * (double) range;
         if (state.squaredDistanceToCamera >= maxSq) return;
 
-        EntityRenderStateAccessor acc = (EntityRenderStateAccessor) (Object) state;
+        if (!NameplateWidget.isEnabledGlobal()) return;
+        if (!(entity instanceof LivingEntity living)) return;
+        if (!living.isAlive()) return;
+        if (entity instanceof PlayerEntity) return;
+        if (entity instanceof MannequinEntity) return;
+        if (entity instanceof ArmorStandEntity) return;
 
-        if (acc.legends$getNameLabelPos() == null) {
-            Vec3d p = entity.getAttachments().getPointNullable(
-                    EntityAttachmentType.NAME_TAG,
-                    0,
-                    entity.getLerpedYaw(tickDelta)
-            );
-            acc.legends$setNameLabelPos(p);
-        }
+        ensureNameLabelPos(entity, tickDelta, acc);
 
         int now = entity.age;
         int id = entity.getId();
@@ -95,6 +103,19 @@ public abstract class EntityRendererDisplayNameMixin<T extends Entity, S extends
         acc.legends$setDisplayName(custom);
 
         if ((now % CLEANUP_EVERY_TICKS) == 0) cleanupCache(now);
+    }
+
+    private static <T extends Entity> void ensureNameLabelPos(T entity, float tickDelta, EntityRenderStateAccessor acc) {
+        if (acc.legends$getNameLabelPos() != null) {
+            return;
+        }
+
+        Vec3d p = entity.getAttachments().getPointNullable(
+                EntityAttachmentType.NAME_TAG,
+                0,
+                entity.getLerpedYaw(tickDelta)
+        );
+        acc.legends$setNameLabelPos(p);
     }
 
     private static void cleanupCache(int now) {

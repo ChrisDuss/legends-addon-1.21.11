@@ -84,6 +84,7 @@ public final class WidgetConfigManager {
             data.enabled = widget.enabled;
 
             for (HudWidget.HudSetting s : safeSettings(widget)) {
+                if (!s.storesValue()) continue;
                 seedDefaultSettingIfMissing(data, s);
             }
 
@@ -98,6 +99,7 @@ public final class WidgetConfigManager {
 
         boolean changed = false;
         for (HudWidget.HudSetting s : safeSettings(widget)) {
+            if (!s.storesValue()) continue;
             if (!data.settings.containsKey(s.key())) {
                 seedDefaultSettingIfMissing(data, s);
                 changed = true;
@@ -496,6 +498,7 @@ public final class WidgetConfigManager {
 
     private static void seedDefaultSettingIfMissing(WidgetData data, HudWidget.HudSetting s) {
         switch (s.type()) {
+            case SECTION -> {}
             case TOGGLE -> data.settings.put(s.key(), new JsonPrimitive(s.defaultBool()));
             case COLOR -> data.settings.put(s.key(), new JsonPrimitive(s.defaultColor()));
             case SLIDER -> data.settings.put(s.key(), new JsonPrimitive(s.defaultFloat()));

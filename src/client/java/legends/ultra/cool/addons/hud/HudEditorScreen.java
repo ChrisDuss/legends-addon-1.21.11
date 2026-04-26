@@ -1,7 +1,6 @@
 package legends.ultra.cool.addons.hud;
 
 import legends.ultra.cool.addons.data.WidgetConfigManager;
-import legends.ultra.cool.addons.hud.widget.Health;
 import legends.ultra.cool.addons.hud.widget.settings.ColorPicker;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.Click;
@@ -19,7 +18,7 @@ public class HudEditorScreen extends Screen {
     private static final int ROW_HEIGHT = 14;
 
     private static final int MODAL_W = 220;
-    private static final int MODAL_H = 180;
+    private static final int MODAL_MIN_H = 180;
     private static final int MODAL_PAD = 8;
 
     private static final int SETTINGS_ROW_H = 16;
@@ -29,7 +28,7 @@ public class HudEditorScreen extends Screen {
     private static final int RESET_H = 12;
 
     private HudWidget dragging;
-    private Health draggingHealthBar;
+    private BarDraggable draggingBar;
     private double lastMouseX, lastMouseY;
     private boolean panelExpanded = true;
 
@@ -68,7 +67,7 @@ public class HudEditorScreen extends Screen {
     }
 
     private int modalY() {
-        return (this.height - MODAL_H) / 2;
+        return (this.height - modalHeight()) / 2;
     }
 
     private static boolean inside(double mx, double my, int x, int y, int w, int h) {
@@ -77,6 +76,28 @@ public class HudEditorScreen extends Screen {
 
     private static List<HudWidget.HudSetting> safeSettings(HudWidget w) {
         return Optional.ofNullable(w.getSettings()).orElse(List.of());
+    }
+
+    private int modalHeight() {
+        int settingsCount = settingsWidget == null ? 0 : safeSettings(settingsWidget).size();
+        if (settingsCount == 0) {
+            return MODAL_MIN_H;
+        }
+
+        int contentHeight = settingsCount * SETTINGS_ROW_H
+                + Math.max(0, settingsCount - 1) * SETTINGS_ROW_GAP;
+        return Math.max(MODAL_MIN_H, 28 + contentHeight + MODAL_PAD);
+    }
+
+    private BarDraggable getBarUnderMouse(double mouseX, double mouseY) {
+        for (HudWidget widget : HudManager.getWidgets()) {
+            if (!widget.isEnabled()) continue;
+            if (widget instanceof BarDraggable bar && bar.isMouseOverBar(mouseX, mouseY)) {
+                return bar;
+            }
+        }
+
+        return null;
     }
 
     // -----------------------------
@@ -108,14 +129,16 @@ public class HudEditorScreen extends Screen {
 
         // Panel collapsed: only drag widgets
         if (!panelExpanded) {
+            BarDraggable bar = getBarUnderMouse(mouseX, mouseY);
+            if (bar != null) {
+                draggingBar = bar;
+                lastMouseX = mouseX;
+                lastMouseY = mouseY;
+                return true;
+            }
+
             for (HudWidget widget : HudManager.getWidgets()) {
                 if (!widget.isEnabled()) continue;
-                if (widget instanceof Health health && health.isMouseOverBar(mouseX, mouseY)) {
-                    draggingHealthBar = health;
-                    lastMouseX = mouseX;
-                    lastMouseY = mouseY;
-                    return true;
-                }
                 if (widget.isMouseOver(mouseX, mouseY)) {
                     dragging = widget;
                     lastMouseX = mouseX;
@@ -163,14 +186,16 @@ public class HudEditorScreen extends Screen {
         }
 
         // Canvas dragging selection
+        BarDraggable bar = getBarUnderMouse(mouseX, mouseY);
+        if (bar != null) {
+            draggingBar = bar;
+            lastMouseX = mouseX;
+            lastMouseY = mouseY;
+            return true;
+        }
+
         for (HudWidget widget : HudManager.getWidgets()) {
             if (!widget.isEnabled()) continue;
-            if (widget instanceof Health health && health.isMouseOverBar(mouseX, mouseY)) {
-                draggingHealthBar = health;
-                lastMouseX = mouseX;
-                lastMouseY = mouseY;
-                return true;
-            }
             if (widget.isMouseOver(mouseX, mouseY)) {
                 dragging = widget;
                 lastMouseX = mouseX;
@@ -221,9 +246,9 @@ public class HudEditorScreen extends Screen {
         }
 
         // Normal canvas dragging
-        if (draggingHealthBar != null) {
-            draggingHealthBar.moveBar(dx, dy);
-            draggingHealthBar.clampBar(this.width, this.height);
+        if (draggingBar != null) {
+            draggingBar.moveBar(dx, dy);
+            draggingBar.clampBar(this.width, this.height);
             return true;
         }
 
@@ -255,9 +280,9 @@ public class HudEditorScreen extends Screen {
             return true;
         }
 
-        if (draggingHealthBar != null) {
-            draggingHealthBar.saveBarPosition();
-            draggingHealthBar = null;
+        if (draggingBar != null) {
+            draggingBar.saveBarPosition();
+            draggingBar = null;
             return true;
         }
 
@@ -317,12 +342,18 @@ public class HudEditorScreen extends Screen {
         for (HudWidget.HudSetting s : safeSettings(settingsWidget)) {
             int rowY = nextRowY(l);
 
+            if (s.type() == HudWidget.HudSetting.Type.SECTION) {
+                continue;
+            }
+
             // Reset per-row
             if (inside(mouseX, mouseY, l.resetX, rowY - 1, RESET_W, RESET_H)) {
                 WidgetConfigManager.clearSetting(settingsWidget.getName(), s.key(), true);
 
                 // Force re-apply defaults (by reading “default” and writing it once)
                 switch (s.type()) {
+                    case SECTION -> {
+                    }
                     case TOGGLE -> s.setBool().accept(s.getBool().getAsBoolean());
                     case COLOR -> s.setColor().accept(s.getColor().getAsInt());
                     case SLIDER -> s.setFloat().accept((float) s.getFloat().getAsDouble());
@@ -341,6 +372,8 @@ public class HudEditorScreen extends Screen {
             }
 
             switch (s.type()) {
+                case SECTION -> {
+                }
                 case TOGGLE -> {
                     if (!s.enabled().getAsBoolean()) break;
 
@@ -504,13 +537,14 @@ public class HudEditorScreen extends Screen {
 
         int x = modalX();
         int y = modalY();
+        int modalHeight = modalHeight();
 
         // dim
         ctx.fill(0, 0, this.width, this.height, 0x88000000);
 
         // panel
-        ctx.fill(x, y, x + MODAL_W, y + MODAL_H, 0xFF111111);
-        drawBorder(ctx, x, y, MODAL_W, MODAL_H, 0xFFFFFFFF);
+        ctx.fill(x, y, x + MODAL_W, y + modalHeight, 0xFF111111);
+        drawBorder(ctx, x, y, MODAL_W, modalHeight, 0xFFFFFFFF);
 
         // title
         ctx.drawText(textRenderer, settingsWidget.getName() + " Settings", x + 8, y + 8, 0xFFFFFFFF, false);
@@ -520,24 +554,34 @@ public class HudEditorScreen extends Screen {
         ctx.drawText(textRenderer, close, x + MODAL_W - 14, y + 6, 0xFFFFFFFF, false);
 
         SettingsLayout l = beginSettingsLayout();
+        boolean grouped = false;
 
         for (HudWidget.HudSetting s : safeSettings(settingsWidget)) {
             int rowY = nextRowY(l);
 
+            if (s.type() == HudWidget.HudSetting.Type.SECTION) {
+                grouped = true;
+                drawSectionRow(ctx, l, rowY, s.label());
+                continue;
+            }
+
             drawResetButton(ctx, l.resetX, rowY - 1, mouseX, mouseY);
+            int labelX = grouped ? l.nestedStartX : l.startX;
 
             switch (s.type()) {
+                case SECTION -> {
+                }
                 case TOGGLE -> {
                     boolean enabled = s.enabled().getAsBoolean();
                     boolean val = s.getBool().getAsBoolean();
-                    ctx.drawText(textRenderer, s.label(), l.startX, rowY, enabled ? 0xFFFFFFFF : 0xFF777777, false);
+                    ctx.drawText(textRenderer, s.label(), labelX, rowY, enabled ? 0xFFFFFFFF : 0xFF777777, false);
                     drawTogglePill(ctx, l.toggleX, rowY - 2, l.toggleW, l.btnH, val, enabled);
                 }
 
                 case COLOR -> {
                     boolean enabled = s.enabled().getAsBoolean();
                     int argb = s.getColor().getAsInt();
-                    ctx.drawText(textRenderer, s.label(), l.startX, rowY, enabled ? 0xFFFFFFFF : 0xFF777777, false);
+                    ctx.drawText(textRenderer, s.label(), labelX, rowY, enabled ? 0xFFFFFFFF : 0xFF777777, false);
 
                     if (enabled) {
                         drawPickButton(ctx, l.btnX, rowY - 2, l.btnW, l.btnH, mouseX, mouseY);
@@ -550,7 +594,7 @@ public class HudEditorScreen extends Screen {
                 case SLIDER -> {
                     boolean enabled = s.enabled().getAsBoolean();
                     float val = (float) s.getFloat().getAsDouble();
-                    ctx.drawText(textRenderer, s.label(), l.startX, rowY, enabled ? 0xFFFFFFFF : 0xFF777777, false);
+                    ctx.drawText(textRenderer, s.label(), labelX, rowY, enabled ? 0xFFFFFFFF : 0xFF777777, false);
                     drawSliderRow(ctx, l, rowY, mouseX, mouseY, val, s.min(), s.max(), s.step(), enabled);
                 }
             }
@@ -616,6 +660,16 @@ public class HudEditorScreen extends Screen {
         ctx.getMatrices().popMatrix();
     }
 
+    private void drawSectionRow(DrawContext ctx, SettingsLayout l, int rowY, String label) {
+        ctx.drawText(textRenderer, label, l.startX, rowY, 0xFF8EC5FF, false);
+
+        int dividerX = l.startX + textRenderer.getWidth(label) + 6;
+        int dividerY = rowY + (textRenderer.fontHeight / 2);
+        if (dividerX < l.resetX - 4) {
+            ctx.drawHorizontalLine(dividerX, l.resetX - 4, dividerY, 0xFF2D2D2D);
+        }
+    }
+
     private void drawSliderRow(DrawContext ctx, SettingsLayout l, int rowY, int mouseX, int mouseY,
                                float value, float min, float max, float step, boolean enabled) {
         int barX = l.sliderBarX;
@@ -650,18 +704,20 @@ public class HudEditorScreen extends Screen {
 
     private static final class SettingsLayout {
         final int startX, startY;
+        final int nestedStartX;
         final int btnW, btnH, btnX;
         final int toggleW, toggleX;
         final int resetX;
         final int sliderBarX, sliderBarW;
 
-        SettingsLayout(int startX, int startY,
+        SettingsLayout(int startX, int startY, int nestedStartX,
                        int btnW, int btnH, int btnX,
                        int toggleW, int toggleX,
                        int resetX,
                        int sliderBarX, int sliderBarW) {
             this.startX = startX;
             this.startY = startY;
+            this.nestedStartX = nestedStartX;
             this.btnW = btnW;
             this.btnH = btnH;
             this.btnX = btnX;
@@ -681,6 +737,7 @@ public class HudEditorScreen extends Screen {
 
         int startX = x + MODAL_PAD;
         int startY = y + 28;
+        int nestedStartX = startX + 10;
 
         int btnW = 60;
         int btnH = 14;
@@ -699,7 +756,7 @@ public class HudEditorScreen extends Screen {
         int sliderBarX = controlsRight - sliderBarW;
 
         return new SettingsLayout(
-                startX, startY,
+                startX, startY, nestedStartX,
                 btnW, btnH, btnX,
                 toggleW, toggleX,
                 resetX,

@@ -1,7 +1,6 @@
 package legends.ultra.cool.addons.hud.widget;
 
 import legends.ultra.cool.addons.data.WidgetConfigManager;
-import legends.ultra.cool.addons.hud.BarDraggable;
 import legends.ultra.cool.addons.hud.HudWidget;
 import legends.ultra.cool.addons.mixin.client.InGameHudAccessor;
 import net.minecraft.client.MinecraftClient;
@@ -15,25 +14,17 @@ import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class Health extends HudWidget implements BarDraggable {
-    private static final Pattern HEALTH_PATTERN = Pattern.compile("(♥\\s*(\\d+(?:[.,]\\d+)?)\\s*/\\s*(\\d+(?:[.,]\\d+)?)\\s*♥)");
-    private static final float DEFAULT_BAR_Y_OFFSET = 13f;
+public class Defense extends HudWidget {
+    private static final Pattern DEF_PATTERN = Pattern.compile("❈\\s*(\\d+(?:[.,]\\d+)?)\\s*");
 
-    private static Health INSTANCE;
+    private static Defense INSTANCE;
 
-    private String health = "Null";
-    private double maxHealth = 0;
-    private double currentHealth = 0;
+    private String defense = "0";
     private double cachedTextWidth = 0;
     private int cachedTextHeight = 0;
 
-    private final Bar hpBar;
-
-    public static boolean barToggle = false;
-
-    public Health(String name, int x, int y) {
+    public Defense(String name, double x, double y) {
         super(name, x, y);
-        this.hpBar = new Bar(name, "HealthBar", x, y + DEFAULT_BAR_Y_OFFSET, currentHealth, maxHealth);
         INSTANCE = this;
     }
 
@@ -42,15 +33,15 @@ public class Health extends HudWidget implements BarDraggable {
     }
 
     public static boolean shouldHideOverlay(Text overlay) {
-        return isEnabledGlobal() && overlay != null && findHealthMatch(overlay.getString()) != null;
+        return isEnabledGlobal() && overlay != null && findDefenseMatch(overlay.getString()) != null;
     }
 
-    public static Text stripHealthOverlay(Text overlay) {
+    public static Text stripDefenseOverlay(Text overlay) {
         if (!isEnabledGlobal() || overlay == null) {
             return overlay;
         }
 
-        HealthMatch match = findHealthMatch(overlay.getString());
+        DefenseMatch match = findDefenseMatch(overlay.getString());
         if (match == null) {
             return overlay;
         }
@@ -71,20 +62,13 @@ public class Health extends HudWidget implements BarDraggable {
         int bgColor = WidgetConfigManager.getInt(w, "bgColor", 0x80000000);
         boolean brdToggle = WidgetConfigManager.getBool(w, "brdToggle", true);
         int brdColor = WidgetConfigManager.getInt(w, "brdColor", 0xFFFFFFFF);
-        int textColor = WidgetConfigManager.getInt(w, "textColor", 0xFFFC5454);
-        barToggle = WidgetConfigManager.getBool(w, "barToggle", false);
+        int textColor = WidgetConfigManager.getInt(w, "textColor", 0xFF54FC54);
 
-        String text = getHealth();
+        String text = getDefense();
         int width = client.textRenderer.getWidth(text);
         int height = client.textRenderer.fontHeight;
         cachedTextWidth = width;
         cachedTextHeight = height;
-
-        hpBar.setBarColor(0xFFFC5454);
-
-        if (barToggle) {
-            hpBar.render(context);
-        }
 
         if (bgToggle) {
             context.fill((int) (x - 3), (int) (y - 3), (int) (x + width + 2), (int) (y + height + 2), bgColor);
@@ -95,91 +79,40 @@ public class Health extends HudWidget implements BarDraggable {
         }
 
         context.drawText(client.textRenderer, text, (int) x, (int) y, textColor, !bgToggle);
-        syncBarPosition();
     }
 
-    private String getHealth() {
+    private String getDefense() {
         MinecraftClient client = MinecraftClient.getInstance();
         if (client == null || client.inGameHud == null) {
-            return health = "0";
+            return defense;
         }
 
         InGameHudAccessor hud = (InGameHudAccessor) client.inGameHud;
         Text overlay = hud.legends$getOverlayMessage();
         if (overlay == null) {
-            return health = "0";
+            return defense;
         }
 
-        HealthMatch match = findHealthMatch(overlay.getString());
+        DefenseMatch match = findDefenseMatch(overlay.getString());
         if (match != null) {
-            currentHealth = Double.parseDouble(match.current().replace(',', '.'));
-            maxHealth = Double.parseDouble(match.max().replace(',', '.'));
-            health = currentHealth + "/" + maxHealth;
-            hpBar.setMin(currentHealth);
-            hpBar.setMax(maxHealth);
+            defense = match.value();
         }
 
-        return health;
+        return defense;
     }
 
-    public boolean isMouseOverBar(double mouseX, double mouseY) {
-        if (!WidgetConfigManager.getBool(name, "barToggle", false)) {
-            return false;
-        }
-
-        syncBarPosition();
-        return hpBar.isMouseOver(mouseX, mouseY);
-    }
-
-    public void moveBar(double dx, double dy) {
-        syncBarPosition();
-        hpBar.move(dx, dy);
-        saveBarCoordinates(false);
-    }
-
-    public void clampBar(int screenWidth, int screenHeight) {
-        syncBarPosition();
-        hpBar.clampToScreen(screenWidth, screenHeight);
-        saveBarCoordinates(false);
-    }
-
-    public void saveBarPosition() {
-        saveBarCoordinates(false);
-        WidgetConfigManager.updateWidget(this);
-    }
-
-    @Override
-    public void onScreenSizeChanged(int oldWidth, int oldHeight, int newWidth, int newHeight) {
-        syncBarPosition();
-    }
-
-    private void syncBarPosition() {
-        hpBar.x = WidgetConfigManager.getAnchoredXSetting(name, "barX", (float) x);
-        hpBar.y = WidgetConfigManager.getAnchoredYSetting(name, "barY", (float) (y + DEFAULT_BAR_Y_OFFSET));
-    }
-
-    private void saveBarCoordinates(boolean autosave) {
-        WidgetConfigManager.setAnchoredXSetting(name, "barX", (float) hpBar.x, autosave);
-        WidgetConfigManager.setAnchoredYSetting(name, "barY", (float) hpBar.y, autosave);
-    }
-
-    private static String firstNonNull(String first, String second) {
-        return first != null ? first : second;
-    }
-
-    private static HealthMatch findHealthMatch(String text) {
-        Matcher matcher = HEALTH_PATTERN.matcher(text);
+    private static DefenseMatch findDefenseMatch(String text) {
+        Matcher matcher = DEF_PATTERN.matcher(text);
         if (!matcher.find()) {
             return null;
         }
 
-        String current = matcher.group(2);
-        String max = matcher.group(3);
-        if (current == null || max == null) {
+        String value = matcher.group(1);
+        if (value == null) {
             return null;
         }
 
-        return new HealthMatch(matcher.start(), matcher.end(), current, max);
+        return new DefenseMatch(matcher.start(), matcher.end(), value);
     }
 
     private static Text removeMatchedRange(Text overlay, int start, int end) {
@@ -216,7 +149,7 @@ public class Health extends HudWidget implements BarDraggable {
         }
     }
 
-    private record HealthMatch(int start, int end, String current, String max) {
+    private record DefenseMatch(int start, int end, String value) {
     }
 
     @Override
@@ -230,7 +163,7 @@ public class Health extends HudWidget implements BarDraggable {
             return 0;
         }
 
-        return client.textRenderer.getWidth(health);
+        return client.textRenderer.getWidth(defense);
     }
 
     @Override
@@ -251,60 +184,33 @@ public class Health extends HudWidget implements BarDraggable {
                 HudSetting.section("Display"),
                 HudSetting.toggle("bgToggle", "Background",
                         () -> true,
-                        () -> WidgetConfigManager.getBool(w, "bgToggle", false),
+                        () -> WidgetConfigManager.getBool(w, "bgToggle", true),
                         b -> WidgetConfigManager.setBool(w, "bgToggle", b, true),
-                        false
+                        true
                 ),
                 HudSetting.color("bgColor", "BG Color",
                         () -> WidgetConfigManager.getBool(w, "bgToggle", true),
                         () -> WidgetConfigManager.getInt(w, "bgColor", 0x80000000),
                         c -> WidgetConfigManager.setInt(w, "bgColor", c, true),
-                        0x00000000
+                        0x80000000
                 ),
                 HudSetting.toggle("brdToggle", "Border",
                         () -> true,
-                        () -> WidgetConfigManager.getBool(w, "brdToggle", false),
+                        () -> WidgetConfigManager.getBool(w, "brdToggle", true),
                         b -> WidgetConfigManager.setBool(w, "brdToggle", b, true),
-                        false
+                        true
                 ),
                 HudSetting.color("brdColor", "Border Color",
                         () -> WidgetConfigManager.getBool(w, "brdToggle", true),
                         () -> WidgetConfigManager.getInt(w, "brdColor", 0xFFFFFFFF),
                         c -> WidgetConfigManager.setInt(w, "brdColor", c, true),
-                        0x00000000
+                        0xFFFFFFFF
                 ),
                 HudSetting.color("textColor", "Text Color",
                         () -> true,
-                        () -> WidgetConfigManager.getInt(w, "textColor", 0xFFFC5454),
+                        () -> WidgetConfigManager.getInt(w, "textColor", 0xFF54FC54),
                         c -> WidgetConfigManager.setInt(w, "textColor", c, true),
-                        0xFFFC5454
-                ),
-                HudSetting.section("Bar"),
-                HudSetting.toggle("barToggle", "Health Bar",
-                        () -> true,
-                        () -> WidgetConfigManager.getBool(w, "barToggle", false),
-                        b -> WidgetConfigManager.setBool(w, "barToggle", b, true),
-                        false
-                ),
-                HudSetting.toggle("invertToggle", "Invert Bar",
-                        () -> true,
-                        () -> WidgetConfigManager.getBool(w, "invertToggle", false),
-                        b -> WidgetConfigManager.setBool(w, "invertToggle", b, true),
-                        false
-                ),
-                HudSetting.slider(
-                        "barWidth", "Bar width",
-                        1f, 200f, 1f,
-                        () -> true,
-                        () -> WidgetConfigManager.getFloat(w, "barWidth", 80f),
-                        v -> WidgetConfigManager.setFloat(w, "barWidth", (float) v, true),
-                        80f
-                ),
-                HudSetting.toggle("heartsToggle", "Hide health bar",
-                        () -> true,
-                        () -> WidgetConfigManager.getBool(w, "heartsToggle", false),
-                        b -> WidgetConfigManager.setBool(w, "heartsToggle", b, true),
-                        false
+                        0xFF54FC54
                 )
         );
     }

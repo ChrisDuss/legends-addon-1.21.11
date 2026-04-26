@@ -6,12 +6,9 @@ import legends.ultra.cool.addons.events.WorldJoinLeaveHandler;
 import legends.ultra.cool.addons.hud.HudManager;
 import legends.ultra.cool.addons.hud.HudRenderer;
 import legends.ultra.cool.addons.hud.HudWidget;
-import legends.ultra.cool.addons.hud.widget.Health;
-import legends.ultra.cool.addons.hud.widget.TimerWidget;
+import legends.ultra.cool.addons.hud.widget.*;
 import legends.ultra.cool.addons.hud.widget.otherTypes.NameplateWidget;
 import legends.ultra.cool.addons.hud.widget.otherTypes.NpcChatWidget;
-import legends.ultra.cool.addons.hud.widget.CounterWidget;
-import legends.ultra.cool.addons.hud.widget.TextWidget;
 import legends.ultra.cool.addons.input.Keybinds;
 import legends.ultra.cool.addons.overlay.ContainerOverlay;
 import net.fabricmc.api.ClientModInitializer;
@@ -39,6 +36,8 @@ public class LegendsAddonClient implements ClientModInitializer {
         NameplateWidget nameplateWidget = new NameplateWidget();
         NpcChatWidget npcChatWidget = new NpcChatWidget();
         Health health = new Health("Health Display", 10, 60);
+        Mana mana = new Mana("Mana Display", 10, 70);
+        Defense defense = new Defense("Defense Display", 10, 80);
 
         addWidget(textWidget);
         addWidget(counterWidget);
@@ -46,6 +45,8 @@ public class LegendsAddonClient implements ClientModInitializer {
         addWidget(nameplateWidget);
         addWidget(npcChatWidget);
         addWidget(health);
+        addWidget(mana);
+        addWidget(defense);
     }
 
     public void addWidget(HudWidget w) {

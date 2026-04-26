@@ -1,6 +1,9 @@
 package legends.ultra.cool.addons.mixin.client;
 
+import legends.ultra.cool.addons.data.WidgetConfigManager;
+import legends.ultra.cool.addons.hud.widget.Defense;
 import legends.ultra.cool.addons.hud.widget.Health;
+import legends.ultra.cool.addons.hud.widget.Mana;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.hud.InGameHud;
 import net.minecraft.client.render.RenderTickCounter;
@@ -17,8 +20,15 @@ public class HudManip {
 
     @Inject(method = "renderHealthBar", at = @At("HEAD"), cancellable = true)
     private void legends$hideHealthBar(DrawContext context, PlayerEntity player, int x, int y, int lines, int regeneratingHeartIndex, float maxHealth, int lastHealth, int health, int absorption, boolean blinking, CallbackInfo ci) {
-        if (Health.barToggle) {
-            if (Health.isEnabledGlobal()) ci.cancel();
+        if (Health.isEnabledGlobal()) {
+            if (WidgetConfigManager.getBool("Health Display", "heartsToggle", false)) ci.cancel();
+        }
+    }
+
+    @Inject(method = "renderFood", at = @At("HEAD"), cancellable = true)
+    private void legends$hideFoodBar(DrawContext context, PlayerEntity player, int top, int right, CallbackInfo ci) {
+        if (Mana.isEnabledGlobal()) {
+            if (WidgetConfigManager.getBool("Mana Display", "foodToggle", false)) ci.cancel();
         }
     }
 
@@ -27,7 +37,10 @@ public class HudManip {
         InGameHudAccessor accessor = (InGameHudAccessor) this;
         Text overlay = accessor.legends$getOverlayMessage();
         legends$overlayBackup = overlay;
-        accessor.legends$setOverlayMessage(Health.stripHealthOverlay(overlay));
+        Text stripped = Health.stripHealthOverlay(overlay);
+        stripped = Mana.stripManaOverlay(stripped);
+        stripped = Defense.stripDefenseOverlay(stripped);
+        accessor.legends$setOverlayMessage(stripped);
     }
 
     @Inject(method = "renderOverlayMessage", at = @At("RETURN"))

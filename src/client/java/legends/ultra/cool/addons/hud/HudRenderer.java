@@ -1,6 +1,7 @@
 package legends.ultra.cool.addons.hud;
 
 import legends.ultra.cool.addons.data.WidgetConfigManager;
+import legends.ultra.cool.addons.util.UiVisibility;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.minecraft.client.MinecraftClient;
 
@@ -34,6 +35,10 @@ public class HudRenderer {
 
                 lastScaledWidth = scaledWidth;
                 lastScaledHeight = scaledHeight;
+            }
+
+            if (UiVisibility.isHudHidden()) {
+                return;
             }
 
             HudManager.getWidgets().forEach(w -> {

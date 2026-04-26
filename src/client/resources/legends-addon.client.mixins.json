@@ -3,10 +3,13 @@
   "package": "legends.ultra.cool.addons.mixin.client",
   "compatibilityLevel": "JAVA_21",
   "client": [
+    "ChatHudAccessor",
     "ChatHudMixin",
     "EntityRendererDisplayNameMixin",
     "EntityRendererMultilineLabelMixin",
+    "EntityRenderStateDialogueMixin",
     "EntityRenderStateAccessor",
+    "PlayerEntityRendererDialogueMixin",
     "HandledScreenAccessor",
     "HudManip",
     "InGameHudAccessor"
