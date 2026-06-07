@@ -38,6 +38,7 @@ public class LegendsAddonClient implements ClientModInitializer {
         Health health = new Health("Health Display", 10, 60);
         Mana mana = new Mana("Mana Display", 10, 70);
         Defense defense = new Defense("Defense Display", 10, 80);
+        CooldownDisplay cooldownDisplay = new CooldownDisplay(10, 90);
 
         addWidget(textWidget);
         addWidget(counterWidget);
@@ -47,6 +48,7 @@ public class LegendsAddonClient implements ClientModInitializer {
         addWidget(health);
         addWidget(mana);
         addWidget(defense);
+        addWidget(cooldownDisplay);
     }
 
     public void addWidget(HudWidget w) {

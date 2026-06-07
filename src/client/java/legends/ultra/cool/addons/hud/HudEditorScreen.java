@@ -16,6 +16,8 @@ public class HudEditorScreen extends Screen {
     private static final int PANEL_WIDTH = 120;
     private static final int HEADER_HEIGHT = 16;
     private static final int ROW_HEIGHT = 14;
+    private static final int SNAP_GRID_SIZE = 8;
+    private static final int SNAP_GRID_COLOR = 0x22FFFFFF;
 
     private static final int MODAL_W = 220;
     private static final int MODAL_MIN_H = 180;
@@ -29,8 +31,9 @@ public class HudEditorScreen extends Screen {
 
     private HudWidget dragging;
     private BarDraggable draggingBar;
-    private double lastMouseX, lastMouseY;
+    private double dragOffsetX, dragOffsetY;
     private boolean panelExpanded = true;
+    private boolean snapToGrid = true;
 
     private HudWidget settingsWidget = null; // null = closed
 
@@ -72,6 +75,18 @@ public class HudEditorScreen extends Screen {
 
     private static boolean inside(double mx, double my, int x, int y, int w, int h) {
         return mx >= x && mx <= x + w && my >= y && my <= y + h;
+    }
+
+    private static double snap(double value) {
+        return Math.round(value / SNAP_GRID_SIZE) * SNAP_GRID_SIZE;
+    }
+
+    private static double clamp(double value, double min, double max) {
+        return Math.max(min, Math.min(value, max));
+    }
+
+    private int widgetRowsStartY() {
+        return HEADER_HEIGHT + 4 + ROW_HEIGHT + 4;
     }
 
     private static List<HudWidget.HudSetting> safeSettings(HudWidget w) {
@@ -131,18 +146,14 @@ public class HudEditorScreen extends Screen {
         if (!panelExpanded) {
             BarDraggable bar = getBarUnderMouse(mouseX, mouseY);
             if (bar != null) {
-                draggingBar = bar;
-                lastMouseX = mouseX;
-                lastMouseY = mouseY;
+                beginBarDrag(bar, mouseX, mouseY);
                 return true;
             }
 
             for (HudWidget widget : HudManager.getWidgets()) {
                 if (!widget.isEnabled()) continue;
                 if (widget.isMouseOver(mouseX, mouseY)) {
-                    dragging = widget;
-                    lastMouseX = mouseX;
-                    lastMouseY = mouseY;
+                    beginWidgetDrag(widget, mouseX, mouseY);
                     return true;
                 }
             }
@@ -151,6 +162,12 @@ public class HudEditorScreen extends Screen {
 
         // Panel list clicks
         int y = HEADER_HEIGHT + 4;
+        if (inside(mouseX, mouseY, x + 5, y, PANEL_WIDTH - 10, ROW_HEIGHT)) {
+            snapToGrid = !snapToGrid;
+            return true;
+        }
+
+        y = widgetRowsStartY();
         for (HudWidget widget : HudManager.getWidgets()) {
             if (widget == null) continue;
 
@@ -188,18 +205,14 @@ public class HudEditorScreen extends Screen {
         // Canvas dragging selection
         BarDraggable bar = getBarUnderMouse(mouseX, mouseY);
         if (bar != null) {
-            draggingBar = bar;
-            lastMouseX = mouseX;
-            lastMouseY = mouseY;
+            beginBarDrag(bar, mouseX, mouseY);
             return true;
         }
 
         for (HudWidget widget : HudManager.getWidgets()) {
             if (!widget.isEnabled()) continue;
             if (widget.isMouseOver(mouseX, mouseY)) {
-                dragging = widget;
-                lastMouseX = mouseX;
-                lastMouseY = mouseY;
+                beginWidgetDrag(widget, mouseX, mouseY);
                 return true;
             }
         }
@@ -247,17 +260,12 @@ public class HudEditorScreen extends Screen {
 
         // Normal canvas dragging
         if (draggingBar != null) {
-            draggingBar.moveBar(dx, dy);
-            draggingBar.clampBar(this.width, this.height);
+            moveDraggingBarToMouse(mouseX, mouseY);
             return true;
         }
 
         if (dragging != null) {
-            dragging.x += dx;
-            dragging.y += dy;
-
-            dragging.x = Math.max(0, Math.min(dragging.x, this.width - dragging.getWidth()));
-            dragging.y = Math.max(0, Math.min(dragging.y, this.height - dragging.getHeight()));
+            moveDraggingWidgetToMouse(mouseX, mouseY);
             return true;
         }
 
@@ -449,6 +457,8 @@ public class HudEditorScreen extends Screen {
     public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
         super.render(ctx, mouseX, mouseY, delta);
 
+        renderGrid(ctx);
+
         for (HudWidget widget : HudManager.getWidgets()) {
             if (widget.isEnabled()) widget.render(ctx);
         }
@@ -479,6 +489,56 @@ public class HudEditorScreen extends Screen {
         );
     }
 
+    private void beginWidgetDrag(HudWidget widget, double mouseX, double mouseY) {
+        dragging = widget;
+        dragOffsetX = mouseX - widget.x;
+        dragOffsetY = mouseY - widget.y;
+    }
+
+    private void beginBarDrag(BarDraggable bar, double mouseX, double mouseY) {
+        draggingBar = bar;
+        dragOffsetX = mouseX - bar.getBarX();
+        dragOffsetY = mouseY - bar.getBarY();
+    }
+
+    private void moveDraggingWidgetToMouse(double mouseX, double mouseY) {
+        double targetX = mouseX - dragOffsetX;
+        double targetY = mouseY - dragOffsetY;
+
+        if (snapToGrid) {
+            targetX = snap(targetX);
+            targetY = snap(targetY);
+        }
+
+        dragging.x = clamp(targetX, 0, this.width - dragging.getWidth());
+        dragging.y = clamp(targetY, 0, this.height - dragging.getHeight());
+    }
+
+    private void moveDraggingBarToMouse(double mouseX, double mouseY) {
+        double targetX = mouseX - dragOffsetX;
+        double targetY = mouseY - dragOffsetY;
+
+        if (snapToGrid) {
+            targetX = snap(targetX);
+            targetY = snap(targetY);
+        }
+
+        draggingBar.setBarPosition(targetX, targetY);
+        draggingBar.clampBar(this.width, this.height);
+    }
+
+    private void renderGrid(DrawContext ctx) {
+        if (!snapToGrid || isSettingsOpen()) return;
+
+        for (int x = SNAP_GRID_SIZE; x < this.width; x += SNAP_GRID_SIZE) {
+            ctx.drawVerticalLine(x, 0, this.height, SNAP_GRID_COLOR);
+        }
+
+        for (int y = SNAP_GRID_SIZE; y < this.height; y += SNAP_GRID_SIZE) {
+            ctx.drawHorizontalLine(0, this.width, y, SNAP_GRID_COLOR);
+        }
+    }
+
     private void renderWidgetList(DrawContext ctx) {
         int x = panelX();
 
@@ -493,6 +553,18 @@ public class HudEditorScreen extends Screen {
         );
 
         int y = HEADER_HEIGHT + 4;
+        int snapColor = snapToGrid ? 0xFF4AA3DF : 0xFF555555;
+        ctx.fill(x + 5, y, x + PANEL_WIDTH - 5, y + ROW_HEIGHT, snapColor);
+        ctx.drawText(
+                MinecraftClient.getInstance().textRenderer,
+                snapToGrid ? "Snap: ON" : "Snap: OFF",
+                x + 8,
+                y + 3,
+                snapToGrid ? 0xFF000000 : 0xFFFFFFFF,
+                false
+        );
+
+        y = widgetRowsStartY();
         for (HudWidget widget : HudManager.getWidgets()) {
             if (widget == null) continue;
 

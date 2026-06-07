@@ -131,6 +131,23 @@ public class Health extends HudWidget implements BarDraggable {
         return hpBar.isMouseOver(mouseX, mouseY);
     }
 
+    public double getBarX() {
+        syncBarPosition();
+        return hpBar.x;
+    }
+
+    public double getBarY() {
+        syncBarPosition();
+        return hpBar.y;
+    }
+
+    public void setBarPosition(double x, double y) {
+        syncBarPosition();
+        hpBar.x = x;
+        hpBar.y = y;
+        saveBarCoordinates(false);
+    }
+
     public void moveBar(double dx, double dy) {
         syncBarPosition();
         hpBar.move(dx, dy);

@@ -1,6 +1,7 @@
 package legends.ultra.cool.addons.events;
 
 import legends.ultra.cool.addons.hud.HudManager;
+import legends.ultra.cool.addons.hud.widget.CooldownDisplay;
 import legends.ultra.cool.addons.hud.widget.CounterWidget;
 import legends.ultra.cool.addons.hud.widget.TimerWidget;
 import legends.ultra.cool.addons.overlay.ContainerOverlay;
@@ -23,6 +24,10 @@ public class ClientTickHandler {
             HudManager.getWidgets().forEach(widget -> {
                 if (widget instanceof CounterWidget counter && counter.enabled) {
                     counter.tick();
+                }
+
+                if (widget instanceof CooldownDisplay c && c.enabled) {
+                    c.tick();
                 }
 
                 if (widget instanceof TimerWidget timer && timer.enabled) {

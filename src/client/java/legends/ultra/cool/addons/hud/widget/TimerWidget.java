@@ -21,7 +21,7 @@ public class TimerWidget extends HudWidget {
         if (!running) return;
 
         ticksElapsed++;
-        if (ticksElapsed >= 1) { // your current behavior
+        if (ticksElapsed >= 1) {
             value += 0.05;
             ticksElapsed = 0;
         }

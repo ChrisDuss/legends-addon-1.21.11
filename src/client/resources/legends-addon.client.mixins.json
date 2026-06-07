@@ -12,7 +12,9 @@
     "PlayerEntityRendererDialogueMixin",
     "HandledScreenAccessor",
     "HudManip",
-    "InGameHudAccessor"
+    "InGameHudAccessor",
+    "ItemCooldownEntryAccessor",
+    "ItemCooldownManagerAccessor"
   ],
   "injectors": {
     "defaultRequire": 1

@@ -137,6 +137,23 @@ public class Mana extends HudWidget implements BarDraggable {
         return manaBar.isMouseOver(mouseX, mouseY);
     }
 
+    public double getBarX() {
+        syncBarPosition();
+        return manaBar.x;
+    }
+
+    public double getBarY() {
+        syncBarPosition();
+        return manaBar.y;
+    }
+
+    public void setBarPosition(double x, double y) {
+        syncBarPosition();
+        manaBar.x = x;
+        manaBar.y = y;
+        saveBarCoordinates(false);
+    }
+
     public void moveBar(double dx, double dy) {
         syncBarPosition();
         manaBar.move(dx, dy);
