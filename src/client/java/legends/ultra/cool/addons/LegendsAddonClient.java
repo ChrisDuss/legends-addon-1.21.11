@@ -35,6 +35,7 @@ public class LegendsAddonClient implements ClientModInitializer {
         TimerWidget timerWidget = new TimerWidget(10, 50);
         NameplateWidget nameplateWidget = new NameplateWidget();
         NpcChatWidget npcChatWidget = new NpcChatWidget();
+        UIToggle uiToggle = new UIToggle();
         Health health = new Health("Health Display", 10, 60);
         Mana mana = new Mana("Mana Display", 10, 70);
         Defense defense = new Defense("Defense Display", 10, 80);
@@ -45,6 +46,7 @@ public class LegendsAddonClient implements ClientModInitializer {
         addWidget(timerWidget);
         addWidget(nameplateWidget);
         addWidget(npcChatWidget);
+        addWidget(uiToggle);
         addWidget(health);
         addWidget(mana);
         addWidget(defense);

@@ -9,6 +9,7 @@
     "EntityRendererMultilineLabelMixin",
     "EntityRenderStateDialogueMixin",
     "EntityRenderStateAccessor",
+    "ExperienceBarMixin",
     "PlayerEntityRendererDialogueMixin",
     "HandledScreenAccessor",
     "HudManip",

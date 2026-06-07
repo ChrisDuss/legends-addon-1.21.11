@@ -147,6 +147,28 @@ public class Mana extends HudWidget implements BarDraggable {
         return manaBar.y;
     }
 
+    public double getBarLeft() {
+        syncBarPosition();
+        return manaBar.getVisualX();
+    }
+
+    public double getBarTop() {
+        syncBarPosition();
+        return manaBar.getVisualY();
+    }
+
+    public double getBarWidth() {
+        return manaBar.getVisualWidth();
+    }
+
+    public double getBarHeight() {
+        return manaBar.getVisualHeight();
+    }
+
+    public boolean isBarVisible() {
+        return WidgetConfigManager.getBool(name, "barToggle", false);
+    }
+
     public void setBarPosition(double x, double y) {
         syncBarPosition();
         manaBar.x = x;
@@ -322,12 +344,6 @@ public class Mana extends HudWidget implements BarDraggable {
                         () -> WidgetConfigManager.getFloat(w, "barWidth", 80f),
                         v -> WidgetConfigManager.setFloat(w, "barWidth", (float) v, true),
                         80f
-                ),
-                HudSetting.toggle("foodToggle", "Hide Food bar",
-                        () -> true,
-                        () -> WidgetConfigManager.getBool(w, "foodToggle", false),
-                        b -> WidgetConfigManager.setBool(w, "foodToggle", b, true),
-                        false
                 )
         );
     }

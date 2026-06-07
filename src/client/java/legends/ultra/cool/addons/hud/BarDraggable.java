@@ -7,6 +7,16 @@ public interface BarDraggable {
 
     double getBarY();
 
+    double getBarLeft();
+
+    double getBarTop();
+
+    double getBarWidth();
+
+    double getBarHeight();
+
+    boolean isBarVisible();
+
     void setBarPosition(double x, double y);
 
     void moveBar(double dx, double dy);

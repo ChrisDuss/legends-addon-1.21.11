@@ -184,9 +184,9 @@ public class Defense extends HudWidget {
                 HudSetting.section("Display"),
                 HudSetting.toggle("bgToggle", "Background",
                         () -> true,
-                        () -> WidgetConfigManager.getBool(w, "bgToggle", true),
+                        () -> WidgetConfigManager.getBool(w, "bgToggle", false),
                         b -> WidgetConfigManager.setBool(w, "bgToggle", b, true),
-                        true
+                        false
                 ),
                 HudSetting.color("bgColor", "BG Color",
                         () -> WidgetConfigManager.getBool(w, "bgToggle", true),
@@ -196,9 +196,9 @@ public class Defense extends HudWidget {
                 ),
                 HudSetting.toggle("brdToggle", "Border",
                         () -> true,
-                        () -> WidgetConfigManager.getBool(w, "brdToggle", true),
+                        () -> WidgetConfigManager.getBool(w, "brdToggle", false),
                         b -> WidgetConfigManager.setBool(w, "brdToggle", b, true),
-                        true
+                        false
                 ),
                 HudSetting.color("brdColor", "Border Color",
                         () -> WidgetConfigManager.getBool(w, "brdToggle", true),

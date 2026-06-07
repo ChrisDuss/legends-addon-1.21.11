@@ -66,6 +66,22 @@ public class Bar extends HudWidget {
                 && mouseY <= y + BOTTOM_PADDING;
     }
 
+    public double getVisualX() {
+        return x - LEFT_PADDING;
+    }
+
+    public double getVisualY() {
+        return y - TOP_PADDING;
+    }
+
+    public double getVisualWidth() {
+        return getWidth() + LEFT_PADDING + RIGHT_PADDING;
+    }
+
+    public double getVisualHeight() {
+        return TOP_PADDING + BOTTOM_PADDING;
+    }
+
     public void clampToScreen(int screenWidth, int screenHeight) {
         x = Math.max(LEFT_PADDING, Math.min(x, screenWidth - getWidth() - RIGHT_PADDING));
         y = Math.max(TOP_PADDING, Math.min(y, screenHeight - BOTTOM_PADDING));

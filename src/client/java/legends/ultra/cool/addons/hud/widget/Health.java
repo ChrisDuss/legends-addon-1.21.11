@@ -141,6 +141,28 @@ public class Health extends HudWidget implements BarDraggable {
         return hpBar.y;
     }
 
+    public double getBarLeft() {
+        syncBarPosition();
+        return hpBar.getVisualX();
+    }
+
+    public double getBarTop() {
+        syncBarPosition();
+        return hpBar.getVisualY();
+    }
+
+    public double getBarWidth() {
+        return hpBar.getVisualWidth();
+    }
+
+    public double getBarHeight() {
+        return hpBar.getVisualHeight();
+    }
+
+    public boolean isBarVisible() {
+        return WidgetConfigManager.getBool(name, "barToggle", false);
+    }
+
     public void setBarPosition(double x, double y) {
         syncBarPosition();
         hpBar.x = x;
@@ -316,12 +338,6 @@ public class Health extends HudWidget implements BarDraggable {
                         () -> WidgetConfigManager.getFloat(w, "barWidth", 80f),
                         v -> WidgetConfigManager.setFloat(w, "barWidth", (float) v, true),
                         80f
-                ),
-                HudSetting.toggle("heartsToggle", "Hide health bar",
-                        () -> true,
-                        () -> WidgetConfigManager.getBool(w, "heartsToggle", false),
-                        b -> WidgetConfigManager.setBool(w, "heartsToggle", b, true),
-                        false
                 )
         );
     }

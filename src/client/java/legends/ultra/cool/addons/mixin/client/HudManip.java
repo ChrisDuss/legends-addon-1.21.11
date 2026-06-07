@@ -1,17 +1,20 @@
 package legends.ultra.cool.addons.mixin.client;
 
-import legends.ultra.cool.addons.data.WidgetConfigManager;
 import legends.ultra.cool.addons.hud.widget.Defense;
 import legends.ultra.cool.addons.hud.widget.Health;
 import legends.ultra.cool.addons.hud.widget.Mana;
+import legends.ultra.cool.addons.hud.widget.UIToggle;
+import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.hud.InGameHud;
+import net.minecraft.client.gui.hud.bar.Bar;
 import net.minecraft.client.render.RenderTickCounter;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.text.Text;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(InGameHud.class)
@@ -20,15 +23,28 @@ public class HudManip {
 
     @Inject(method = "renderHealthBar", at = @At("HEAD"), cancellable = true)
     private void legends$hideHealthBar(DrawContext context, PlayerEntity player, int x, int y, int lines, int regeneratingHeartIndex, float maxHealth, int lastHealth, int health, int absorption, boolean blinking, CallbackInfo ci) {
-        if (Health.isEnabledGlobal()) {
-            if (WidgetConfigManager.getBool("Health Display", "heartsToggle", false)) ci.cancel();
+        if (UIToggle.shouldHideHealthBar()) {
+            ci.cancel();
         }
     }
 
     @Inject(method = "renderFood", at = @At("HEAD"), cancellable = true)
     private void legends$hideFoodBar(DrawContext context, PlayerEntity player, int top, int right, CallbackInfo ci) {
-        if (Mana.isEnabledGlobal()) {
-            if (WidgetConfigManager.getBool("Mana Display", "foodToggle", false)) ci.cancel();
+        if (UIToggle.shouldHideFoodBar()) {
+            ci.cancel();
+        }
+    }
+
+    @Redirect(
+            method = "renderMainHud",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/client/gui/hud/bar/Bar;drawExperienceLevel(Lnet/minecraft/client/gui/DrawContext;Lnet/minecraft/client/font/TextRenderer;I)V"
+            )
+    )
+    private void legends$hideExperienceLevel(DrawContext context, TextRenderer textRenderer, int experienceLevel) {
+        if (!UIToggle.shouldHideXpBar()) {
+            Bar.drawExperienceLevel(context, textRenderer, experienceLevel);
         }
     }
 

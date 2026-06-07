@@ -9,15 +9,26 @@ import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.input.MouseInput;
 import net.minecraft.text.Text;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
 public class HudEditorScreen extends Screen {
+    private static final String EDITOR_CONFIG_ID = "__hud_editor__";
+    private static final String SNAP_ENABLED_KEY = "snapEnabled";
+
     private static final int PANEL_WIDTH = 120;
     private static final int HEADER_HEIGHT = 16;
     private static final int ROW_HEIGHT = 14;
-    private static final int SNAP_GRID_SIZE = 8;
-    private static final int SNAP_GRID_COLOR = 0x22FFFFFF;
+    private static final int SNAP_DISTANCE = 6;
+    private static final int SNAP_GUIDE_COLOR = 0xCC4AA3DF;
+    private static final int HOTBAR_GUIDE_COLOR = 0x664AA3DF;
+    private static final int HOTBAR_WIDTH = 181;
+    private static final int HOTBAR_HEIGHT = 22;
+    private static final int HOTBAR_SLOT_SIZE = 20;
+    private static final int HOTBAR_SLOT_OFFSET_X = 1;
+    private static final int HOTBAR_SLOT_OFFSET_Y = 1;
+    private static final int HOTBAR_SLOT_COUNT = 9;
 
     private static final int MODAL_W = 220;
     private static final int MODAL_MIN_H = 180;
@@ -33,7 +44,9 @@ public class HudEditorScreen extends Screen {
     private BarDraggable draggingBar;
     private double dragOffsetX, dragOffsetY;
     private boolean panelExpanded = true;
-    private boolean snapToGrid = true;
+    private boolean snapEnabled = true;
+    private double activeSnapGuideX = Double.NaN;
+    private double activeSnapGuideY = Double.NaN;
 
     private HudWidget settingsWidget = null; // null = closed
 
@@ -46,6 +59,7 @@ public class HudEditorScreen extends Screen {
 
     public HudEditorScreen() {
         super(Text.literal("HUD Editor"));
+        snapEnabled = WidgetConfigManager.getBool(EDITOR_CONFIG_ID, SNAP_ENABLED_KEY, true);
     }
 
     private boolean isSettingsOpen() {
@@ -75,10 +89,6 @@ public class HudEditorScreen extends Screen {
 
     private static boolean inside(double mx, double my, int x, int y, int w, int h) {
         return mx >= x && mx <= x + w && my >= y && my <= y + h;
-    }
-
-    private static double snap(double value) {
-        return Math.round(value / SNAP_GRID_SIZE) * SNAP_GRID_SIZE;
     }
 
     private static double clamp(double value, double min, double max) {
@@ -163,7 +173,8 @@ public class HudEditorScreen extends Screen {
         // Panel list clicks
         int y = HEADER_HEIGHT + 4;
         if (inside(mouseX, mouseY, x + 5, y, PANEL_WIDTH - 10, ROW_HEIGHT)) {
-            snapToGrid = !snapToGrid;
+            snapEnabled = !snapEnabled;
+            WidgetConfigManager.setBool(EDITOR_CONFIG_ID, SNAP_ENABLED_KEY, snapEnabled, true);
             return true;
         }
 
@@ -291,12 +302,14 @@ public class HudEditorScreen extends Screen {
         if (draggingBar != null) {
             draggingBar.saveBarPosition();
             draggingBar = null;
+            clearSnapGuides();
             return true;
         }
 
         if (dragging != null) {
             WidgetConfigManager.updateWidget(dragging);
             dragging = null;
+            clearSnapGuides();
             return true;
         }
 
@@ -457,7 +470,7 @@ public class HudEditorScreen extends Screen {
     public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
         super.render(ctx, mouseX, mouseY, delta);
 
-        renderGrid(ctx);
+        renderSnapGuides(ctx);
 
         for (HudWidget widget : HudManager.getWidgets()) {
             if (widget.isEnabled()) widget.render(ctx);
@@ -505,9 +518,21 @@ public class HudEditorScreen extends Screen {
         double targetX = mouseX - dragOffsetX;
         double targetY = mouseY - dragOffsetY;
 
-        if (snapToGrid) {
-            targetX = snap(targetX);
-            targetY = snap(targetY);
+        if (snapEnabled) {
+            SnapPosition snapped = snapPosition(
+                    targetX,
+                    targetY,
+                    0d,
+                    0d,
+                    dragging.getWidth(),
+                    dragging.getHeight(),
+                    dragging,
+                    null
+            );
+            targetX = snapped.x;
+            targetY = snapped.y;
+        } else {
+            clearSnapGuides();
         }
 
         dragging.x = clamp(targetX, 0, this.width - dragging.getWidth());
@@ -518,24 +543,131 @@ public class HudEditorScreen extends Screen {
         double targetX = mouseX - dragOffsetX;
         double targetY = mouseY - dragOffsetY;
 
-        if (snapToGrid) {
-            targetX = snap(targetX);
-            targetY = snap(targetY);
+        if (snapEnabled) {
+            SnapPosition snapped = snapPosition(
+                    targetX,
+                    targetY,
+                    draggingBar.getBarLeft() - draggingBar.getBarX(),
+                    draggingBar.getBarTop() - draggingBar.getBarY(),
+                    draggingBar.getBarWidth(),
+                    draggingBar.getBarHeight(),
+                    null,
+                    draggingBar
+            );
+            targetX = snapped.x;
+            targetY = snapped.y;
+        } else {
+            clearSnapGuides();
         }
 
         draggingBar.setBarPosition(targetX, targetY);
         draggingBar.clampBar(this.width, this.height);
     }
 
-    private void renderGrid(DrawContext ctx) {
-        if (!snapToGrid || isSettingsOpen()) return;
+    private SnapPosition snapPosition(double targetX, double targetY, double objectOffsetX, double objectOffsetY,
+                                      double objectWidth, double objectHeight,
+                                      HudWidget excludedWidget, BarDraggable excludedBar) {
+        clearSnapGuides();
 
-        for (int x = SNAP_GRID_SIZE; x < this.width; x += SNAP_GRID_SIZE) {
-            ctx.drawVerticalLine(x, 0, this.height, SNAP_GRID_COLOR);
+        double snappedX = targetX;
+        double snappedY = targetY;
+        double bestX = SNAP_DISTANCE + 0.001d;
+        double bestY = SNAP_DISTANCE + 0.001d;
+
+        double[] sourceXOffsets = {objectOffsetX, objectOffsetX + objectWidth / 2d, objectOffsetX + objectWidth};
+        double[] sourceYOffsets = {objectOffsetY, objectOffsetY + objectHeight / 2d, objectOffsetY + objectHeight};
+
+        for (SnapRect target : collectSnapTargets(excludedWidget, excludedBar)) {
+            double[] targetXAnchors = {target.left(), target.centerX(), target.right()};
+            for (double targetAnchor : targetXAnchors) {
+                for (double sourceOffset : sourceXOffsets) {
+                    double candidateX = targetAnchor - sourceOffset;
+                    double distance = Math.abs(candidateX - targetX);
+                    if (distance < bestX) {
+                        bestX = distance;
+                        snappedX = candidateX;
+                        activeSnapGuideX = targetAnchor;
+                    }
+                }
+            }
+
+            double[] targetYAnchors = {target.top(), target.centerY(), target.bottom()};
+            for (double targetAnchor : targetYAnchors) {
+                for (double sourceOffset : sourceYOffsets) {
+                    double candidateY = targetAnchor - sourceOffset;
+                    double distance = Math.abs(candidateY - targetY);
+                    if (distance < bestY) {
+                        bestY = distance;
+                        snappedY = candidateY;
+                        activeSnapGuideY = targetAnchor;
+                    }
+                }
+            }
         }
 
-        for (int y = SNAP_GRID_SIZE; y < this.height; y += SNAP_GRID_SIZE) {
-            ctx.drawHorizontalLine(0, this.width, y, SNAP_GRID_COLOR);
+        return new SnapPosition(snappedX, snappedY);
+    }
+
+    private List<SnapRect> collectSnapTargets(HudWidget excludedWidget, BarDraggable excludedBar) {
+        List<SnapRect> targets = new ArrayList<>();
+        targets.add(new SnapRect(0, 0, this.width, this.height));
+
+        SnapRect hotbar = hotbarRect();
+        targets.add(hotbar);
+
+        for (int i = 0; i < HOTBAR_SLOT_COUNT; i++) {
+            targets.add(new SnapRect(
+                    hotbar.x + HOTBAR_SLOT_OFFSET_X + i * HOTBAR_SLOT_SIZE,
+                    hotbar.y + HOTBAR_SLOT_OFFSET_Y,
+                    HOTBAR_SLOT_SIZE,
+                    HOTBAR_SLOT_SIZE
+            ));
+        }
+
+        for (HudWidget widget : HudManager.getWidgets()) {
+            if (widget == null || !widget.isEnabled()) continue;
+
+            if (widget != excludedWidget) {
+                double widgetWidth = widget.getWidth();
+                double widgetHeight = widget.getHeight();
+                if (widgetWidth > 0 && widgetHeight > 0) {
+                    targets.add(new SnapRect(widget.x, widget.y, widgetWidth, widgetHeight));
+                }
+            }
+
+            if (widget instanceof BarDraggable bar
+                    && bar != excludedBar
+                    && bar.isBarVisible()) {
+                targets.add(new SnapRect(bar.getBarLeft(), bar.getBarTop(), bar.getBarWidth(), bar.getBarHeight()));
+            }
+        }
+
+        return targets;
+    }
+
+    private SnapRect hotbarRect() {
+        return new SnapRect((this.width - HOTBAR_WIDTH - 1) / 2d, this.height - HOTBAR_HEIGHT, HOTBAR_WIDTH, HOTBAR_HEIGHT);
+    }
+
+    private void clearSnapGuides() {
+        activeSnapGuideX = Double.NaN;
+        activeSnapGuideY = Double.NaN;
+    }
+
+    private void renderSnapGuides(DrawContext ctx) {
+        if (!snapEnabled || isSettingsOpen()) return;
+
+        SnapRect hotbar = hotbarRect();
+        drawBorder(ctx, (int) Math.round(hotbar.x), (int) Math.round(hotbar.y), HOTBAR_WIDTH, HOTBAR_HEIGHT, HOTBAR_GUIDE_COLOR);
+
+        if (!Double.isNaN(activeSnapGuideX)) {
+            int x = (int) Math.round(activeSnapGuideX);
+            ctx.drawVerticalLine(x, 0, this.height, SNAP_GUIDE_COLOR);
+        }
+
+        if (!Double.isNaN(activeSnapGuideY)) {
+            int y = (int) Math.round(activeSnapGuideY);
+            ctx.drawHorizontalLine(0, this.width, y, SNAP_GUIDE_COLOR);
         }
     }
 
@@ -553,14 +685,14 @@ public class HudEditorScreen extends Screen {
         );
 
         int y = HEADER_HEIGHT + 4;
-        int snapColor = snapToGrid ? 0xFF4AA3DF : 0xFF555555;
+        int snapColor = snapEnabled ? 0xFF4AA3DF : 0xFF555555;
         ctx.fill(x + 5, y, x + PANEL_WIDTH - 5, y + ROW_HEIGHT, snapColor);
         ctx.drawText(
                 MinecraftClient.getInstance().textRenderer,
-                snapToGrid ? "Snap: ON" : "Snap: OFF",
+                snapEnabled ? "Snap: ON" : "Snap: OFF",
                 x + 8,
                 y + 3,
-                snapToGrid ? 0xFF000000 : 0xFFFFFFFF,
+                snapEnabled ? 0xFF000000 : 0xFFFFFFFF,
                 false
         );
 
@@ -847,5 +979,34 @@ public class HudEditorScreen extends Screen {
         ctx.drawVerticalLine(x + w, y, y + h, color);
         ctx.drawHorizontalLine(x, x + w, y, color);
         ctx.drawHorizontalLine(x, x + w, y + h, color);
+    }
+
+    private record SnapPosition(double x, double y) {
+    }
+
+    private record SnapRect(double x, double y, double width, double height) {
+        double left() {
+            return x;
+        }
+
+        double centerX() {
+            return x + width / 2d;
+        }
+
+        double right() {
+            return x + width;
+        }
+
+        double top() {
+            return y;
+        }
+
+        double centerY() {
+            return y + height / 2d;
+        }
+
+        double bottom() {
+            return y + height;
+        }
     }
 }

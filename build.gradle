@@ -92,7 +92,7 @@ publishing {
 	}
 }
 
-def MODRINTH_MODS_DIR = "C:\\Users\\CHRISSo\\AppData\\Roaming\\ModrinthApp\\profiles\\1.21.11\\mods"
+def MODRINTH_MODS_DIR = "C:\\Users\\chrizotto\\AppData\\Roaming\\ModrinthApp\\profiles\\1.21.11\\mods"
 
 tasks.register("devDeploy", Copy) {
 	dependsOn "remapJar"
