@@ -1,0 +1,24 @@
+name: PlayerVaultsX
+version: dev-mock-1.0.0
+main: legends.ultra.cool.devserver.mockpv.MockPlayerVaultsPlugin
+api-version: '1.21'
+authors:
+  - Codex
+description: Local dev mock for PlayerVaultsX-style testing.
+commands:
+  pv:
+    description: Open a mock player vault or the storage menu.
+    usage: /pv [number|menu]
+    aliases: [vault, playervaults, chest]
+  pvgui:
+    description: Open the mock storage menu.
+    usage: /pvgui
+  storage:
+    description: Open the mock storage menu.
+    usage: /storage
+  pvmax:
+    description: Set the number of unlocked vaults for testing.
+    usage: /pvmax <number> or /pvmax <player> <number>
+permissions:
+  playervaults.admin:
+    default: op

@@ -1,0 +1,41 @@
+plugins {
+    id 'java'
+}
+
+group = 'legends.ultra.cool.devserver'
+version = '1.0.0'
+
+def resolvedPaperApiVersion = (findProperty('paperApiVersion') ?: '1.21.11-R0.1-SNAPSHOT').toString()
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+repositories {
+    maven {
+        url = 'https://repo.papermc.io/repository/maven-public/'
+    }
+    mavenCentral()
+}
+
+dependencies {
+    compileOnly("io.papermc.paper:paper-api:${resolvedPaperApiVersion}")
+}
+
+sourceSets {
+    main {
+        java.srcDirs = ['src']
+        resources.srcDirs = ['resources']
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.release = 21
+}
+
+tasks.jar {
+    archiveFileName = 'PlayerVaultsX-dev-mock.jar'
+}
