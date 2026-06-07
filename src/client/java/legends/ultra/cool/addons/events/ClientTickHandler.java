@@ -5,6 +5,7 @@ import legends.ultra.cool.addons.hud.widget.CooldownDisplay;
 import legends.ultra.cool.addons.hud.widget.CounterWidget;
 import legends.ultra.cool.addons.hud.widget.TimerWidget;
 import legends.ultra.cool.addons.overlay.ContainerOverlay;
+import legends.ultra.cool.addons.storage.VaultStorageManager;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.gui.screen.ingame.HandledScreen;
 
@@ -47,6 +48,7 @@ public class ClientTickHandler {
                 containerTicks = 0;
             }
 
+            VaultStorageManager.tick(client);
             wasOpen = isContainerOpen;
         });
     }
