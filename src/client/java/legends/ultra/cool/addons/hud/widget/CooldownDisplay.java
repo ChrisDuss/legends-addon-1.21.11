@@ -140,14 +140,28 @@ public class CooldownDisplay extends HudWidget {
     }
 
     @Override
-    public boolean isMouseOver(double mouseX, double mouseY) {
-        int width = (int) Math.ceil(getWidth());
-        int height = (int) Math.ceil(getHeight());
-        int left = (int) x;
-        int top = getRenderTop(height);
+    public double getVisualX() {
+        return usesDecoratedBounds() ? x - PAD : x;
+    }
 
-        return mouseX >= left - PAD && mouseX <= left + width + PAD
-                && mouseY >= top - PAD && mouseY <= top + height + PAD;
+    @Override
+    public double getVisualY() {
+        return usesDecoratedBounds() ? getRenderTop((int) Math.ceil(getHeight())) - PAD : getRenderTop((int) Math.ceil(getHeight()));
+    }
+
+    @Override
+    public double getVisualWidth() {
+        return getWidth() + (usesDecoratedBounds() ? PAD * 2d : 0d);
+    }
+
+    @Override
+    public double getVisualHeight() {
+        return getHeight() + (usesDecoratedBounds() ? PAD * 2d : 0d);
+    }
+
+    @Override
+    public boolean isMouseOver(double mouseX, double mouseY) {
+        return super.isMouseOver(mouseX, mouseY);
     }
 
     @Override
@@ -268,6 +282,11 @@ public class CooldownDisplay extends HudWidget {
 
     private static int getPlaceholderWidth(TextRenderer textRenderer) {
         return ITEM_SIZE + TEXT_GAP + textRenderer.getWidth("0.0s");
+    }
+
+    private boolean usesDecoratedBounds() {
+        return WidgetConfigManager.getBool(getName(), "bgToggle", true)
+                || WidgetConfigManager.getBool(getName(), "brdToggle", true);
     }
 
     private int getRenderTop(int height) {

@@ -4,6 +4,7 @@ import legends.ultra.cool.addons.data.WidgetConfigManager;
 import legends.ultra.cool.addons.hud.BarDraggable;
 import legends.ultra.cool.addons.hud.HudWidget;
 import legends.ultra.cool.addons.mixin.client.InGameHudAccessor;
+import legends.ultra.cool.addons.util.AddonServerGate;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.network.ClientPlayerEntity;
@@ -41,7 +42,7 @@ public class Health extends HudWidget implements BarDraggable {
     }
 
     public static boolean isEnabledGlobal() {
-        return INSTANCE != null && INSTANCE.isEnabled();
+        return AddonServerGate.shouldRunOnCurrentServer() && INSTANCE != null && INSTANCE.isEnabled();
     }
 
     public static boolean shouldHideOverlay(Text overlay) {
@@ -125,6 +126,7 @@ public class Health extends HudWidget implements BarDraggable {
         if (match != null) {
             currentHealth = Double.parseDouble(match.current().replace(',', '.'));
             maxHealth = Double.parseDouble(match.max().replace(',', '.'));
+            currentHealth = player.getHealth() * (maxHealth/player.getMaxHealth());
             health = currentHealth + "/" + maxHealth;
         }
 
@@ -289,6 +291,31 @@ public class Health extends HudWidget implements BarDraggable {
 
         MinecraftClient client = MinecraftClient.getInstance();
         return client == null ? 0 : client.textRenderer.fontHeight;
+    }
+
+    @Override
+    public double getVisualX() {
+        return usesDecoratedBounds() ? x - 3 : x;
+    }
+
+    @Override
+    public double getVisualY() {
+        return usesDecoratedBounds() ? y - 3 : y;
+    }
+
+    @Override
+    public double getVisualWidth() {
+        return getWidth() + (usesDecoratedBounds() ? 5 : 0);
+    }
+
+    @Override
+    public double getVisualHeight() {
+        return getHeight() + (usesDecoratedBounds() ? 5 : 0);
+    }
+
+    private boolean usesDecoratedBounds() {
+        return WidgetConfigManager.getBool(getName(), "bgToggle", true)
+                || WidgetConfigManager.getBool(getName(), "brdToggle", true);
     }
 
     @Override

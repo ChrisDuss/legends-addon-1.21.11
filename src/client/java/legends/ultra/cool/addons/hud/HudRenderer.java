@@ -1,6 +1,7 @@
 package legends.ultra.cool.addons.hud;
 
 import legends.ultra.cool.addons.data.WidgetConfigManager;
+import legends.ultra.cool.addons.util.AddonServerGate;
 import legends.ultra.cool.addons.util.UiVisibility;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.minecraft.client.MinecraftClient;
@@ -37,12 +38,16 @@ public class HudRenderer {
                 lastScaledHeight = scaledHeight;
             }
 
+            if (!AddonServerGate.shouldRunOnCurrentServer()) {
+                return;
+            }
+
             if (UiVisibility.isHudHidden()) {
                 return;
             }
 
             HudManager.getWidgets().forEach(w -> {
-                if (w.enabled) w.render(context);
+                if (w.isEnabled()) w.render(context);
             });
         });
     }

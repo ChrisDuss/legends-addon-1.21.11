@@ -4,6 +4,8 @@ import legends.ultra.cool.addons.hud.HudEditorScreen;
 import legends.ultra.cool.addons.hud.HudManager;
 import legends.ultra.cool.addons.hud.widget.TimerWidget;
 import legends.ultra.cool.addons.overlay.ContainerOverlay;
+import legends.ultra.cool.addons.storage.VaultStorageManager;
+import legends.ultra.cool.addons.util.AddonServerGate;
 import legends.ultra.cool.addons.util.EntityDebug;
 import legends.ultra.cool.addons.util.ItemDebugDump;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -25,6 +27,7 @@ public class Keybinds {
     public static KeyBinding OPEN_EDITOR;
     public static KeyBinding TOGGLE_TIMER;
     public static KeyBinding RESET_TIMER;
+    public static KeyBinding OPEN_VAULT;
     public static final KeyBinding.Category MAIN_CATEGORY = KeyBinding.Category.create(Identifier.of("legends_addon"));
 
     public static void init() {
@@ -51,6 +54,13 @@ public class Keybinds {
                         MAIN_CATEGORY
                 ));
 
+        OPEN_VAULT = KeyBindingHelper.registerKeyBinding(
+                new KeyBinding(
+                        "Open Vault",
+                        GLFW.GLFW_KEY_V,
+                        MAIN_CATEGORY
+                ));
+
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
 
@@ -59,9 +69,17 @@ public class Keybinds {
                 client.setScreen(new HudEditorScreen());
             }
 
+            if (!AddonServerGate.shouldRunOnCurrentServer()) {
+                return;
+            }
+
+            while (OPEN_VAULT.wasPressed()) {
+                VaultStorageManager.openBrowser(client);
+            }
+
             //TIMER
             HudManager.getWidgets().forEach(widget -> {
-                if (widget instanceof TimerWidget timer && timer.enabled) {
+                if (widget instanceof TimerWidget timer && timer.isEnabled()) {
                     while (TOGGLE_TIMER.wasPressed()) {
                         timer.toggleTick();
                     }

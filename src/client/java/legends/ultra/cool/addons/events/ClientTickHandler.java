@@ -6,6 +6,7 @@ import legends.ultra.cool.addons.hud.widget.CounterWidget;
 import legends.ultra.cool.addons.hud.widget.TimerWidget;
 import legends.ultra.cool.addons.overlay.ContainerOverlay;
 import legends.ultra.cool.addons.storage.VaultStorageManager;
+import legends.ultra.cool.addons.util.AddonServerGate;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.gui.screen.ingame.HandledScreen;
 
@@ -22,29 +23,36 @@ public class ClientTickHandler {
         initialized = true;
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
-            HudManager.getWidgets().forEach(widget -> {
-                if (widget instanceof CounterWidget counter && counter.enabled) {
-                    counter.tick();
-                }
+            boolean addonEnabled = AddonServerGate.shouldRunOnCurrentServer();
+            if (addonEnabled) {
+                HudManager.getWidgets().forEach(widget -> {
+                    if (widget instanceof CounterWidget counter && counter.isEnabled()) {
+                        counter.tick();
+                    }
 
-                if (widget instanceof CooldownDisplay c && c.enabled) {
-                    c.tick();
-                }
+                    if (widget instanceof CooldownDisplay c && c.isEnabled()) {
+                        c.tick();
+                    }
 
-                if (widget instanceof TimerWidget timer && timer.enabled) {
-                    timer.tick(timer.getToggleState());
-                }
-            });
-
-            boolean isContainerOpen = client.currentScreen instanceof HandledScreen<?>;
-            if (isContainerOpen) {
-                containerTicks++;
-            } else {
-                containerTicks = 0;
+                    if (widget instanceof TimerWidget timer && timer.isEnabled()) {
+                        timer.tick(timer.getToggleState());
+                    }
+                });
             }
 
-            if (isContainerOpen && (!wasOpen || containerTicks >= CONTAINER_SCAN_INTERVAL_TICKS)) {
-                ContainerOverlay.fTreeCheck();
+            boolean isContainerOpen = client.currentScreen instanceof HandledScreen<?>;
+            if (addonEnabled) {
+                if (isContainerOpen) {
+                    containerTicks++;
+                } else {
+                    containerTicks = 0;
+                }
+
+                if (isContainerOpen && (!wasOpen || containerTicks >= CONTAINER_SCAN_INTERVAL_TICKS)) {
+                    ContainerOverlay.fTreeCheck();
+                    containerTicks = 0;
+                }
+            } else {
                 containerTicks = 0;
             }
 

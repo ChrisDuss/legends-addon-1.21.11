@@ -4,6 +4,7 @@ import legends.ultra.cool.addons.LegendsAddon;
 import legends.ultra.cool.addons.data.WidgetConfigManager;
 import legends.ultra.cool.addons.hud.widget.settings.ColorPicker;
 import legends.ultra.cool.addons.input.Keybinds;
+import legends.ultra.cool.addons.util.AddonServerGate;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.client.gui.Click;
@@ -23,7 +24,9 @@ import java.util.Optional;
 
 public class HudEditorScreen extends Screen {
     private static final String EDITOR_CONFIG_ID = "__hud_editor__";
+    private static final String GENERAL_SETTINGS_CONFIG_ID = "__general_settings__";
     private static final String SNAP_ENABLED_KEY = "snapEnabled";
+    private static final String THEME_KEY = "editorTheme";
 
     private static final int SNAP_DISTANCE = 6;
     private static final int SNAP_GUIDE_COLOR = 0xCC4AA3DF;
@@ -57,23 +60,64 @@ public class HudEditorScreen extends Screen {
     private static final int MOD_TILE_MIN_SIZE = 72;
     private static final int MOD_TILE_GAP = 14;
     private static final int MOD_TILE_ICON_SIZE = 34;
-    private static final int LAUNCHER_ICON_SIZE = 22;
+    private static final int LAUNCHER_ICON_SIZE = 12;
+    private static final int GENERAL_TAB_H = 16;
+    private static final int GENERAL_TAB_GAP = 12;
+    private static final int GENERAL_ROW_H = 26;
+    private static final int GENERAL_TOGGLE_W = 48;
+    private static final int GENERAL_TOGGLE_H = 16;
+    private static final int GENERAL_DROPDOWN_W = 136;
+    private static final int GENERAL_THEME_OPTION_H = 18;
+    private static final int GENERAL_DROPDOWN_GAP = 4;
+    private static final Identifier VANILLA_BUTTON_SPRITE = Identifier.ofVanilla("widget/button");
+    private static final Identifier VANILLA_BUTTON_HOVERED_SPRITE = Identifier.ofVanilla("widget/button_highlighted");
+    private static final Identifier VANILLA_BUTTON_DISABLED_SPRITE = Identifier.ofVanilla("widget/button_disabled");
+    private static final Identifier VANILLA_TEXT_FIELD_SPRITE = Identifier.ofVanilla("widget/text_field");
+    private static final Identifier VANILLA_TEXT_FIELD_HIGHLIGHTED_SPRITE = Identifier.ofVanilla("widget/text_field_highlighted");
+    private static final Identifier VANILLA_POPUP_BACKGROUND_SPRITE = Identifier.ofVanilla("popup/background");
+    private static final Identifier VANILLA_SCROLLER_BACKGROUND_SPRITE = Identifier.ofVanilla("widget/scroller_background");
+    private static final Identifier VANILLA_SCROLLER_SPRITE = Identifier.ofVanilla("widget/scroller");
+    private static final Identifier VANILLA_MENU_BACKGROUND_TEXTURE = Identifier.ofVanilla("textures/gui/menu_background.png");
 
-    private static final int UI_PANEL_COLOR = 0xFF111111;
-    private static final int UI_PANEL_HOVER_COLOR = 0xFF1A1A1A;
-    private static final int UI_BORDER_COLOR = 0xFFFFFFFF;
-    private static final int UI_BORDER_DARK = 0xFF000000;
-    private static final int UI_BUTTON_TEXT_COLOR = 0xFFFFFFFF;
-    private static final int UI_SUBTEXT_COLOR = 0xFFAAAAAA;
-    private static final int MOD_TILE_ENABLED_COLOR = 0xFF26C665;
-    private static final int MOD_TILE_ENABLED_FOOTER = 0xFF1D8E49;
-    private static final int MOD_TILE_DISABLED_COLOR = 0xFF111111;
-    private static final int MOD_TILE_DISABLED_FOOTER = 0xFF0A0A0A;
-    private static final int MOD_TILE_DISABLED_BORDER = 0xFF000000;
-    private static final int BUTTON_FILL_COLOR = 0xFF333333;
-    private static final int BUTTON_FILL_HOVER_COLOR = 0xFF444444;
-    private static final int BUTTON_BORDER_COLOR = 0xFFFFFFFF;
-    private static final int BUTTON_BORDER_HOVER_COLOR = 0xFFFFFFFF;
+    private int UI_PANEL_COLOR = 0xFF111111;
+    private int UI_PANEL_HOVER_COLOR = 0xFF1A1A1A;
+    private int UI_BORDER_COLOR = 0xFFFFFFFF;
+    private int UI_BORDER_DARK = 0xFF000000;
+    private int UI_BUTTON_TEXT_COLOR = 0xFFFFFFFF;
+    private int UI_SUBTEXT_COLOR = 0xFFAAAAAA;
+    private int MOD_TILE_ENABLED_COLOR = 0xFF26C665;
+    private int MOD_TILE_ENABLED_FOOTER = 0xFF1D8E49;
+    private int MOD_TILE_DISABLED_COLOR = 0xFF111111;
+    private int MOD_TILE_DISABLED_FOOTER = 0xFF0A0A0A;
+    private int MOD_TILE_DISABLED_BORDER = 0xFF000000;
+    private int BUTTON_FILL_COLOR = 0xFF333333;
+    private int BUTTON_FILL_HOVER_COLOR = 0xFF444444;
+    private int BUTTON_BORDER_COLOR = 0xFFFFFFFF;
+    private int BUTTON_BORDER_HOVER_COLOR = 0xFFFFFFFF;
+    private int BACKDROP_TOP_COLOR = 0x88000000;
+    private int BACKDROP_BOTTOM_COLOR = 0xAA000000;
+    private int LAYOUT_BACKDROP_TOP_COLOR = 0x44000000;
+    private int LAYOUT_BACKDROP_BOTTOM_COLOR = 0x66000000;
+    private int DIVIDER_COLOR = 0x66000000;
+    private int SCROLL_TRACK_COLOR = 0x66000000;
+    private int SCROLL_THUMB_COLOR = 0xCCFFFFFF;
+    private int MODAL_OVERLAY_COLOR = 0x88000000;
+    private int MODAL_PANEL_COLOR = 0xFF111111;
+    private int MODAL_BORDER_COLOR = 0xFFFFFFFF;
+    private int MODAL_TEXT_COLOR = 0xFFFFFFFF;
+    private int MODAL_DISABLED_TEXT_COLOR = 0xFF777777;
+    private int MODAL_SECTION_COLOR = 0xFF8EC5FF;
+    private int MODAL_SECTION_DIVIDER_COLOR = 0xFF2D2D2D;
+    private int MODAL_CONTROL_FILL_COLOR = 0xFF333333;
+    private int MODAL_CONTROL_HOVER_COLOR = 0xFF444444;
+    private int MODAL_TOGGLE_ON_COLOR = 0xFF2ECC71;
+    private int MODAL_TOGGLE_OFF_COLOR = 0xFF7F8C8D;
+    private int MODAL_DISABLED_FILL_COLOR = 0xFF444444;
+    private int MODAL_VALUE_TEXT_COLOR = 0xFFAAAAAA;
+    private int SLIDER_FILL_COLOR = 0xFF2A2A2A;
+    private int SLIDER_DISABLED_FILL_COLOR = 0xFF1F1F1F;
+    private int SLIDER_KNOB_COLOR = 0xFF7F8C8D;
+    private int SLIDER_KNOB_DISABLED_COLOR = 0xFF444444;
 
     // Resource paths are relative to assets/legends-addon/. Leave blank until the texture exists.
     private static final String LAYOUT_BUTTON_ICON_PATH = "textures/icon/layout_icon.png";
@@ -93,7 +137,8 @@ public class HudEditorScreen extends Screen {
     private final List<KeybindRow> keybindRows = List.of(
             new KeybindRow("Open editor", () -> Keybinds.OPEN_EDITOR),
             new KeybindRow("Toggle timer", () -> Keybinds.TOGGLE_TIMER),
-            new KeybindRow("Reset timer", () -> Keybinds.RESET_TIMER)
+            new KeybindRow("Reset timer", () -> Keybinds.RESET_TIMER),
+            new KeybindRow("Open Vault", () -> Keybinds.OPEN_VAULT)
     );
 
     private HudWidget dragging;
@@ -112,11 +157,15 @@ public class HudEditorScreen extends Screen {
     private String openColorKey;
     private String draggingSliderKey;
     private KeybindRow editingKeybindRow;
+    private GeneralTab activeGeneralTab = GeneralTab.LOOKS_AND_FEEL;
+    private boolean themeDropdownOpen = false;
+    private EditorTheme activeTheme = EditorTheme.DEFAULT;
     private int settingsRowIndex = 0;
 
     public HudEditorScreen() {
         super(Text.literal("HUD Editor"));
         snapEnabled = WidgetConfigManager.getBool(EDITOR_CONFIG_ID, SNAP_ENABLED_KEY, true);
+        applyTheme(EditorTheme.fromId(WidgetConfigManager.getString(GENERAL_SETTINGS_CONFIG_ID, THEME_KEY, EditorTheme.DEFAULT.id)));
     }
 
     @Override
@@ -147,6 +196,11 @@ public class HudEditorScreen extends Screen {
                 return true;
             }
 
+            if (themeDropdownOpen) {
+                themeDropdownOpen = false;
+                return true;
+            }
+
             if (viewMode != ViewMode.HOME) {
                 setViewMode(ViewMode.HOME);
                 return true;
@@ -168,6 +222,8 @@ public class HudEditorScreen extends Screen {
             }
             return handleSettingsClick(mouseX, mouseY, button);
         }
+
+        snapEnabled = button != 1;
 
         return switch (viewMode) {
             case HOME -> handleHomeClick(mouseX, mouseY);
@@ -387,6 +443,42 @@ public class HudEditorScreen extends Screen {
             return true;
         }
 
+        for (GeneralTab tab : GeneralTab.values()) {
+            if (generalTabBounds(tab).contains(mouseX, mouseY)) {
+                activeGeneralTab = tab;
+                editingKeybindRow = null;
+                themeDropdownOpen = false;
+                return true;
+            }
+        }
+
+        if (activeGeneralTab == GeneralTab.LOOKS_AND_FEEL) {
+            if (themeDropdownButtonBounds().contains(mouseX, mouseY)) {
+                themeDropdownOpen = !themeDropdownOpen;
+                return true;
+            }
+
+            if (themeDropdownOpen) {
+                for (int index = 0; index < EditorTheme.values().length; index++) {
+                    if (themeOptionBounds(index).contains(mouseX, mouseY)) {
+                        applyTheme(EditorTheme.values()[index]);
+                        WidgetConfigManager.setString(GENERAL_SETTINGS_CONFIG_ID, THEME_KEY, activeTheme.id, true);
+                        themeDropdownOpen = false;
+                        return true;
+                    }
+                }
+            }
+
+            if (serverToggleButtonBounds().contains(mouseX, mouseY)) {
+                AddonServerGate.setLegendsOnlyModeEnabled(!AddonServerGate.isLegendsOnlyModeEnabled());
+                themeDropdownOpen = false;
+                return true;
+            }
+
+            themeDropdownOpen = false;
+            return true;
+        }
+
         for (int index = 0; index < keybindRows.size(); index++) {
             KeybindRow row = keybindRows.get(index);
             if (keybindValueBounds(keybindRowBounds(index)).contains(mouseX, mouseY)) {
@@ -404,8 +496,13 @@ public class HudEditorScreen extends Screen {
     }
 
     private void renderBackdrop(DrawContext ctx) {
-        int top = viewMode == ViewMode.LAYOUT ? 0x44000000 : 0x88000000;
-        int bottom = viewMode == ViewMode.LAYOUT ? 0x66000000 : 0xAA000000;
+        if (useMinecraftTheme()) {
+            renderMinecraftMenuBackground(ctx);
+            return;
+        }
+
+        int top = viewMode == ViewMode.LAYOUT ? LAYOUT_BACKDROP_TOP_COLOR : BACKDROP_TOP_COLOR;
+        int bottom = viewMode == ViewMode.LAYOUT ? LAYOUT_BACKDROP_BOTTOM_COLOR : BACKDROP_BOTTOM_COLOR;
         ctx.fillGradient(0, 0, this.width, this.height, top, bottom);
     }
 
@@ -438,12 +535,15 @@ public class HudEditorScreen extends Screen {
     }
 
     private void renderLayoutChrome(DrawContext ctx, int mouseX, int mouseY) {
-        drawChip(ctx, backChipBounds(), mouseX, mouseY, "Back", 0x80333333, UI_BUTTON_TEXT_COLOR);
-        drawChip(ctx, snapChipBounds(), mouseX, mouseY, snapEnabled ? "Snap ON" : "Snap OFF", snapEnabled ? 0xFF26C665 : 0x80333333, UI_BUTTON_TEXT_COLOR);
+        drawChip(ctx, backChipBounds(), mouseX, mouseY, "Back", BUTTON_FILL_COLOR, UI_BUTTON_TEXT_COLOR);
+        //drawChip(ctx, snapChipBounds(), mouseX, mouseY, snapEnabled ? "Snap ON" : "Snap OFF", snapEnabled ? MOD_TILE_ENABLED_COLOR : BUTTON_FILL_COLOR, UI_BUTTON_TEXT_COLOR);
 
         String hint = "Drag enabled widgets. Press ESC to return.";
+        String hint2 = "Right click to disable snap";
         int hintX = this.width - textRenderer.getWidth(hint) - 14;
+        int hint2X = this.width - textRenderer.getWidth(hint2) - 14;
         ctx.drawText(textRenderer, hint, Math.max(14, hintX), 17, UI_SUBTEXT_COLOR, false);
+        ctx.drawText(textRenderer, hint2, Math.max(14, hint2X), 30, UI_SUBTEXT_COLOR, false);
     }
 
     private void renderGeneral(DrawContext ctx, int mouseX, int mouseY) {
@@ -452,8 +552,19 @@ public class HudEditorScreen extends Screen {
         drawPanel(ctx, panel, UI_PANEL_COLOR, UI_PANEL_COLOR, UI_BORDER_COLOR);
         drawChip(ctx, backChipBounds(), mouseX, mouseY, "Back", BUTTON_FILL_COLOR, UI_BUTTON_TEXT_COLOR);
 
-        ctx.drawText(textRenderer, "General Settings", panel.x + 18, panel.y + 14, UI_BUTTON_TEXT_COLOR, false);
-        ctx.drawText(textRenderer, "Use Minecraft controls to rebind. Widget-specific options stay under Mods.", panel.x + 18, panel.y + 28, UI_SUBTEXT_COLOR, false);
+        if (useMinecraftTheme()) {
+            ctx.drawCenteredTextWithShadow(textRenderer, Text.literal("General Settings"), panel.x + panel.width / 2, panel.y + 14, UI_BUTTON_TEXT_COLOR);
+        } else {
+            ctx.drawText(textRenderer, "General Settings", panel.x + 18, panel.y + 14, UI_BUTTON_TEXT_COLOR, false);
+        }
+
+        renderGeneralTab(ctx, generalTabBounds(GeneralTab.LOOKS_AND_FEEL), "Looks & Feel", activeGeneralTab == GeneralTab.LOOKS_AND_FEEL, mouseX, mouseY);
+        renderGeneralTab(ctx, generalTabBounds(GeneralTab.KEYBINDS), "Keybinds", activeGeneralTab == GeneralTab.KEYBINDS, mouseX, mouseY);
+
+        if (activeGeneralTab == GeneralTab.LOOKS_AND_FEEL) {
+            renderLooksAndFeel(ctx, panel, mouseX, mouseY);
+            return;
+        }
 
         for (int index = 0; index < keybindRows.size(); index++) {
             Rect rowBounds = keybindRowBounds(index);
@@ -469,6 +580,29 @@ public class HudEditorScreen extends Screen {
     private void drawLauncherCard(DrawContext ctx, Rect rect, int mouseX, int mouseY,
                                   String label, String iconPath, boolean centerLabelOnly) {
         boolean hovered = rect.contains(mouseX, mouseY);
+        if (useMinecraftTheme()) {
+            drawMinecraftButton(ctx, rect, hovered, false);
+
+            if (centerLabelOnly) {
+                drawMinecraftCenteredLabel(ctx, rect, label, hovered);
+                return;
+            }
+
+            int labelHeight = label.isBlank() ? 0 : textRenderer.fontHeight;
+            int iconAreaHeight = Math.max(LAUNCHER_ICON_SIZE, rect.height - labelHeight);
+            int iconX = rect.x + (rect.width - LAUNCHER_ICON_SIZE) / 2;
+            int iconY = rect.y + Math.max(0, (iconAreaHeight - LAUNCHER_ICON_SIZE) / 2);
+            int labelY = rect.bottom() - 14;
+
+            if (drawIconIfPresent(ctx, iconPath, iconX, iconY, LAUNCHER_ICON_SIZE)) {
+                ctx.drawCenteredTextWithShadow(textRenderer, Text.literal(label), rect.x + rect.width / 2, labelY, minecraftTextColor(hovered, false));
+                return;
+            }
+
+            drawMinecraftCenteredLabel(ctx, rect, label, hovered);
+            return;
+        }
+
         int top = hovered ? UI_PANEL_HOVER_COLOR : UI_PANEL_COLOR;
         int bottom = top;
         int border = hovered ? BUTTON_BORDER_HOVER_COLOR : BUTTON_BORDER_COLOR;
@@ -476,7 +610,19 @@ public class HudEditorScreen extends Screen {
         drawPanel(ctx, rect, top, bottom, border);
 
         if (centerLabelOnly) {
-            ctx.drawCenteredTextWithShadow(textRenderer, Text.literal(label), rect.x + rect.width / 2, rect.y + (rect.height - textRenderer.fontHeight) / 2, UI_BUTTON_TEXT_COLOR);
+
+            float scale = 1.5f;
+            ctx.getMatrices().pushMatrix();
+            ctx.getMatrices().scale(scale, scale);
+
+            ctx.drawCenteredTextWithShadow(
+                    textRenderer,
+                    Text.literal(label),
+                    (int) ((rect.x + rect.width / 2) / scale),
+                    (int) ((rect.y + (rect.height - textRenderer.fontHeight) / 2) / scale),
+                    UI_BUTTON_TEXT_COLOR);
+
+            ctx.getMatrices().popMatrix();
             return;
         }
 
@@ -499,6 +645,7 @@ public class HudEditorScreen extends Screen {
         boolean hasSettings = tile.widget.hasSettings();
         boolean settingsHovered = hasSettings && tile.settingsButton.contains(mouseX, mouseY);
         boolean enabled = tile.widget.isEnabled();
+
         int footerHeight = tile.settingsButton.height;
         int footerTop = tile.bounds.bottom() - footerHeight;
         int footerRight = hasSettings ? tile.settingsButton.x : tile.bounds.right();
@@ -509,15 +656,49 @@ public class HudEditorScreen extends Screen {
         int settingsColor = settingsHovered ? BUTTON_FILL_HOVER_COLOR : BUTTON_FILL_COLOR;
         int bodyHeight = footerTop - tile.bounds.y;
 
+        if (useMinecraftTheme()) {
+            //drawMinecraftButton(ctx, tile.bounds, hovered || enabled, false);
+            ctx.fill(tile.bounds.x, tile.bounds.y, tile.bounds.right(), footerTop, bodyColor);
+            ctx.fill(tile.bounds.x, footerTop, footerRight, tile.bounds.bottom(), footerColor);
+            if (hasSettings) {
+                drawMinecraftButton(ctx, tile.settingsButton, settingsHovered, false);
+            }
+
+            drawIconIfPresent(
+                    ctx,
+                    iconPathForWidget(tile.widget),
+                    tile.bounds.x + (tile.bounds.width - MOD_TILE_ICON_SIZE) / 2,
+                    tile.bounds.y + 18,
+                    MOD_TILE_ICON_SIZE
+            );
+
+            footerTop = tile.bounds.bottom() - tile.settingsButton.height;
+            footerRight = hasSettings ? tile.settingsButton.x : tile.bounds.right();
+            renderScrollingTileLabel(
+                    ctx,
+                    tile.widget.getName(),
+                    tile.bounds.x + 6,
+                    footerTop + 5,
+                    footerRight - tile.bounds.x - 12,
+                    tile.settingsButton.height - 2
+            );
+
+            if (hasSettings) {
+                drawMiniSettingsIcon(ctx, tile.settingsButton);
+            }
+            return;
+        }
+
+
         ctx.fill(tile.bounds.x, tile.bounds.y, tile.bounds.right(), footerTop, bodyColor);
         ctx.fill(tile.bounds.x, footerTop, footerRight, tile.bounds.bottom(), footerColor);
         if (hasSettings) {
             ctx.fill(tile.settingsButton.x, footerTop, tile.settingsButton.right(), tile.settingsButton.bottom(), settingsColor);
         }
         drawBorder(ctx, tile.bounds.x, tile.bounds.y, tile.bounds.width, tile.bounds.height, bodyBorder);
-        ctx.drawHorizontalLine(tile.bounds.x, tile.bounds.right(), footerTop, 0x66000000);
+        ctx.drawHorizontalLine(tile.bounds.x, tile.bounds.right(), footerTop, DIVIDER_COLOR);
         if (hasSettings) {
-            ctx.drawVerticalLine(tile.settingsButton.x, footerTop, tile.settingsButton.bottom(), 0x66000000);
+            ctx.drawVerticalLine(tile.settingsButton.x, footerTop, tile.settingsButton.bottom(), DIVIDER_COLOR);
         }
 
         drawIconIfPresent(
@@ -547,6 +728,14 @@ public class HudEditorScreen extends Screen {
         boolean editing = row == editingKeybindRow;
         boolean valueHovered = valueBounds.contains(mouseX, mouseY);
 
+        if (useMinecraftTheme()) {
+            ctx.drawText(textRenderer, row.label, rowBounds.x, rowBounds.y + 5, UI_BUTTON_TEXT_COLOR, false);
+            drawMinecraftTextField(ctx, valueBounds, editing || valueHovered);
+            String value = editing ? "Press key..." : boundKeyName(row.bindingSupplier.get());
+            ctx.drawText(textRenderer, trimToWidth(value, valueBounds.width - 10), valueBounds.x + 5, rowBounds.y + 5, minecraftTextColor(editing || valueHovered, false), false);
+            return;
+        }
+
         ctx.fill(rowBounds.x, rowBounds.y, rowBounds.right(), rowBounds.bottom(), BUTTON_FILL_COLOR);
         drawBorder(ctx, rowBounds.x, rowBounds.y, rowBounds.width, rowBounds.height, UI_BORDER_DARK);
 
@@ -559,6 +748,102 @@ public class HudEditorScreen extends Screen {
 
         String value = editing ? "Press key..." : boundKeyName(row.bindingSupplier.get());
         ctx.drawText(textRenderer, value, valueBounds.x + 6, rowBounds.y + 5, editing ? UI_BUTTON_TEXT_COLOR : UI_SUBTEXT_COLOR, false);
+    }
+
+    private void renderGeneralTab(DrawContext ctx, Rect rect, String label, boolean active, int mouseX, int mouseY) {
+        boolean hovered = rect.contains(mouseX, mouseY);
+        if (useMinecraftTheme()) {
+            drawMinecraftButton(ctx, rect, hovered || active, false);
+            drawMinecraftCenteredLabel(ctx, rect, label, hovered || active);
+            return;
+        }
+
+        int textColor = active ? UI_BUTTON_TEXT_COLOR : (hovered ? UI_BUTTON_TEXT_COLOR : UI_SUBTEXT_COLOR);
+        ctx.drawText(
+                textRenderer,
+                label,
+                rect.x,
+                rect.y + 4,
+                textColor,
+                false
+        );
+        if (active) {
+            ctx.fill(rect.x, rect.bottom() - 1, rect.right(), rect.bottom(), UI_BORDER_COLOR);
+        }
+    }
+
+    private void renderLooksAndFeel(DrawContext ctx, Rect panel, int mouseX, int mouseY) {
+        Rect rowBounds = serverToggleRowBounds();
+        Rect valueBounds = serverToggleButtonBounds();
+        boolean valueHovered = valueBounds.contains(mouseX, mouseY);
+        boolean enabled = AddonServerGate.isLegendsOnlyModeEnabled();
+
+        ctx.drawText(textRenderer, "LegendsRPG only", rowBounds.x, rowBounds.y + 2, UI_BUTTON_TEXT_COLOR, false);
+
+        if (useMinecraftTheme()) {
+            drawMinecraftButton(ctx, valueBounds, valueHovered || enabled, false);
+        } else {
+            int valueFill = enabled
+                    ? BUTTON_FILL_HOVER_COLOR
+                    : (valueHovered ? BUTTON_FILL_HOVER_COLOR : BUTTON_FILL_COLOR);
+            int valueBorder = enabled ? UI_BORDER_COLOR : UI_BORDER_DARK;
+            ctx.fill(valueBounds.x, valueBounds.y, valueBounds.right(), valueBounds.bottom(), valueFill);
+            drawBorder(ctx, valueBounds.x, valueBounds.y, valueBounds.width, valueBounds.height, valueBorder);
+        }
+        ctx.drawText(
+                textRenderer,
+                enabled ? "On" : "Off",
+                valueBounds.x + Math.max(0, (valueBounds.width - textRenderer.getWidth(enabled ? "On" : "Off")) / 2),
+                valueBounds.y + 4,
+                useMinecraftTheme() ? minecraftTextColor(valueHovered || enabled, false) : UI_BUTTON_TEXT_COLOR,
+                false
+        );
+
+        String currentServer = AddonServerGate.getCurrentServerAddress();
+        String status;
+        if (!enabled) {
+            status = "Runs everywhere.";
+        } else if (AddonServerGate.isOnLegendsServer()) {
+            status = "Active here.";
+        } else if (currentServer.isBlank()) {
+            status = "Blocked in singleplayer.";
+        } else {
+            status = "Blocked on " + currentServer + ".";
+        }
+        ctx.drawText(textRenderer, status, rowBounds.x, rowBounds.y + 14, UI_SUBTEXT_COLOR, false);
+
+        Rect themeRowBounds = themeRowBounds();
+        Rect themeButtonBounds = themeDropdownButtonBounds();
+        boolean themeHovered = themeButtonBounds.contains(mouseX, mouseY);
+
+        ctx.drawText(textRenderer, "Theme", themeRowBounds.x, themeRowBounds.y + 2, UI_BUTTON_TEXT_COLOR, false);
+        if (useMinecraftTheme()) {
+            drawMinecraftButton(ctx, themeButtonBounds, themeDropdownOpen || themeHovered, false);
+        } else {
+            ctx.fill(
+                    themeButtonBounds.x,
+                    themeButtonBounds.y,
+                    themeButtonBounds.right(),
+                    themeButtonBounds.bottom(),
+                    themeDropdownOpen || themeHovered ? BUTTON_FILL_HOVER_COLOR : BUTTON_FILL_COLOR
+            );
+            drawBorder(
+                    ctx,
+                    themeButtonBounds.x,
+                    themeButtonBounds.y,
+                    themeButtonBounds.width,
+                    themeButtonBounds.height,
+                    themeDropdownOpen ? UI_BORDER_COLOR : UI_BORDER_DARK
+            );
+        }
+
+        String themeLabel = trimToWidth(activeTheme.label, themeButtonBounds.width - 18);
+        ctx.drawText(textRenderer, themeLabel, themeButtonBounds.x + 6, themeButtonBounds.y + 4, useMinecraftTheme() ? minecraftTextColor(themeDropdownOpen || themeHovered, false) : UI_BUTTON_TEXT_COLOR, false);
+        ctx.drawText(textRenderer, themeDropdownOpen ? "^" : "v", themeButtonBounds.right() - 9, themeButtonBounds.y + 4, useMinecraftTheme() ? minecraftTextColor(themeDropdownOpen || themeHovered, false) : UI_SUBTEXT_COLOR, false);
+
+        if (themeDropdownOpen) {
+            renderThemeDropdown(ctx, mouseX, mouseY);
+        }
     }
 
     private void renderModsScrollBar(DrawContext ctx, Rect viewport) {
@@ -574,8 +859,14 @@ public class HudEditorScreen extends Screen {
         int thumbTravel = trackHeight - thumbHeight;
         int thumbY = trackY + (modsMaxScroll == 0 ? 0 : (int) Math.round((modsScroll / (double) modsMaxScroll) * thumbTravel));
 
-        ctx.fill(trackX, trackY, trackX + trackWidth, trackY + trackHeight, 0x66000000);
-        ctx.fill(trackX, thumbY, trackX + trackWidth, thumbY + thumbHeight, 0xCCFFFFFF);
+        if (useMinecraftTheme()) {
+            ctx.drawGuiTexture(RenderPipelines.GUI_TEXTURED, VANILLA_SCROLLER_BACKGROUND_SPRITE, trackX - 2, trackY, 8, trackHeight);
+            ctx.drawGuiTexture(RenderPipelines.GUI_TEXTURED, VANILLA_SCROLLER_SPRITE, trackX - 2, thumbY, 8, thumbHeight);
+            return;
+        }
+
+        ctx.fill(trackX, trackY, trackX + trackWidth, trackY + trackHeight, SCROLL_TRACK_COLOR);
+        ctx.fill(trackX, thumbY, trackX + trackWidth, thumbY + thumbHeight, SCROLL_THUMB_COLOR);
     }
 
     private void drawMiniSettingsIcon(DrawContext ctx, Rect rect) {
@@ -592,12 +883,23 @@ public class HudEditorScreen extends Screen {
     }
 
     private void drawPanel(DrawContext ctx, Rect rect, int topColor, int bottomColor, int borderColor) {
+        if (useMinecraftTheme()) {
+            ctx.drawGuiTexture(RenderPipelines.GUI_TEXTURED, VANILLA_POPUP_BACKGROUND_SPRITE, rect.x, rect.y, rect.width, rect.height);
+            return;
+        }
+
         ctx.fill(rect.x, rect.y, rect.right(), rect.bottom(), topColor);
         drawBorder(ctx, rect.x, rect.y, rect.width, rect.height, borderColor);
     }
 
     private void drawChip(DrawContext ctx, Rect rect, int mouseX, int mouseY, String label, int fillColor, int textColor) {
         boolean hovered = rect.contains(mouseX, mouseY);
+        if (useMinecraftTheme()) {
+            drawMinecraftButton(ctx, rect, hovered, false);
+            drawMinecraftCenteredLabel(ctx, rect, label, hovered);
+            return;
+        }
+
         int color = hovered ? BUTTON_FILL_HOVER_COLOR : fillColor;
         ctx.fill(rect.x, rect.y, rect.right(), rect.bottom(), color);
         drawBorder(ctx, rect.x, rect.y, rect.width, rect.height, 0x00000000);
@@ -605,13 +907,15 @@ public class HudEditorScreen extends Screen {
     }
 
     private LauncherLayout launcherLayout() {
-        int totalWidth = LAUNCHER_SQUARE + LAUNCHER_GAP + LAUNCHER_WIDE + LAUNCHER_GAP + LAUNCHER_SQUARE;
+        int launcherSquare = LAUNCHER_SQUARE;
+        if (useMinecraftTheme()) launcherSquare = LAUNCHER_SQUARE - 20;
+        int totalWidth = launcherSquare + LAUNCHER_GAP + LAUNCHER_WIDE + LAUNCHER_GAP + launcherSquare;
         int startX = (this.width - totalWidth) / 2;
-        int y = (this.height - LAUNCHER_SQUARE) / 2;
+        int y = (this.height - launcherSquare) / 2;
 
-        Rect layout = new Rect(startX, y, LAUNCHER_SQUARE, LAUNCHER_SQUARE);
-        Rect mods = new Rect(layout.right() + LAUNCHER_GAP, y, LAUNCHER_WIDE, LAUNCHER_SQUARE);
-        Rect settings = new Rect(mods.right() + LAUNCHER_GAP, y, LAUNCHER_SQUARE, LAUNCHER_SQUARE);
+        Rect layout = new Rect(startX, y, launcherSquare, launcherSquare);
+        Rect mods = new Rect(layout.right() + LAUNCHER_GAP, y, LAUNCHER_WIDE, launcherSquare);
+        Rect settings = new Rect(mods.right() + LAUNCHER_GAP, y, launcherSquare, launcherSquare);
         return new LauncherLayout(layout, mods, settings);
     }
 
@@ -620,16 +924,69 @@ public class HudEditorScreen extends Screen {
     }
 
     private Rect generalPanelBounds() {
-        int panelWidth = 404;
-        int panelHeight = 66 + keybindRows.size() * 24;
+        int panelWidth = 388;
+        int panelHeight = 188;
         return new Rect((this.width - panelWidth) / 2, (this.height - panelHeight) / 2, panelWidth, panelHeight);
+    }
+
+    private Rect generalTabBounds(GeneralTab tab) {
+        Rect panel = generalPanelBounds();
+        Rect looks = new Rect(panel.x + 18, panel.y + 36, 72, GENERAL_TAB_H);
+        Rect keybinds = new Rect(looks.right() + GENERAL_TAB_GAP, looks.y, 52, GENERAL_TAB_H);
+        return tab == GeneralTab.LOOKS_AND_FEEL ? looks : keybinds;
+    }
+
+    private Rect serverToggleRowBounds() {
+        Rect panel = generalPanelBounds();
+        return new Rect(panel.x + 18, panel.y + 98, panel.width - 36, GENERAL_ROW_H);
+    }
+
+    private Rect serverToggleButtonBounds() {
+        Rect rowBounds = serverToggleRowBounds();
+        int valueX = rowBounds.right() - GENERAL_TOGGLE_W;
+        int valueY = rowBounds.y + (rowBounds.height - GENERAL_TOGGLE_H) / 2;
+        return new Rect(valueX, valueY, GENERAL_TOGGLE_W, GENERAL_TOGGLE_H);
+    }
+
+    private Rect themeRowBounds() {
+        Rect panel = generalPanelBounds();
+        return new Rect(panel.x + 18, panel.y + 66, panel.width - 36, GENERAL_ROW_H);
+    }
+
+    private Rect themeDropdownButtonBounds() {
+        Rect rowBounds = themeRowBounds();
+        int valueX = rowBounds.right() - GENERAL_DROPDOWN_W;
+        int valueY = rowBounds.y + (rowBounds.height - GENERAL_TOGGLE_H) / 2;
+        return new Rect(valueX, valueY, GENERAL_DROPDOWN_W, GENERAL_TOGGLE_H);
+    }
+
+    private Rect themeDropdownListBounds() {
+        Rect button = themeDropdownButtonBounds();
+        int listHeight = EditorTheme.values().length * GENERAL_THEME_OPTION_H;
+        int belowY = button.bottom() + GENERAL_DROPDOWN_GAP;
+        int aboveY = button.y - GENERAL_DROPDOWN_GAP - listHeight;
+        Rect serverRow = serverToggleRowBounds();
+
+        int y = belowY;
+        boolean overlapsServerRow = belowY < serverRow.bottom() && belowY + listHeight > serverRow.y;
+        if (overlapsServerRow && aboveY >= 8) {
+            y = aboveY;
+        } else if (belowY + listHeight > this.height - 8) {
+            y = aboveY >= 8 ? aboveY : Math.max(8, this.height - 8 - listHeight);
+        }
+        return new Rect(button.x, y, button.width, listHeight);
+    }
+
+    private Rect themeOptionBounds(int index) {
+        Rect list = themeDropdownListBounds();
+        return new Rect(list.x, list.y + index * GENERAL_THEME_OPTION_H, list.width, GENERAL_THEME_OPTION_H);
     }
 
     private Rect keybindRowBounds(int index) {
         Rect panel = generalPanelBounds();
-        int rowX = panel.x + 14;
-        int rowY = panel.y + 48 + index * 24;
-        return new Rect(rowX, rowY, panel.width - 28, 18);
+        int rowX = panel.x + 18;
+        int rowY = panel.y + 66 + index * 24;
+        return new Rect(rowX, rowY, panel.width - 36, 18);
     }
 
     private Rect keybindValueBounds(Rect rowBounds) {
@@ -753,6 +1110,7 @@ public class HudEditorScreen extends Screen {
         }
         if (viewMode != ViewMode.GENERAL) {
             editingKeybindRow = null;
+            themeDropdownOpen = false;
         }
         if (viewMode == ViewMode.MODS) {
             updateModsScrollBounds();
@@ -820,15 +1178,19 @@ public class HudEditorScreen extends Screen {
     private void moveDraggingWidgetToMouse(double mouseX, double mouseY) {
         double targetX = mouseX - dragOffsetX;
         double targetY = mouseY - dragOffsetY;
+        double objectOffsetX = dragging.getVisualX() - dragging.x;
+        double objectOffsetY = dragging.getVisualY() - dragging.y;
+        double objectWidth = dragging.getVisualWidth();
+        double objectHeight = dragging.getVisualHeight();
 
         if (snapEnabled) {
             SnapPosition snapped = snapPosition(
                     targetX,
                     targetY,
-                    0d,
-                    0d,
-                    dragging.getWidth(),
-                    dragging.getHeight(),
+                    objectOffsetX,
+                    objectOffsetY,
+                    objectWidth,
+                    objectHeight,
                     dragging,
                     null
             );
@@ -838,8 +1200,8 @@ public class HudEditorScreen extends Screen {
             clearSnapGuides();
         }
 
-        dragging.x = clamp(targetX, 0, this.width - dragging.getWidth());
-        dragging.y = clamp(targetY, 0, this.height - dragging.getHeight());
+        dragging.x = clamp(targetX, -objectOffsetX, this.width - objectOffsetX - objectWidth);
+        dragging.y = clamp(targetY, -objectOffsetY, this.height - objectOffsetY - objectHeight);
     }
 
     private void moveDraggingBarToMouse(double mouseX, double mouseY) {
@@ -944,10 +1306,10 @@ public class HudEditorScreen extends Screen {
             }
 
             if (widget != excludedWidget) {
-                double widgetWidth = widget.getWidth();
-                double widgetHeight = widget.getHeight();
+                double widgetWidth = widget.getVisualWidth();
+                double widgetHeight = widget.getVisualHeight();
                 if (widgetWidth > 0 && widgetHeight > 0) {
-                    targets.add(new SnapRect(widget.x, widget.y, widgetWidth, widgetHeight));
+                    targets.add(new SnapRect(widget.getVisualX(), widget.getVisualY(), widgetWidth, widgetHeight));
                 }
             }
 
@@ -1112,12 +1474,16 @@ public class HudEditorScreen extends Screen {
         int y = modalY();
         int modalHeight = modalHeight();
 
-        ctx.fill(0, 0, this.width, this.height, 0x88000000);
-        ctx.fill(x, y, x + MODAL_W, y + modalHeight, 0xFF111111);
-        drawBorder(ctx, x, y, MODAL_W, modalHeight, 0xFFFFFFFF);
+        ctx.fill(0, 0, this.width, this.height, MODAL_OVERLAY_COLOR);
+        if (useMinecraftTheme()) {
+            ctx.drawGuiTexture(RenderPipelines.GUI_TEXTURED, VANILLA_POPUP_BACKGROUND_SPRITE, x, y, MODAL_W, modalHeight);
+        } else {
+            ctx.fill(x, y, x + MODAL_W, y + modalHeight, MODAL_PANEL_COLOR);
+            drawBorder(ctx, x, y, MODAL_W, modalHeight, MODAL_BORDER_COLOR);
+        }
 
-        ctx.drawText(textRenderer, settingsWidget.getName() + " Settings", x + 8, y + 8, 0xFFFFFFFF, false);
-        ctx.drawText(textRenderer, "X", x + MODAL_W - 17, y + 6, 0xFFFFFFFF, false);
+        ctx.drawText(textRenderer, settingsWidget.getName() + " Settings", x + 8, y + 8, MODAL_TEXT_COLOR, false);
+        ctx.drawText(textRenderer, "X", x + MODAL_W - 17, y + 6, MODAL_TEXT_COLOR, false);
 
         SettingsLayout layout = beginSettingsLayout();
         boolean grouped = false;
@@ -1138,25 +1504,25 @@ public class HudEditorScreen extends Screen {
                 case TOGGLE -> {
                     boolean enabled = setting.enabled().getAsBoolean();
                     boolean value = setting.getBool().getAsBoolean();
-                    ctx.drawText(textRenderer, setting.label(), labelX, rowY, enabled ? 0xFFFFFFFF : 0xFF777777, false);
+                    ctx.drawText(textRenderer, setting.label(), labelX, rowY, enabled ? MODAL_TEXT_COLOR : MODAL_DISABLED_TEXT_COLOR, false);
                     drawTogglePill(ctx, layout.toggleX, rowY - 2, layout.toggleW, layout.btnH, value, enabled);
                 }
                 case COLOR -> {
                     boolean enabled = setting.enabled().getAsBoolean();
                     int color = setting.getColor().getAsInt();
-                    ctx.drawText(textRenderer, setting.label(), labelX, rowY, enabled ? 0xFFFFFFFF : 0xFF777777, false);
+                    ctx.drawText(textRenderer, setting.label(), labelX, rowY, enabled ? MODAL_TEXT_COLOR : MODAL_DISABLED_TEXT_COLOR, false);
 
                     if (enabled) {
                         drawPickButton(ctx, layout.btnX, rowY - 2, layout.btnW, layout.btnH, mouseX, mouseY);
                         drawSwatch(ctx, layout.btnX - 18, rowY - 1, color);
                     } else {
-                        ctx.drawText(textRenderer, "-", layout.btnX + 26, rowY, 0xFF777777, false);
+                        ctx.drawText(textRenderer, "-", layout.btnX + 26, rowY, MODAL_DISABLED_TEXT_COLOR, false);
                     }
                 }
                 case SLIDER -> {
                     boolean enabled = setting.enabled().getAsBoolean();
                     float value = (float) setting.getFloat().getAsDouble();
-                    ctx.drawText(textRenderer, setting.label(), labelX, rowY, enabled ? 0xFFFFFFFF : 0xFF777777, false);
+                    ctx.drawText(textRenderer, setting.label(), labelX, rowY, enabled ? MODAL_TEXT_COLOR : MODAL_DISABLED_TEXT_COLOR, false);
                     drawSliderRow(ctx, layout, rowY, value, setting.min(), setting.max(), setting.step(), enabled);
                 }
                 case SECTION -> {
@@ -1179,46 +1545,67 @@ public class HudEditorScreen extends Screen {
 
     private void drawPickButton(DrawContext ctx, int x, int y, int w, int h, int mouseX, int mouseY) {
         boolean hovered = inside(mouseX, mouseY, x, y, w, h);
-        int bg = hovered ? 0xFF444444 : 0xFF333333;
+        if (useMinecraftTheme()) {
+            Rect rect = new Rect(x, y, w, h);
+            drawMinecraftButton(ctx, rect, hovered, false);
+            drawMinecraftCenteredLabel(ctx, rect, "Pick", hovered);
+            return;
+        }
+
+        int bg = hovered ? MODAL_CONTROL_HOVER_COLOR : MODAL_CONTROL_FILL_COLOR;
         ctx.fill(x, y, x + w, y + h, bg);
-        drawBorder(ctx, x, y, w, h, 0xFF000000);
-        ctx.drawText(textRenderer, "Pick", x + 18, y + 3, 0xFFFFFFFF, false);
+        drawBorder(ctx, x, y, w, h, UI_BORDER_DARK);
+        ctx.drawText(textRenderer, "Pick", x + 18, y + 3, MODAL_TEXT_COLOR, false);
     }
 
     private void drawSwatch(DrawContext ctx, int x, int y, int color) {
         ctx.fill(x, y, x + 12, y + 12, color);
-        drawBorder(ctx, x, y, 12, 12, 0xFF000000);
+        drawBorder(ctx, x, y, 12, 12, UI_BORDER_DARK);
     }
 
     private void drawTogglePill(DrawContext ctx, int x, int y, int w, int h, boolean on, boolean enabled) {
-        int bg = on ? 0xFF2ECC71 : 0xFF7F8C8D;
+        if (useMinecraftTheme()) {
+            Rect rect = new Rect(x, y, w, h);
+            drawMinecraftButton(ctx, rect, on, !enabled);
+            drawMinecraftCenteredLabel(ctx, rect, on ? "ON" : "OFF", on);
+            return;
+        }
+
+        int bg = on ? MODAL_TOGGLE_ON_COLOR : MODAL_TOGGLE_OFF_COLOR;
         if (!enabled) {
-            bg = 0xFF444444;
+            bg = MODAL_DISABLED_FILL_COLOR;
         }
 
         ctx.fill(x, y, x + w, y + h, bg);
-        drawBorder(ctx, x, y, w, h, 0xFF000000);
+        drawBorder(ctx, x, y, w, h, UI_BORDER_DARK);
 
-        int textColor = enabled ? 0xFF000000 : 0xFF1A1A1A;
+        int textColor = enabled ? UI_BORDER_DARK : shadeColor(UI_BORDER_DARK, 0.65f);
         ctx.drawText(textRenderer, on ? "ON" : "OFF", x + 10, y + 3, textColor, false);
     }
 
     private void drawResetButton(DrawContext ctx, int x, int y, int mouseX, int mouseY) {
         boolean hovered = inside(mouseX, mouseY, x, y, RESET_W, RESET_H);
-        int bg = hovered ? 0xFF555555 : 0xFF333333;
+        if (useMinecraftTheme()) {
+            Rect rect = new Rect(x, y, RESET_W, RESET_H);
+            drawMinecraftButton(ctx, rect, hovered, false);
+            drawMinecraftCenteredLabel(ctx, rect, "R", hovered);
+            return;
+        }
+
+        int bg = hovered ? MODAL_CONTROL_HOVER_COLOR : MODAL_CONTROL_FILL_COLOR;
 
         ctx.fill(x, y, x + RESET_W, y + RESET_H, bg);
-        drawBorder(ctx, x, y, RESET_W, RESET_H, 0xFF000000);
-        ctx.drawText(textRenderer, "R", x + 3, y + 2, 0xFFFFFFFF, false);
+        drawBorder(ctx, x, y, RESET_W, RESET_H, UI_BORDER_DARK);
+        ctx.drawText(textRenderer, "R", x + 3, y + 2, MODAL_TEXT_COLOR, false);
     }
 
     private void drawSectionRow(DrawContext ctx, SettingsLayout layout, int rowY, String label) {
-        ctx.drawText(textRenderer, label, layout.startX, rowY, 0xFF8EC5FF, false);
+        ctx.drawText(textRenderer, label, layout.startX, rowY, MODAL_SECTION_COLOR, false);
 
         int dividerX = layout.startX + textRenderer.getWidth(label) + 6;
         int dividerY = rowY + (textRenderer.fontHeight / 2);
         if (dividerX < layout.resetX - 4) {
-            ctx.drawHorizontalLine(dividerX, layout.resetX - 4, dividerY, 0xFF2D2D2D);
+            ctx.drawHorizontalLine(dividerX, layout.resetX - 4, dividerY, MODAL_SECTION_DIVIDER_COLOR);
         }
     }
 
@@ -1229,23 +1616,380 @@ public class HudEditorScreen extends Screen {
         int barW = layout.sliderBarW;
         int barH = 12;
 
-        int bg = enabled ? 0xFF2A2A2A : 0xFF1F1F1F;
+        if (useMinecraftTheme()) {
+            Rect field = new Rect(barX, barY, barW, barH);
+            drawMinecraftTextField(ctx, field, enabled);
+
+            float t = (max == min) ? 0f : (value - min) / (max - min);
+            t = Math.max(0f, Math.min(1f, t));
+            int knobWidth = 8;
+            int knobX = barX + (int) (t * (barW - knobWidth));
+            drawMinecraftButton(ctx, new Rect(knobX, barY - 2, knobWidth, barH + 4), enabled, !enabled);
+
+            String displayValue = (step >= 1f) ? String.format("%.0f", value) : String.format("%.2f", value);
+            ctx.drawText(
+                    textRenderer,
+                    displayValue,
+                    barX + (barW / 2) - (textRenderer.getWidth(displayValue) / 2),
+                    rowY + 1,
+                    enabled ? 0xFFE0E0E0 : 0xFFA0A0A0,
+                    false
+            );
+            return;
+        }
+
+        int bg = enabled ? SLIDER_FILL_COLOR : SLIDER_DISABLED_FILL_COLOR;
         ctx.fill(barX, barY, barX + barW, barY + barH, bg);
-        drawBorder(ctx, barX, barY, barW, barH, 0xFF000000);
+        drawBorder(ctx, barX, barY, barW, barH, UI_BORDER_DARK);
 
         float t = (max == min) ? 0f : (value - min) / (max - min);
         t = Math.max(0f, Math.min(1f, t));
 
         int knobX = barX + (int) (t * (barW - 4));
-        ctx.fill(knobX, barY, knobX + 4, barY + barH, enabled ? 0xFF7F8C8D : 0xFF444444);
+        ctx.fill(knobX, barY, knobX + 4, barY + barH, enabled ? SLIDER_KNOB_COLOR : SLIDER_KNOB_DISABLED_COLOR);
 
         String displayValue = (step >= 1f) ? String.format("%.0f", value) : String.format("%.2f", value);
         ctx.drawText(textRenderer, displayValue,
                 barX + (barW / 2) - (textRenderer.getWidth(displayValue) / 2),
                 rowY + 1,
-                enabled ? 0xFFAAAAAA : 0xFF777777,
+                enabled ? MODAL_VALUE_TEXT_COLOR : MODAL_DISABLED_TEXT_COLOR,
                 false
         );
+    }
+
+    private boolean useMinecraftTheme() {
+        return activeTheme == EditorTheme.MINECRAFT_DEFAULT;
+    }
+
+    private void renderMinecraftMenuBackground(DrawContext ctx) {
+        int tile = 32;
+        for (int x = 0; x < this.width; x += tile) {
+            for (int y = 0; y < this.height; y += tile) {
+                int w = Math.min(tile, this.width - x);
+                int h = Math.min(tile, this.height - y);
+                ctx.drawTexture(RenderPipelines.GUI_TEXTURED, VANILLA_MENU_BACKGROUND_TEXTURE, x, y, 0, 0, w, h, tile, tile);
+            }
+        }
+        ctx.fill(0, 0, this.width, this.height, viewMode == ViewMode.LAYOUT ? 0x22000000 : 0x44000000);
+    }
+
+    private void drawMinecraftButton(DrawContext ctx, Rect rect, boolean hovered, boolean disabled) {
+        Identifier sprite = disabled ? VANILLA_BUTTON_DISABLED_SPRITE : (hovered ? VANILLA_BUTTON_HOVERED_SPRITE : VANILLA_BUTTON_SPRITE);
+        ctx.drawGuiTexture(RenderPipelines.GUI_TEXTURED, sprite, rect.x, rect.y, rect.width, rect.height);
+    }
+
+    private void drawMinecraftTextField(DrawContext ctx, Rect rect, boolean focused) {
+        ctx.drawGuiTexture(RenderPipelines.GUI_TEXTURED, focused ? VANILLA_TEXT_FIELD_HIGHLIGHTED_SPRITE : VANILLA_TEXT_FIELD_SPRITE, rect.x, rect.y, rect.width, rect.height);
+    }
+
+    private void drawMinecraftCenteredLabel(DrawContext ctx, Rect rect, String label, boolean highlighted) {
+        ctx.drawCenteredTextWithShadow(
+                textRenderer,
+                Text.literal(label),
+                rect.x + rect.width / 2,
+                rect.y + (rect.height - textRenderer.fontHeight) / 2,
+                minecraftTextColor(highlighted, false)
+        );
+    }
+
+    private int minecraftTextColor(boolean highlighted, boolean disabled) {
+        if (disabled) {
+            return 0xFFA0A0A0;
+        }
+        return highlighted ? 0xFFFFFFA0 : 0xFFE0E0E0;
+    }
+
+    private void renderThemeDropdown(DrawContext ctx, int mouseX, int mouseY) {
+        Rect listBounds = themeDropdownListBounds();
+        if (useMinecraftTheme()) {
+            ctx.drawGuiTexture(RenderPipelines.GUI_TEXTURED, VANILLA_POPUP_BACKGROUND_SPRITE, listBounds.x, listBounds.y, listBounds.width, listBounds.height);
+        } else {
+            ctx.fill(listBounds.x, listBounds.y, listBounds.right(), listBounds.bottom(), UI_PANEL_COLOR);
+            drawBorder(ctx, listBounds.x, listBounds.y, listBounds.width, listBounds.height, UI_BORDER_COLOR);
+        }
+
+        EditorTheme[] themes = EditorTheme.values();
+        for (int index = 0; index < themes.length; index++) {
+            Rect option = themeOptionBounds(index);
+            EditorTheme theme = themes[index];
+            boolean hovered = option.contains(mouseX, mouseY);
+            boolean selected = theme == activeTheme;
+
+            if (useMinecraftTheme()) {
+                drawMinecraftButton(ctx, option, hovered || selected, false);
+                drawMinecraftCenteredLabel(ctx, option, trimToWidth(theme.label, option.width - 10), hovered || selected);
+            } else {
+                if (hovered || selected) {
+                    ctx.fill(option.x, option.y, option.right(), option.bottom(), hovered ? BUTTON_FILL_HOVER_COLOR : UI_PANEL_HOVER_COLOR);
+                }
+
+                if (index > 0) {
+                    ctx.drawHorizontalLine(option.x + 4, option.right() - 4, option.y, DIVIDER_COLOR);
+                }
+
+                ctx.drawText(
+                        textRenderer,
+                        trimToWidth(theme.label, option.width - 12),
+                        option.x + 6,
+                        option.y + 5,
+                        selected ? UI_BUTTON_TEXT_COLOR : UI_SUBTEXT_COLOR,
+                        false
+                );
+            }
+        }
+    }
+
+    private void applyTheme(EditorTheme theme) {
+        activeTheme = theme == null ? EditorTheme.DEFAULT : theme;
+
+        switch (activeTheme) {
+            case DEFAULT -> {
+                UI_PANEL_COLOR = 0xFF111111;
+                UI_PANEL_HOVER_COLOR = 0xFF1A1A1A;
+                UI_BORDER_COLOR = 0xFFFFFFFF;
+                UI_BORDER_DARK = 0xFF000000;
+                UI_BUTTON_TEXT_COLOR = 0xFFFFFFFF;
+                UI_SUBTEXT_COLOR = 0xFFAAAAAA;
+                MOD_TILE_ENABLED_COLOR = 0xFF26C665;
+                MOD_TILE_ENABLED_FOOTER = 0xFF1D8E49;
+                MOD_TILE_DISABLED_COLOR = 0xFF111111;
+                MOD_TILE_DISABLED_FOOTER = 0xFF0A0A0A;
+                MOD_TILE_DISABLED_BORDER = 0xFF000000;
+                BUTTON_FILL_COLOR = 0xFF333333;
+                BUTTON_FILL_HOVER_COLOR = 0xFF444444;
+                BUTTON_BORDER_COLOR = 0xFFFFFFFF;
+                BUTTON_BORDER_HOVER_COLOR = 0xFFFFFFFF;
+                BACKDROP_TOP_COLOR = 0x88000000;
+                BACKDROP_BOTTOM_COLOR = 0xAA000000;
+                LAYOUT_BACKDROP_TOP_COLOR = 0x44000000;
+                LAYOUT_BACKDROP_BOTTOM_COLOR = 0x66000000;
+                DIVIDER_COLOR = 0x66000000;
+                SCROLL_TRACK_COLOR = 0x66000000;
+                SCROLL_THUMB_COLOR = 0xCCFFFFFF;
+                MODAL_OVERLAY_COLOR = 0x88000000;
+                MODAL_PANEL_COLOR = 0xFF111111;
+                MODAL_BORDER_COLOR = 0xFFFFFFFF;
+                MODAL_TEXT_COLOR = 0xFFFFFFFF;
+                MODAL_DISABLED_TEXT_COLOR = 0xFF777777;
+                MODAL_SECTION_COLOR = 0xFF8EC5FF;
+                MODAL_SECTION_DIVIDER_COLOR = 0xFF2D2D2D;
+                MODAL_CONTROL_FILL_COLOR = 0xFF333333;
+                MODAL_CONTROL_HOVER_COLOR = 0xFF444444;
+                MODAL_TOGGLE_ON_COLOR = 0xFF2ECC71;
+                MODAL_TOGGLE_OFF_COLOR = 0xFF7F8C8D;
+                MODAL_DISABLED_FILL_COLOR = 0xFF444444;
+                MODAL_VALUE_TEXT_COLOR = 0xFFAAAAAA;
+                SLIDER_FILL_COLOR = 0xFF2A2A2A;
+                SLIDER_DISABLED_FILL_COLOR = 0xFF1F1F1F;
+                SLIDER_KNOB_COLOR = 0xFF7F8C8D;
+                SLIDER_KNOB_DISABLED_COLOR = 0xFF444444;
+            }
+            case MIDNIGHT -> {
+                UI_PANEL_COLOR = 0xFF0B1020;
+                UI_PANEL_HOVER_COLOR = 0xFF131A2E;
+                UI_BORDER_COLOR = 0xFFD7E3FF;
+                UI_BORDER_DARK = 0xFF02050C;
+                UI_BUTTON_TEXT_COLOR = 0xFFF4F7FF;
+                UI_SUBTEXT_COLOR = 0xFF97A6C4;
+                MOD_TILE_ENABLED_COLOR = 0xFF2A4F9F;
+                MOD_TILE_ENABLED_FOOTER = 0xFF1D3870;
+                MOD_TILE_DISABLED_COLOR = 0xFF0B1020;
+                MOD_TILE_DISABLED_FOOTER = 0xFF070A15;
+                MOD_TILE_DISABLED_BORDER = 0xFF02050C;
+                BUTTON_FILL_COLOR = 0xFF17233A;
+                BUTTON_FILL_HOVER_COLOR = 0xFF22324F;
+                BUTTON_BORDER_COLOR = 0xFFD7E3FF;
+                BUTTON_BORDER_HOVER_COLOR = 0xFFF4F7FF;
+                BACKDROP_TOP_COLOR = 0x88070A15;
+                BACKDROP_BOTTOM_COLOR = 0xBB02050C;
+                LAYOUT_BACKDROP_TOP_COLOR = 0x44070A15;
+                LAYOUT_BACKDROP_BOTTOM_COLOR = 0x66020B17;
+                DIVIDER_COLOR = 0x66263A62;
+                SCROLL_TRACK_COLOR = 0x6613223B;
+                SCROLL_THUMB_COLOR = 0xCCD7E3FF;
+                MODAL_OVERLAY_COLOR = 0x90050A14;
+                MODAL_PANEL_COLOR = 0xFF0B1020;
+                MODAL_BORDER_COLOR = 0xFFD7E3FF;
+                MODAL_TEXT_COLOR = 0xFFD7E3FF;
+                MODAL_DISABLED_TEXT_COLOR = 0xFF5E6B87;
+                MODAL_SECTION_COLOR = 0xFF7AA2FF;
+                MODAL_SECTION_DIVIDER_COLOR = 0xFF23314F;
+                MODAL_CONTROL_FILL_COLOR = 0xFF17233A;
+                MODAL_CONTROL_HOVER_COLOR = 0xFF22324F;
+                MODAL_TOGGLE_ON_COLOR = 0xFF3C6EDE;
+                MODAL_TOGGLE_OFF_COLOR = 0xFF4F5F7A;
+                MODAL_DISABLED_FILL_COLOR = 0xFF22324F;
+                MODAL_VALUE_TEXT_COLOR = 0xFFB4C4E7;
+                SLIDER_FILL_COLOR = 0xFF142038;
+                SLIDER_DISABLED_FILL_COLOR = 0xFF0E1626;
+                SLIDER_KNOB_COLOR = 0xFF6B91FF;
+                SLIDER_KNOB_DISABLED_COLOR = 0xFF22324F;
+            }
+            case DUSK -> {
+                UI_PANEL_COLOR = 0xFF181218;
+                UI_PANEL_HOVER_COLOR = 0xFF241A24;
+                UI_BORDER_COLOR = 0xFFF2D7CB;
+                UI_BORDER_DARK = 0xFF0B070B;
+                UI_BUTTON_TEXT_COLOR = 0xFFF8EEE9;
+                UI_SUBTEXT_COLOR = 0xFFBCA59D;
+                MOD_TILE_ENABLED_COLOR = 0xFF8B4E38;
+                MOD_TILE_ENABLED_FOOTER = 0xFF67392B;
+                MOD_TILE_DISABLED_COLOR = 0xFF181218;
+                MOD_TILE_DISABLED_FOOTER = 0xFF110D11;
+                MOD_TILE_DISABLED_BORDER = 0xFF0B070B;
+                BUTTON_FILL_COLOR = 0xFF352633;
+                BUTTON_FILL_HOVER_COLOR = 0xFF483343;
+                BUTTON_BORDER_COLOR = 0xFFF2D7CB;
+                BUTTON_BORDER_HOVER_COLOR = 0xFFF8EEE9;
+                BACKDROP_TOP_COLOR = 0x88130D13;
+                BACKDROP_BOTTOM_COLOR = 0xBB090609;
+                LAYOUT_BACKDROP_TOP_COLOR = 0x44130D13;
+                LAYOUT_BACKDROP_BOTTOM_COLOR = 0x660B070B;
+                DIVIDER_COLOR = 0x66533A34;
+                SCROLL_TRACK_COLOR = 0x66241424;
+                SCROLL_THUMB_COLOR = 0xCCF2D7CB;
+                MODAL_OVERLAY_COLOR = 0x900D070D;
+                MODAL_PANEL_COLOR = 0xFF181218;
+                MODAL_BORDER_COLOR = 0xFFF2D7CB;
+                MODAL_TEXT_COLOR = 0xFFF2D7CB;
+                MODAL_DISABLED_TEXT_COLOR = 0xFF5D4842;
+                MODAL_SECTION_COLOR = 0xFFE29A6A;
+                MODAL_SECTION_DIVIDER_COLOR = 0xFF47312E;
+                MODAL_CONTROL_FILL_COLOR = 0xFF352633;
+                MODAL_CONTROL_HOVER_COLOR = 0xFF483343;
+                MODAL_TOGGLE_ON_COLOR = 0xFFB56A4A;
+                MODAL_TOGGLE_OFF_COLOR = 0xFF77615B;
+                MODAL_DISABLED_FILL_COLOR = 0xFF483343;
+                MODAL_VALUE_TEXT_COLOR = 0xFFD8C0B8;
+                SLIDER_FILL_COLOR = 0xFF2C1F29;
+                SLIDER_DISABLED_FILL_COLOR = 0xFF1E161C;
+                SLIDER_KNOB_COLOR = 0xFFD08A63;
+                SLIDER_KNOB_DISABLED_COLOR = 0xFF483343;
+            }
+            case RED -> {
+                UI_PANEL_COLOR = 0xFF170D0E;
+                UI_PANEL_HOVER_COLOR = 0xFF231416;
+                UI_BORDER_COLOR = 0xFFF1D8DA;
+                UI_BORDER_DARK = 0xFF050202;
+                UI_BUTTON_TEXT_COLOR = 0xFFF8EFF0;
+                UI_SUBTEXT_COLOR = 0xFFC0A2A6;
+                MOD_TILE_ENABLED_COLOR = 0xFF8B3139;
+                MOD_TILE_ENABLED_FOOTER = 0xFF67242A;
+                MOD_TILE_DISABLED_COLOR = 0xFF170D0E;
+                MOD_TILE_DISABLED_FOOTER = 0xFF100809;
+                MOD_TILE_DISABLED_BORDER = 0xFF050202;
+                BUTTON_FILL_COLOR = 0xFF341C20;
+                BUTTON_FILL_HOVER_COLOR = 0xFF47252A;
+                BUTTON_BORDER_COLOR = 0xFFF1D8DA;
+                BUTTON_BORDER_HOVER_COLOR = 0xFFF8EFF0;
+                BACKDROP_TOP_COLOR = 0x88110809;
+                BACKDROP_BOTTOM_COLOR = 0xBB050202;
+                LAYOUT_BACKDROP_TOP_COLOR = 0x44110809;
+                LAYOUT_BACKDROP_BOTTOM_COLOR = 0x66090506;
+                DIVIDER_COLOR = 0x66472A2D;
+                SCROLL_TRACK_COLOR = 0x66170D10;
+                SCROLL_THUMB_COLOR = 0xCCF1D8DA;
+                MODAL_OVERLAY_COLOR = 0x90090203;
+                MODAL_PANEL_COLOR = 0xFF170D0E;
+                MODAL_BORDER_COLOR = 0xFFF1D8DA;
+                MODAL_TEXT_COLOR = 0xFFF1D8DA;
+                MODAL_DISABLED_TEXT_COLOR = 0xFF5B4347;
+                MODAL_SECTION_COLOR = 0xFFD76A73;
+                MODAL_SECTION_DIVIDER_COLOR = 0xFF43282C;
+                MODAL_CONTROL_FILL_COLOR = 0xFF341C20;
+                MODAL_CONTROL_HOVER_COLOR = 0xFF47252A;
+                MODAL_TOGGLE_ON_COLOR = 0xFFB93C46;
+                MODAL_TOGGLE_OFF_COLOR = 0xFF7B6063;
+                MODAL_DISABLED_FILL_COLOR = 0xFF47252A;
+                MODAL_VALUE_TEXT_COLOR = 0xFFD7B9BC;
+                SLIDER_FILL_COLOR = 0xFF2A171A;
+                SLIDER_DISABLED_FILL_COLOR = 0xFF1C1011;
+                SLIDER_KNOB_COLOR = 0xFFDB6B74;
+                SLIDER_KNOB_DISABLED_COLOR = 0xFF47252A;
+            }
+            case PURPLE -> {
+                UI_PANEL_COLOR = 0xFF120F18;
+                UI_PANEL_HOVER_COLOR = 0xFF1D1826;
+                UI_BORDER_COLOR = 0xFFE7DDF7;
+                UI_BORDER_DARK = 0xFF050308;
+                UI_BUTTON_TEXT_COLOR = 0xFFF5F0FF;
+                UI_SUBTEXT_COLOR = 0xFFAA9EC3;
+                MOD_TILE_ENABLED_COLOR = 0xFF62418E;
+                MOD_TILE_ENABLED_FOOTER = 0xFF4B326E;
+                MOD_TILE_DISABLED_COLOR = 0xFF120F18;
+                MOD_TILE_DISABLED_FOOTER = 0xFF0D0A12;
+                MOD_TILE_DISABLED_BORDER = 0xFF050308;
+                BUTTON_FILL_COLOR = 0xFF2B2238;
+                BUTTON_FILL_HOVER_COLOR = 0xFF392C4B;
+                BUTTON_BORDER_COLOR = 0xFFE7DDF7;
+                BUTTON_BORDER_HOVER_COLOR = 0xFFF5F0FF;
+                BACKDROP_TOP_COLOR = 0x880C0911;
+                BACKDROP_BOTTOM_COLOR = 0xBB040307;
+                LAYOUT_BACKDROP_TOP_COLOR = 0x440C0911;
+                LAYOUT_BACKDROP_BOTTOM_COLOR = 0x66050308;
+                DIVIDER_COLOR = 0x663A304D;
+                SCROLL_TRACK_COLOR = 0x66140F1F;
+                SCROLL_THUMB_COLOR = 0xCCE7DDF7;
+                MODAL_OVERLAY_COLOR = 0x90060308;
+                MODAL_PANEL_COLOR = 0xFF120F18;
+                MODAL_BORDER_COLOR = 0xFFE7DDF7;
+                MODAL_TEXT_COLOR = 0xFFE7DDF7;
+                MODAL_DISABLED_TEXT_COLOR = 0xFF9387AB;
+                MODAL_SECTION_COLOR = 0xFF9A78E8;
+                MODAL_SECTION_DIVIDER_COLOR = 0xFF544A66;
+                MODAL_CONTROL_FILL_COLOR = 0xFF2B2238;
+                MODAL_CONTROL_HOVER_COLOR = 0xFF392C4B;
+                MODAL_TOGGLE_ON_COLOR = 0xFF7B53B9;
+                MODAL_TOGGLE_OFF_COLOR = 0xFF746A89;
+                MODAL_DISABLED_FILL_COLOR = 0xFF392C4B;
+                MODAL_VALUE_TEXT_COLOR = 0xFFCFC4E7;
+                SLIDER_FILL_COLOR = 0xFF231D30;
+                SLIDER_DISABLED_FILL_COLOR = 0xFF171320;
+                SLIDER_KNOB_COLOR = 0xFFAC8CFF;
+                SLIDER_KNOB_DISABLED_COLOR = 0xFF392C4B;
+            }
+            case MINECRAFT_DEFAULT -> {
+                UI_PANEL_COLOR = 0xFF161616;
+                UI_PANEL_HOVER_COLOR = 0xFF242424;
+                UI_BORDER_COLOR = 0xFFA0A0A0;
+                UI_BORDER_DARK = 0xFF000000;
+                UI_BUTTON_TEXT_COLOR = 0xFFE0E0E0;
+                UI_SUBTEXT_COLOR = 0xFFB0B0B0;
+                MOD_TILE_ENABLED_COLOR = 0xFF4A7A36;
+                MOD_TILE_ENABLED_FOOTER = 0xFF355828;
+                MOD_TILE_DISABLED_COLOR = 0xFF161616;
+                MOD_TILE_DISABLED_FOOTER = 0xFF101010;
+                MOD_TILE_DISABLED_BORDER = 0xFF000000;
+                BUTTON_FILL_COLOR = 0xFF5B5B5B;
+                BUTTON_FILL_HOVER_COLOR = 0xFF6A6A6A;
+                BUTTON_BORDER_COLOR = 0xFFA0A0A0;
+                BUTTON_BORDER_HOVER_COLOR = 0xFFE0E0E0;
+                BACKDROP_TOP_COLOR = 0xAA2A1E16;
+                BACKDROP_BOTTOM_COLOR = 0xCC100A05;
+                LAYOUT_BACKDROP_TOP_COLOR = 0x662A1E16;
+                LAYOUT_BACKDROP_BOTTOM_COLOR = 0x88201010;
+                DIVIDER_COLOR = 0x66404040;
+                SCROLL_TRACK_COLOR = 0x66404040;
+                SCROLL_THUMB_COLOR = 0xCCE0E0E0;
+                MODAL_OVERLAY_COLOR = 0x90000000;
+                MODAL_PANEL_COLOR = 0xFF161616;
+                MODAL_BORDER_COLOR = 0xFFA0A0A0;
+                MODAL_TEXT_COLOR = 0xFFE0E0E0;
+                MODAL_DISABLED_TEXT_COLOR = 0xFF707070;
+                MODAL_SECTION_COLOR = 0xFFE0E0A0;
+                MODAL_SECTION_DIVIDER_COLOR = 0xFF4A4A4A;
+                MODAL_CONTROL_FILL_COLOR = 0xFF5B5B5B;
+                MODAL_CONTROL_HOVER_COLOR = 0xFF6A6A6A;
+                MODAL_TOGGLE_ON_COLOR = 0xFF6D9E46;
+                MODAL_TOGGLE_OFF_COLOR = 0xFF7A7A7A;
+                MODAL_DISABLED_FILL_COLOR = 0xFF5B5B5B;
+                MODAL_VALUE_TEXT_COLOR = 0xFFB0B0B0;
+                SLIDER_FILL_COLOR = 0xFF4A4A4A;
+                SLIDER_DISABLED_FILL_COLOR = 0xFF363636;
+                SLIDER_KNOB_COLOR = 0xFFA0A0A0;
+                SLIDER_KNOB_DISABLED_COLOR = 0xFF6A6A6A;
+            }
+        }
     }
 
     private float sliderValueForMouse(HudWidget.HudSetting setting, int barX, int barW, double mouseX) {
@@ -1428,6 +2172,37 @@ public class HudEditorScreen extends Screen {
         GENERAL
     }
 
+    private enum GeneralTab {
+        LOOKS_AND_FEEL,
+        KEYBINDS
+    }
+
+    private enum EditorTheme {
+        DEFAULT("default", "Default"),
+        MIDNIGHT("midnight", "Midnight"),
+        DUSK("dusk", "Dusk"),
+        RED("red", "Red"),
+        PURPLE("purple", "Purple"),
+        MINECRAFT_DEFAULT("minecraft_default", "Minecraft Default");
+
+        private final String id;
+        private final String label;
+
+        EditorTheme(String id, String label) {
+            this.id = id;
+            this.label = label;
+        }
+
+        private static EditorTheme fromId(String id) {
+            for (EditorTheme theme : values()) {
+                if (theme.id.equalsIgnoreCase(id)) {
+                    return theme;
+                }
+            }
+            return DEFAULT;
+        }
+    }
+
     private record Rect(int x, int y, int width, int height) {
         int right() {
             return x + width;
@@ -1445,7 +2220,8 @@ public class HudEditorScreen extends Screen {
     private record LauncherLayout(Rect layoutButton, Rect modsButton, Rect settingsButton) {
     }
 
-    private record GridMetrics(int tileSize, int gap, int columns, int rows, int startX, int startY, int gridWidth, int gridHeight) {
+    private record GridMetrics(int tileSize, int gap, int columns, int rows, int startX, int startY, int gridWidth,
+                               int gridHeight) {
     }
 
     private record WidgetTile(HudWidget widget, Rect bounds, Rect settingsButton) {

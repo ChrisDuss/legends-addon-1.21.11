@@ -2,6 +2,7 @@ package legends.ultra.cool.addons.hud.widget;
 
 import legends.ultra.cool.addons.data.WidgetConfigManager;
 import legends.ultra.cool.addons.hud.HudWidget;
+import legends.ultra.cool.addons.util.AddonServerGate;
 import net.minecraft.client.gui.DrawContext;
 
 import java.util.List;
@@ -28,7 +29,7 @@ public final class VaultBrowserWidget extends HudWidget {
     }
 
     public static boolean isEnabledGlobal() {
-        return INSTANCE != null && INSTANCE.isEnabled();
+        return AddonServerGate.shouldRunOnCurrentServer() && INSTANCE != null && INSTANCE.isEnabled();
     }
 
     public static boolean shouldAutoOpenFromStorageMenu() {

@@ -2,6 +2,7 @@ package legends.ultra.cool.addons.overlay;
 
 import legends.ultra.cool.addons.LegendsAddon;
 import legends.ultra.cool.addons.mixin.client.HandledScreenAccessor;
+import legends.ultra.cool.addons.util.AddonServerGate;
 import legends.ultra.cool.addons.util.ContainerScan;
 import legends.ultra.cool.addons.util.UiVisibility;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
@@ -47,7 +48,7 @@ public final class ContainerOverlay {
      * Decide which container(s) get the overlay
      */
     private static boolean shouldOverlay(HandledScreen<?> hs) {
-        return !UiVisibility.isHudHidden() && hasTitle(hs, FORAGING_TREE_TITLE);
+        return AddonServerGate.shouldRunOnCurrentServer() && !UiVisibility.isHudHidden() && hasTitle(hs, FORAGING_TREE_TITLE);
     }
 
     /**
@@ -74,6 +75,11 @@ public final class ContainerOverlay {
     }
 
     public static void fTreeCheck() {
+        if (!AddonServerGate.shouldRunOnCurrentServer()) {
+            setTexture(TIER_ONE_TEXTURE);
+            return;
+        }
+
         MinecraftClient client = MinecraftClient.getInstance();
         if (!(client.currentScreen instanceof HandledScreen<?> hs) || !hasTitle(hs, FORAGING_TREE_TITLE)) {
             setTexture(TIER_ONE_TEXTURE);
