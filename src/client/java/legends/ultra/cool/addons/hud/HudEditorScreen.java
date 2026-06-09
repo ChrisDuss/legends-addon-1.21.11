@@ -59,7 +59,7 @@ public class HudEditorScreen extends Screen {
     private static final int MOD_TILE_SIZE = 96;
     private static final int MOD_TILE_MIN_SIZE = 72;
     private static final int MOD_TILE_GAP = 14;
-    private static final int MOD_TILE_ICON_SIZE = 34;
+    private static final int MOD_TILE_ICON_SIZE = 54;
     private static final int LAUNCHER_ICON_SIZE = 12;
     private static final int GENERAL_TAB_H = 16;
     private static final int GENERAL_TAB_GAP = 12;
