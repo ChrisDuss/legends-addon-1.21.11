@@ -29,6 +29,7 @@ public class Bar extends HudWidget {
             return;
         }
 
+        int brdColor = WidgetConfigManager.getInt(ownerId, "brdColor", 0xFFFFFFFF);
         int left = (int) Math.floor( (int) x - LEFT_PADDING);
         int top = (int) Math.floor( (int) y - TOP_PADDING);
         int right = (int) Math.ceil( (int) x + getWidth() + RIGHT_PADDING);
@@ -45,7 +46,7 @@ public class Bar extends HudWidget {
         if (fillWidth > 0) {
             context.fill(fillLeft, top, fillRight, bottom, barColor);
         }
-        drawBorder(context, left, top, totalWidth, bottom - top, 0xFFFFFFFF);
+        drawBorder(context, left, top, totalWidth, bottom - top, brdColor);
     }
 
     @Override

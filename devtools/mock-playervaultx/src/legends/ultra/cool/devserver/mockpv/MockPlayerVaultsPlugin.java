@@ -31,7 +31,7 @@ import java.util.Objects;
 import java.util.UUID;
 
 public final class MockPlayerVaultsPlugin extends JavaPlugin implements Listener, CommandExecutor, TabCompleter {
-    private static final int MAX_VAULTS = 14;
+    private static final int MAX_VAULTS = 100;
     private static final int STORAGE_MENU_SIZE = 27;
     private static final int[] STORAGE_MENU_SLOTS = {10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25};
 

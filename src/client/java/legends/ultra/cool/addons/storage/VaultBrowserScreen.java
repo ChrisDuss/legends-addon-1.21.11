@@ -1,8 +1,9 @@
 package legends.ultra.cool.addons.storage;
 
+import legends.ultra.cool.addons.hud.widget.VaultBrowserWidget;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.Click;
+import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.item.ItemStack;
@@ -21,10 +22,10 @@ public final class VaultBrowserScreen extends Screen {
     private static final int PANEL_HEADER_HEIGHT = 18;
     private static final int SCREEN_HEADER_HEIGHT = 42;
     private static final int SCREEN_FOOTER_HEIGHT = 18;
+    private static final int SLOT_RENDER_SIZE = 16;
     private static final Text FOOTER_HINT = Text.literal("Left-click opens | Right-click renames");
     private static final int MAX_COLUMNS = 4;
     private static final int MIN_PANEL_WIDTH = (SLOT_SIZE * 9) + (PANEL_PADDING * 2);
-    private static final int MAX_PANEL_HEIGHT = PANEL_HEADER_HEIGHT + PANEL_PADDING + (6 * SLOT_SIZE) + PANEL_PADDING;
 
     private int scroll;
     private int maxScroll;
@@ -112,7 +113,7 @@ public final class VaultBrowserScreen extends Screen {
             return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
         }
 
-        this.scroll = MathHelper.clamp(this.scroll - (int) Math.round(verticalAmount * 24.0D), 0, this.maxScroll);
+        this.scroll = MathHelper.clamp(this.scroll - (int) Math.round(verticalAmount * getScrollStep()), 0, this.maxScroll);
         return true;
     }
 
@@ -156,9 +157,9 @@ public final class VaultBrowserScreen extends Screen {
         }
 
         int columns = getColumnCount();
-        int panelWidth = MIN_PANEL_WIDTH;
-        int totalWidth = columns * panelWidth + (columns - 1) * PANEL_GAP_X;
-        int startX = Math.max(OUTER_MARGIN, (this.width - totalWidth) / 2);
+        int panelWidth = getPanelWidth();
+        int totalWidth = columns * panelWidth + (columns - 1) * getPanelGapX();
+        int startX = Math.max(getOuterMargin(), (this.width - totalWidth) / 2);
         int baseY = SCREEN_HEADER_HEIGHT - this.scroll;
         VaultPanel hoveredPanel = findVaultPanelAt(mouseX, mouseY);
 
@@ -176,7 +177,7 @@ public final class VaultBrowserScreen extends Screen {
 
             if (isVisible(y, panelHeight)) {
                 boolean highlighted = hoveredPanel != null && hoveredPanel.snapshot().vaultNumber() == snapshot.vaultNumber();
-                drawPanel(context, snapshot, x, y, panelWidth, highlighted);
+                drawPanel(context, snapshot, x, y, highlighted);
                 HoveredSlot hoveredSlot = findHoveredSlot(snapshot, x, y, mouseX, mouseY);
                 if (hoveredSlot != null) {
                     hoveredStack = hoveredSlot.stack();
@@ -188,17 +189,17 @@ public final class VaultBrowserScreen extends Screen {
             if (columnIndex >= columns) {
                 columnIndex = 0;
                 x = startX;
-                y += rowMaxHeight + PANEL_GAP_Y;
+                y += rowMaxHeight + getPanelGapY();
                 rowMaxHeight = 0;
             } else {
-                x += panelWidth + PANEL_GAP_X;
+                x += panelWidth + getPanelGapX();
             }
         }
 
         if (columnIndex != 0) {
             y += rowMaxHeight;
         } else {
-            y -= PANEL_GAP_Y;
+            y -= getPanelGapY();
         }
 
         int loadedCount = snapshots.size();
@@ -216,6 +217,42 @@ public final class VaultBrowserScreen extends Screen {
         if (this.profileLabelButton != null) {
             this.profileLabelButton.setMessage(Text.literal(VaultStorageManager.getSelectedProfileLabel()));
         }
+    }
+
+    private float getPanelScale() {
+        return Math.max(0.25f, VaultBrowserWidget.getScaleSetting());
+    }
+
+    private int scalePanelMetric(int value) {
+        return Math.max(1, Math.round(value * getPanelScale()));
+    }
+
+    private int getScrollStep() {
+        return Math.max(24, scalePanelMetric(24));
+    }
+
+    private int getOuterMargin() {
+        return scalePanelMetric(OUTER_MARGIN);
+    }
+
+    private int getPanelGapX() {
+        return scalePanelMetric(PANEL_GAP_X);
+    }
+
+    private int getPanelGapY() {
+        return scalePanelMetric(PANEL_GAP_Y);
+    }
+
+    private int getBasePanelHeight(VaultStorageManager.VaultSnapshot snapshot) {
+        return PANEL_HEADER_HEIGHT + PANEL_PADDING + (snapshot.rows() * SLOT_SIZE) + PANEL_PADDING;
+    }
+
+    private int getPanelWidth() {
+        return scalePanelMetric(MIN_PANEL_WIDTH);
+    }
+
+    private int getPanelHeight(VaultStorageManager.VaultSnapshot snapshot) {
+        return scalePanelMetric(getBasePanelHeight(snapshot));
     }
 
     private void refreshScrollBounds() {
@@ -241,7 +278,7 @@ public final class VaultBrowserScreen extends Screen {
 
             if (columnIndex >= columns) {
                 rowsHeight += rowMaxHeight;
-                rowsHeight += PANEL_GAP_Y;
+                rowsHeight += getPanelGapY();
                 rowMaxHeight = 0;
                 columnIndex = 0;
             }
@@ -250,20 +287,17 @@ public final class VaultBrowserScreen extends Screen {
         if (columnIndex != 0) {
             rowsHeight += rowMaxHeight;
         } else {
-            rowsHeight -= PANEL_GAP_Y;
+            rowsHeight -= getPanelGapY();
         }
 
         return Math.max(0, rowsHeight);
     }
 
     private int getColumnCount() {
-        int usableWidth = Math.max(MIN_PANEL_WIDTH, this.width - (OUTER_MARGIN * 2));
-        int columns = Math.max(1, (usableWidth + PANEL_GAP_X) / (MIN_PANEL_WIDTH + PANEL_GAP_X));
+        int panelWidth = getPanelWidth();
+        int usableWidth = Math.max(panelWidth, this.width - (getOuterMargin() * 2));
+        int columns = Math.max(1, (usableWidth + getPanelGapX()) / (panelWidth + getPanelGapX()));
         return Math.min(MAX_COLUMNS, columns);
-    }
-
-    private int getPanelHeight(VaultStorageManager.VaultSnapshot snapshot) {
-        return PANEL_HEADER_HEIGHT + PANEL_PADDING + (snapshot.rows() * SLOT_SIZE) + PANEL_PADDING;
     }
 
     private boolean isVisible(int panelY, int panelHeight) {
@@ -272,40 +306,44 @@ public final class VaultBrowserScreen extends Screen {
         return panelY + panelHeight >= top && panelY <= bottom;
     }
 
-    private void drawPanel(DrawContext context, VaultStorageManager.VaultSnapshot snapshot, int x, int y, int width, boolean highlighted) {
-        int height = getPanelHeight(snapshot);
-        int slotAreaY = y + PANEL_HEADER_HEIGHT;
+    private void drawPanel(DrawContext context, VaultStorageManager.VaultSnapshot snapshot, int x, int y, boolean highlighted) {
+        int width = MIN_PANEL_WIDTH;
+        int height = getBasePanelHeight(snapshot);
         int topBorderColor = highlighted ? 0xFFD88C34 : 0xFF7A2A24;
         int leftBorderColor = highlighted ? 0xFFD88C34 : 0xFF7A2A24;
         int rightBorderColor = highlighted ? 0xFF7A3A12 : 0xFF3A1612;
         int bottomBorderColor = highlighted ? 0xFF7A3A12 : 0xFF3A1612;
 
-        context.fillGradient(x, y, x + width, y + height, 0xE0201A24, 0xE0100D12);
-        context.fill(x, y, x + width, y + 1, topBorderColor);
-        context.fill(x, y + 1, x + 1, y + height, leftBorderColor);
-        context.fill(x + width - 1, y + 1, x + width, y + height, rightBorderColor);
-        context.fill(x + 1, y + height - 1, x + width, y + height, bottomBorderColor);
+        context.getMatrices().pushMatrix();
+        context.getMatrices().translate(x, y);
+        context.getMatrices().scale(getPanelScale(), getPanelScale());
+
+        context.fillGradient(0, 0, width, height, 0xE0201A24, 0xE0100D12);
+        context.fill(0, 0, width, 1, topBorderColor);
+        context.fill(0, 1, 1, height, leftBorderColor);
+        context.fill(width - 1, 1, width, height, rightBorderColor);
+        context.fill(1, height - 1, width, height, bottomBorderColor);
 
         boolean hasCustomName = VaultStorageManager.hasCustomName(snapshot.vaultNumber());
         boolean showVaultTag = hasCustomName || VaultStorageManager.shouldAlwaysShowVaultNumber();
         String title = fitTitle(VaultStorageManager.getDisplayName(snapshot.vaultNumber()), width - (PANEL_PADDING * 2) - (showVaultTag ? 28 : 0));
         int titleColor = hasCustomName ? 0xFFE86A5C : 0xFFFFFF;
-        context.drawTextWithShadow(this.textRenderer, Text.literal(title), x + PANEL_PADDING, y + 5, titleColor);
+        context.drawTextWithShadow(this.textRenderer, Text.literal(title), PANEL_PADDING, 5, titleColor);
         if (showVaultTag) {
             String vaultTag = "#" + snapshot.vaultNumber();
             int vaultTagWidth = this.textRenderer.getWidth(vaultTag);
-            context.drawTextWithShadow(this.textRenderer, Text.literal(vaultTag), x + width - PANEL_PADDING - vaultTagWidth, y + 5, 0xB8B8B8);
+            context.drawTextWithShadow(this.textRenderer, Text.literal(vaultTag), width - PANEL_PADDING - vaultTagWidth, 5, 0xB8B8B8);
         }
 
         List<ItemStack> stacks = snapshot.stacks();
-        int slotBaseX = x + PANEL_PADDING;
-        int slotBaseY = slotAreaY + PANEL_PADDING;
+        int slotBaseX = PANEL_PADDING;
+        int slotBaseY = PANEL_HEADER_HEIGHT + PANEL_PADDING;
 
         for (int index = 0; index < stacks.size(); index++) {
             int slotX = slotBaseX + ((index % 9) * SLOT_SIZE);
             int slotY = slotBaseY + ((index / 9) * SLOT_SIZE);
 
-            context.fill(slotX, slotY, slotX + 16, slotY + 16, 0xA0101010);
+            context.fill(slotX, slotY, slotX + SLOT_RENDER_SIZE, slotY + SLOT_RENDER_SIZE, 0xA0101010);
 
             ItemStack stack = stacks.get(index);
             if (!stack.isEmpty()) {
@@ -313,11 +351,15 @@ public final class VaultBrowserScreen extends Screen {
                 context.drawStackOverlay(this.textRenderer, stack, slotX, slotY);
             }
         }
+
+        context.getMatrices().popMatrix();
     }
 
     private HoveredSlot findHoveredSlot(VaultStorageManager.VaultSnapshot snapshot, int x, int y, int mouseX, int mouseY) {
-        int slotBaseX = x + PANEL_PADDING;
-        int slotBaseY = y + PANEL_HEADER_HEIGHT + PANEL_PADDING;
+        int localMouseX = MathHelper.floor((mouseX - x) / getPanelScale());
+        int localMouseY = MathHelper.floor((mouseY - y) / getPanelScale());
+        int slotBaseX = PANEL_PADDING;
+        int slotBaseY = PANEL_HEADER_HEIGHT + PANEL_PADDING;
 
         for (int index = 0; index < snapshot.stacks().size(); index++) {
             ItemStack stack = snapshot.stacks().get(index);
@@ -328,7 +370,7 @@ public final class VaultBrowserScreen extends Screen {
             int slotX = slotBaseX + ((index % 9) * SLOT_SIZE);
             int slotY = slotBaseY + ((index / 9) * SLOT_SIZE);
 
-            if (mouseX >= slotX && mouseX < slotX + 16 && mouseY >= slotY && mouseY < slotY + 16) {
+            if (localMouseX >= slotX && localMouseX < slotX + SLOT_RENDER_SIZE && localMouseY >= slotY && localMouseY < slotY + SLOT_RENDER_SIZE) {
                 return new HoveredSlot(stack, buildTooltip(stack));
             }
         }
@@ -363,9 +405,9 @@ public final class VaultBrowserScreen extends Screen {
         }
 
         int columns = getColumnCount();
-        int panelWidth = MIN_PANEL_WIDTH;
-        int totalWidth = columns * panelWidth + (columns - 1) * PANEL_GAP_X;
-        int startX = Math.max(OUTER_MARGIN, (this.width - totalWidth) / 2);
+        int panelWidth = getPanelWidth();
+        int totalWidth = columns * panelWidth + (columns - 1) * getPanelGapX();
+        int startX = Math.max(getOuterMargin(), (this.width - totalWidth) / 2);
         int baseY = SCREEN_HEADER_HEIGHT - this.scroll;
 
         int x = startX;
@@ -385,10 +427,10 @@ public final class VaultBrowserScreen extends Screen {
             if (columnIndex >= columns) {
                 columnIndex = 0;
                 x = startX;
-                y += rowMaxHeight + PANEL_GAP_Y;
+                y += rowMaxHeight + getPanelGapY();
                 rowMaxHeight = 0;
             } else {
-                x += panelWidth + PANEL_GAP_X;
+                x += panelWidth + getPanelGapX();
             }
         }
 

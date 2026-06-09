@@ -44,8 +44,8 @@ public class LegendsAddonClient implements ClientModInitializer {
         CooldownDisplay cooldownDisplay = new CooldownDisplay(10, 90);
         VaultBrowserWidget vaultBrowserWidget = new VaultBrowserWidget();
 
-        addWidget(textWidget);
-        addWidget(counterWidget);
+//        addWidget(textWidget);
+//        addWidget(counterWidget);
         addWidget(timerWidget);
         addWidget(nameplateWidget);
         addWidget(npcChatWidget);

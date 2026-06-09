@@ -6,6 +6,7 @@ import legends.ultra.cool.addons.hud.HudWidget;
 import legends.ultra.cool.addons.mixin.client.InGameHudAccessor;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Style;
 import net.minecraft.text.Text;
@@ -21,6 +22,8 @@ public class Health extends HudWidget implements BarDraggable {
 
     private static Health INSTANCE;
 
+    ClientPlayerEntity player;
+
     private String health = "Null";
     private double maxHealth = 0;
     private double currentHealth = 0;
@@ -33,7 +36,7 @@ public class Health extends HudWidget implements BarDraggable {
 
     public Health(String name, int x, int y) {
         super(name, x, y);
-        this.hpBar = new Bar(name, "HealthBar", x, y + DEFAULT_BAR_Y_OFFSET, currentHealth, maxHealth);
+        this.hpBar = new Bar(name, "HealthBar", x, y + DEFAULT_BAR_Y_OFFSET, 20, 20);
         INSTANCE = this;
     }
 
@@ -99,6 +102,14 @@ public class Health extends HudWidget implements BarDraggable {
     }
 
     private String getHealth() {
+        player = MinecraftClient.getInstance().player;
+
+        //for responsiveness
+        if (player != null) {
+            hpBar.setMin(player.getHealth());
+            hpBar.setMax(player.getMaxHealth());
+        }
+
         MinecraftClient client = MinecraftClient.getInstance();
         if (client == null || client.inGameHud == null) {
             return health = "0";
@@ -115,8 +126,6 @@ public class Health extends HudWidget implements BarDraggable {
             currentHealth = Double.parseDouble(match.current().replace(',', '.'));
             maxHealth = Double.parseDouble(match.max().replace(',', '.'));
             health = currentHealth + "/" + maxHealth;
-            hpBar.setMin(currentHealth);
-            hpBar.setMax(maxHealth);
         }
 
         return health;
@@ -338,6 +347,13 @@ public class Health extends HudWidget implements BarDraggable {
                         () -> WidgetConfigManager.getFloat(w, "barWidth", 80f),
                         v -> WidgetConfigManager.setFloat(w, "barWidth", (float) v, true),
                         80f
+                ),
+                HudSetting.color(
+                        "brdColor", "Bar Color",
+                        () -> true,
+                        () -> WidgetConfigManager.getInt(w, "brdColor", 0xFFFFFFFF),
+                        c -> WidgetConfigManager.setInt(w, "brdColor", c, true),
+                        0xFFFFFFFF
                 )
         );
     }

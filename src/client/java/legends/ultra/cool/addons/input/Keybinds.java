@@ -23,76 +23,40 @@ import org.lwjgl.glfw.GLFW;
 
 public class Keybinds {
     public static KeyBinding OPEN_EDITOR;
+    public static KeyBinding TOGGLE_TIMER;
+    public static KeyBinding RESET_TIMER;
     public static final KeyBinding.Category MAIN_CATEGORY = KeyBinding.Category.create(Identifier.of("legends_addon"));
 
     public static void init() {
-        KeyBinding openEditorKey = KeyBindingHelper.registerKeyBinding(
+        OPEN_EDITOR = KeyBindingHelper.registerKeyBinding(
                 new KeyBinding(
                         "Toggle Editor",
                         InputUtil.Type.KEYSYM,
                         GLFW.GLFW_KEY_RIGHT_SHIFT,
                         MAIN_CATEGORY
-
                 )
         );
 
-        KeyBinding DUMP_MOB_KEY = KeyBindingHelper.registerKeyBinding(
-                new KeyBinding(
-                        "Dump Mob",
-                        GLFW.GLFW_KEY_K,
-                        MAIN_CATEGORY
-                ));
-
-        KeyBinding TOGGLE_TIMER = KeyBindingHelper.registerKeyBinding(
+        TOGGLE_TIMER = KeyBindingHelper.registerKeyBinding(
                 new KeyBinding(
                         "Toggle Timer",
                         GLFW.GLFW_KEY_X,
                         MAIN_CATEGORY
                 ));
 
-        KeyBinding RESET_TIMER = KeyBindingHelper.registerKeyBinding(
+        RESET_TIMER = KeyBindingHelper.registerKeyBinding(
                 new KeyBinding(
                         "Reset Timer",
                         GLFW.GLFW_KEY_C,
                         MAIN_CATEGORY
                 ));
 
-        KeyBinding INV_DEBUG = KeyBindingHelper.registerKeyBinding(
-                new KeyBinding(
-                        "inv debug",
-                        GLFW.GLFW_KEY_P,
-                        MAIN_CATEGORY
-                ));
-
-        KeyBinding DUMP_HOVERED_ITEM = KeyBindingHelper.registerKeyBinding(
-                new KeyBinding(
-                        "Dump Hovered Item",
-                        GLFW.GLFW_KEY_O,
-                        MAIN_CATEGORY
-                ));
-
-        ScreenEvents.AFTER_INIT.register((client, screen, scaledWidth, scaledHeight) -> {
-            ScreenKeyboardEvents.afterKeyPress(screen).register((scr, key) -> {
-                if (!(scr instanceof HandledScreen<?>)) {
-                    return;
-                }
-
-                if (DUMP_HOVERED_ITEM.matchesKey(key)) {
-                    ItemDebugDump.dumpHoveredItem(client);
-                }
-            });
-        });
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
 
             //OPEN EDITOR
-            while (openEditorKey.wasPressed()) {
+            while (OPEN_EDITOR.wasPressed()) {
                 client.setScreen(new HudEditorScreen());
-            }
-
-            //MOB DEBUG
-            while (DUMP_MOB_KEY.wasPressed()) {
-                dumpLookedAtMob(client);
             }
 
             //TIMER
@@ -108,20 +72,6 @@ public class Keybinds {
                 }
             });
         });
-    }
-
-    private static void dumpLookedAtMob(MinecraftClient client) {
-        if (client == null || client.player == null || client.world == null) return;
-
-        if (!(client.crosshairTarget instanceof EntityHitResult hit)) {
-            return;
-        }
-
-        if (!(hit.getEntity() instanceof LivingEntity mob)) {
-            return;
-        }
-
-        client.player.sendMessage(Text.literal(EntityDebug.getEntityFullNbt(mob).toString()),false);
     }
 }
 

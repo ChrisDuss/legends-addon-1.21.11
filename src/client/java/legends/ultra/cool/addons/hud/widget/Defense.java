@@ -19,8 +19,10 @@ public class Defense extends HudWidget {
 
     private static Defense INSTANCE;
 
+    private static final String CENTER_WIDTH_SAMPLE = "99999";
+
     private String defense = "0";
-    private double cachedTextWidth = 0;
+    private double cachedDisplayWidth = 0;
     private int cachedTextHeight = 0;
 
     public Defense(String name, double x, double y) {
@@ -65,9 +67,10 @@ public class Defense extends HudWidget {
         int textColor = WidgetConfigManager.getInt(w, "textColor", 0xFF54FC54);
 
         String text = getDefense();
-        int width = client.textRenderer.getWidth(text);
+        int textWidth = client.textRenderer.getWidth(text);
+        int width = getDisplayWidth(client, textWidth);
         int height = client.textRenderer.fontHeight;
-        cachedTextWidth = width;
+        cachedDisplayWidth = width;
         cachedTextHeight = height;
 
         if (bgToggle) {
@@ -78,7 +81,8 @@ public class Defense extends HudWidget {
             drawBorder(context, (int) (x - 3), (int) (y - 3), width + 5, height + 5, brdColor);
         }
 
-        context.drawText(client.textRenderer, text, (int) x, (int) y, textColor, !bgToggle);
+        int textX = (int) x + Math.max(0, (width - textWidth) / 2);
+        context.drawText(client.textRenderer, text, textX, (int) y, textColor, !bgToggle);
     }
 
     private String getDefense() {
@@ -149,13 +153,17 @@ public class Defense extends HudWidget {
         }
     }
 
+    private int getDisplayWidth(MinecraftClient client, int textWidth) {
+        return Math.max(textWidth, client.textRenderer.getWidth(CENTER_WIDTH_SAMPLE));
+    }
+
     private record DefenseMatch(int start, int end, String value) {
     }
 
     @Override
     public double getWidth() {
-        if (cachedTextWidth > 0) {
-            return cachedTextWidth;
+        if (cachedDisplayWidth > 0) {
+            return cachedDisplayWidth;
         }
 
         MinecraftClient client = MinecraftClient.getInstance();
@@ -163,7 +171,7 @@ public class Defense extends HudWidget {
             return 0;
         }
 
-        return client.textRenderer.getWidth(defense);
+        return getDisplayWidth(client, client.textRenderer.getWidth(defense));
     }
 
     @Override
