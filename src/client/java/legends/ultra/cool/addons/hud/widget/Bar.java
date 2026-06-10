@@ -14,7 +14,7 @@ public class Bar extends HudWidget {
     private double min;
     private double max;
     private boolean rev;
-    private int barColor = 0x00000000;
+    private int barColor;
 
     public Bar(String ownerId, String name, double x, double y, double min, double max) {
         super(name, x, y);
@@ -29,7 +29,8 @@ public class Bar extends HudWidget {
             return;
         }
 
-        int brdColor = WidgetConfigManager.getInt(ownerId, "brdColor", 0xFFFFFFFF);
+        barColor = WidgetConfigManager.getInt(ownerId, "textColor", 0xFFFFFFFF);
+        int brdColor = WidgetConfigManager.getInt(ownerId, "barBrdColor", 0xFFFFFFFF);
         int left = (int) Math.floor( (int) x - LEFT_PADDING);
         int top = (int) Math.floor( (int) y - TOP_PADDING);
         int right = (int) Math.ceil( (int) x + getWidth() + RIGHT_PADDING);

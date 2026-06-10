@@ -127,7 +127,7 @@ public class Health extends HudWidget implements BarDraggable {
             currentHealth = Double.parseDouble(match.current().replace(',', '.'));
             maxHealth = Double.parseDouble(match.max().replace(',', '.'));
             currentHealth = player.getHealth() * (maxHealth/player.getMaxHealth());
-            health = currentHealth + "/" + maxHealth;
+            health = String.format("%.1f", currentHealth) + "/" + maxHealth;
         }
 
         return health;
@@ -376,10 +376,10 @@ public class Health extends HudWidget implements BarDraggable {
                         80f
                 ),
                 HudSetting.color(
-                        "brdColor", "Bar Color",
+                        "barBrdColor", "Bar Color",
                         () -> true,
-                        () -> WidgetConfigManager.getInt(w, "brdColor", 0xFFFFFFFF),
-                        c -> WidgetConfigManager.setInt(w, "brdColor", c, true),
+                        () -> WidgetConfigManager.getInt(w, "barBrdColor", 0xFFFFFFFF),
+                        c -> WidgetConfigManager.setInt(w, "barBrdColor", c, true),
                         0xFFFFFFFF
                 )
         );

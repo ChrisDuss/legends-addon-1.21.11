@@ -372,10 +372,10 @@ public class Mana extends HudWidget implements BarDraggable {
                         80f
                 ),
                 HudSetting.color(
-                        "brdColor", "Bar Color",
+                        "barBrdColor", "Bar Color",
                         () -> true,
-                        () -> WidgetConfigManager.getInt(w, "brdColor", 0xFFFFFFFF),
-                        c -> WidgetConfigManager.setInt(w, "brdColor", c, true),
+                        () -> WidgetConfigManager.getInt(w, "barBrdColor", 0xFFFFFFFF),
+                        c -> WidgetConfigManager.setInt(w, "barBrdColor", c, true),
                         0xFFFFFFFF
                 )
         );
