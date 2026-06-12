@@ -67,6 +67,10 @@ public class Defense extends HudWidget {
         String text = getDefense();
         int width = client.textRenderer.getWidth(text);
         int height = client.textRenderer.fontHeight;
+        if (cachedTextWidth > 0 && cachedTextWidth != width) {
+            double centerX = x + cachedTextWidth / 2d;
+            x = centerX - width / 2d;
+        }
         cachedTextWidth = width;
         cachedTextHeight = height;
 
