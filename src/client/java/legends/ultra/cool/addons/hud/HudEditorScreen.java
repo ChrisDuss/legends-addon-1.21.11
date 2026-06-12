@@ -50,7 +50,7 @@ public class HudEditorScreen extends Screen {
     private static final int LAUNCHER_WIDE = 100;
     private static final int LAUNCHER_GAP = 10;
     private static final int CHIP_H = 18;
-    private static final int BACK_W = 44;
+    private static final int BACK_W = 18;
     private static final int SNAP_W = 70;
     private static final int MODS_VIEW_TOP = 42;
     private static final int MODS_VIEW_BOTTOM = 18;
@@ -517,10 +517,28 @@ public class HudEditorScreen extends Screen {
     }
 
     private void renderMods(DrawContext ctx, int mouseX, int mouseY) {
-        drawChip(ctx, backChipBounds(), mouseX, mouseY, "Back", BUTTON_FILL_COLOR, UI_BUTTON_TEXT_COLOR);
-        ctx.drawCenteredTextWithShadow(textRenderer, Text.literal("Mods"), this.width / 2, 18, UI_BUTTON_TEXT_COLOR);
-
         Rect viewport = modsViewportBounds();
+        GridMetrics grid = computeUnscrolledGridMetrics(HudManager.getWidgets().size(), viewport);
+
+        int paddingTop = 33;
+        int padding = 15;
+        int startY = grid.startY;
+        int startX = grid.startX;
+        int totalHeight = grid.gridHeight;
+        int totalWidth = grid.gridWidth;
+
+        Rect panel = new Rect(startX - padding, startY - paddingTop, totalWidth + 2*padding, totalHeight + padding + paddingTop);
+
+        drawPanel(ctx, panel, UI_PANEL_COLOR, UI_PANEL_COLOR, UI_BORDER_COLOR);
+
+        if (useMinecraftTheme()) {
+            ctx.drawCenteredTextWithShadow(textRenderer, Text.literal("Mods"), panel.x + panel.width / 2, panel.y + 14, UI_BUTTON_TEXT_COLOR);
+        } else {
+            ctx.drawText(textRenderer, "Mods", panel.x + 18, panel.y + 14, UI_BUTTON_TEXT_COLOR, false);
+        }
+
+        drawChip(ctx, backChipBounds(),  mouseX, mouseY, "x", BUTTON_FILL_HOVER_COLOR, UI_BUTTON_TEXT_COLOR);
+
         updateModsScrollBounds();
         int viewportMouseX = viewport.contains(mouseX, mouseY) ? mouseX : Integer.MIN_VALUE;
         int viewportMouseY = viewport.contains(mouseX, mouseY) ? mouseY : Integer.MIN_VALUE;
@@ -535,22 +553,21 @@ public class HudEditorScreen extends Screen {
     }
 
     private void renderLayoutChrome(DrawContext ctx, int mouseX, int mouseY) {
-        drawChip(ctx, backChipBounds(), mouseX, mouseY, "Back", BUTTON_FILL_COLOR, UI_BUTTON_TEXT_COLOR);
-        //drawChip(ctx, snapChipBounds(), mouseX, mouseY, snapEnabled ? "Snap ON" : "Snap OFF", snapEnabled ? MOD_TILE_ENABLED_COLOR : BUTTON_FILL_COLOR, UI_BUTTON_TEXT_COLOR);
+        drawChip(ctx, backChipBounds(),  mouseX, mouseY, "x", BUTTON_FILL_HOVER_COLOR, UI_BUTTON_TEXT_COLOR);
 
         String hint = "Drag enabled widgets. Press ESC to return.";
         String hint2 = "Right click to disable snap";
-        int hintX = this.width - textRenderer.getWidth(hint) - 14;
-        int hint2X = this.width - textRenderer.getWidth(hint2) - 14;
-        ctx.drawText(textRenderer, hint, Math.max(14, hintX), 17, UI_SUBTEXT_COLOR, false);
-        ctx.drawText(textRenderer, hint2, Math.max(14, hint2X), 30, UI_SUBTEXT_COLOR, false);
+        int hintX = this.width - textRenderer.getWidth(hint) - 10;
+        int hint2X = this.width - textRenderer.getWidth(hint2) - 10;
+        ctx.drawText(textRenderer, hint, Math.max(14, hintX), this.height - 14, UI_SUBTEXT_COLOR, false);
+        ctx.drawText(textRenderer, hint2, Math.max(14, hint2X), this.height - 27, UI_SUBTEXT_COLOR, false);
     }
 
     private void renderGeneral(DrawContext ctx, int mouseX, int mouseY) {
         Rect panel = generalPanelBounds();
 
         drawPanel(ctx, panel, UI_PANEL_COLOR, UI_PANEL_COLOR, UI_BORDER_COLOR);
-        drawChip(ctx, backChipBounds(), mouseX, mouseY, "Back", BUTTON_FILL_COLOR, UI_BUTTON_TEXT_COLOR);
+
 
         if (useMinecraftTheme()) {
             ctx.drawCenteredTextWithShadow(textRenderer, Text.literal("General Settings"), panel.x + panel.width / 2, panel.y + 14, UI_BUTTON_TEXT_COLOR);
@@ -657,7 +674,6 @@ public class HudEditorScreen extends Screen {
         int bodyHeight = footerTop - tile.bounds.y;
 
         if (useMinecraftTheme()) {
-            //drawMinecraftButton(ctx, tile.bounds, hovered || enabled, false);
             ctx.fill(tile.bounds.x, tile.bounds.y, tile.bounds.right(), footerTop, bodyColor);
             ctx.fill(tile.bounds.x, footerTop, footerRight, tile.bounds.bottom(), footerColor);
             if (hasSettings) {
@@ -751,12 +767,16 @@ public class HudEditorScreen extends Screen {
     }
 
     private void renderGeneralTab(DrawContext ctx, Rect rect, String label, boolean active, int mouseX, int mouseY) {
+        drawChip(ctx, backChipBounds(),  mouseX, mouseY, "x", BUTTON_FILL_HOVER_COLOR, UI_BUTTON_TEXT_COLOR);
+
         boolean hovered = rect.contains(mouseX, mouseY);
         if (useMinecraftTheme()) {
             drawMinecraftButton(ctx, rect, hovered || active, false);
             drawMinecraftCenteredLabel(ctx, rect, label, hovered || active);
             return;
         }
+
+
 
         int textColor = active ? UI_BUTTON_TEXT_COLOR : (hovered ? UI_BUTTON_TEXT_COLOR : UI_SUBTEXT_COLOR);
         ctx.drawText(
@@ -839,7 +859,7 @@ public class HudEditorScreen extends Screen {
 
         String themeLabel = trimToWidth(activeTheme.label, themeButtonBounds.width - 18);
         ctx.drawText(textRenderer, themeLabel, themeButtonBounds.x + 6, themeButtonBounds.y + 4, useMinecraftTheme() ? minecraftTextColor(themeDropdownOpen || themeHovered, false) : UI_BUTTON_TEXT_COLOR, false);
-        ctx.drawText(textRenderer, themeDropdownOpen ? "^" : "v", themeButtonBounds.right() - 9, themeButtonBounds.y + 4, useMinecraftTheme() ? minecraftTextColor(themeDropdownOpen || themeHovered, false) : UI_SUBTEXT_COLOR, false);
+        ctx.drawText(textRenderer, themeDropdownOpen ? "▲" : "▼", themeButtonBounds.right() - 9, themeButtonBounds.y + 4, useMinecraftTheme() ? minecraftTextColor(themeDropdownOpen || themeHovered, false) : UI_SUBTEXT_COLOR, false);
 
         if (themeDropdownOpen) {
             renderThemeDropdown(ctx, mouseX, mouseY);
@@ -895,16 +915,18 @@ public class HudEditorScreen extends Screen {
     private void drawChip(DrawContext ctx, Rect rect, int mouseX, int mouseY, String label, int fillColor, int textColor) {
         boolean hovered = rect.contains(mouseX, mouseY);
         if (useMinecraftTheme()) {
-            drawMinecraftButton(ctx, rect, hovered, false);
-            drawMinecraftCenteredLabel(ctx, rect, label, hovered);
-            return;
-        }
+            drawMinecraftButton(ctx, backChipBounds() , hovered, false);
+        } else {
 
-        int color = hovered ? BUTTON_FILL_HOVER_COLOR : fillColor;
-        ctx.fill(rect.x, rect.y, rect.right(), rect.bottom(), color);
-        drawBorder(ctx, rect.x, rect.y, rect.width, rect.height, 0x00000000);
-        ctx.drawText(textRenderer, label, rect.x + 8, rect.y + 5, textColor, false);
-    }
+            if (hovered) {
+                ctx.fill(backChipBounds().x, backChipBounds().y, backChipBounds().x + backChipBounds().width, backChipBounds().y + backChipBounds().height, BUTTON_FILL_HOVER_COLOR);
+                drawBorder(ctx, backChipBounds().x, backChipBounds().y, backChipBounds().width, backChipBounds().height, BUTTON_BORDER_HOVER_COLOR);
+            } else {
+                ctx.fill(backChipBounds().x, backChipBounds().y, backChipBounds().x + backChipBounds().width, backChipBounds().y + backChipBounds().height, BUTTON_FILL_COLOR);
+                drawBorder(ctx, backChipBounds().x, backChipBounds().y, backChipBounds().width, backChipBounds().height, BUTTON_BORDER_COLOR);
+            }
+        }
+        drawMinecraftCenteredLabel(ctx, backChipBounds(), "x", hovered);}
 
     private LauncherLayout launcherLayout() {
         int launcherSquare = LAUNCHER_SQUARE;
@@ -962,24 +984,37 @@ public class HudEditorScreen extends Screen {
 
     private Rect themeDropdownListBounds() {
         Rect button = themeDropdownButtonBounds();
-        int listHeight = EditorTheme.values().length * GENERAL_THEME_OPTION_H;
+        int listHeight = themeDropdownContentHeight();
         int belowY = button.bottom() + GENERAL_DROPDOWN_GAP;
         int aboveY = button.y - GENERAL_DROPDOWN_GAP - listHeight;
-        Rect serverRow = serverToggleRowBounds();
 
         int y = belowY;
-        boolean overlapsServerRow = belowY < serverRow.bottom() && belowY + listHeight > serverRow.y;
-        if (overlapsServerRow && aboveY >= 8) {
+        if (belowY + listHeight > this.height - 8 && aboveY >= 8) {
             y = aboveY;
         } else if (belowY + listHeight > this.height - 8) {
-            y = aboveY >= 8 ? aboveY : Math.max(8, this.height - 8 - listHeight);
+            y = Math.max(8, this.height - 8 - listHeight);
         }
+
         return new Rect(button.x, y, button.width, listHeight);
     }
 
     private Rect themeOptionBounds(int index) {
         Rect list = themeDropdownListBounds();
-        return new Rect(list.x, list.y + index * GENERAL_THEME_OPTION_H, list.width, GENERAL_THEME_OPTION_H);
+        int optionWidth = list.width - 2;
+        int optionY = list.y + index * themeDropdownOptionSpan() + 1;
+        return new Rect(list.x + 1, optionY, Math.max(1, optionWidth), themeDropdownOptionHeight());
+    }
+
+    private int themeDropdownContentHeight() {
+        return EditorTheme.values().length * themeDropdownOptionSpan();
+    }
+
+    private int themeDropdownOptionSpan() {
+        return useMinecraftTheme() ? 22 : GENERAL_THEME_OPTION_H;
+    }
+
+    private int themeDropdownOptionHeight() {
+        return useMinecraftTheme() ? 20 : GENERAL_THEME_OPTION_H - 1;
     }
 
     private Rect keybindRowBounds(int index) {
@@ -1075,7 +1110,29 @@ public class HudEditorScreen extends Screen {
     }
 
     private Rect backChipBounds() {
-        return new Rect(14, 14, BACK_W, CHIP_H);
+        if (viewMode == ViewMode.MODS) {
+            Rect viewport = modsViewportBounds();
+            GridMetrics grid = computeUnscrolledGridMetrics(HudManager.getWidgets().size(), viewport);
+
+            int padding = 5;
+            int startY = grid.startY;
+            int startX = grid.startX;
+            int totalWidth = grid.gridWidth;
+
+            return new Rect(totalWidth + startX - BACK_W,  startY - CHIP_H - padding, BACK_W, CHIP_H);
+        }
+        else if (viewMode == ViewMode.GENERAL) {
+            Rect viewport = generalPanelBounds();
+            GridMetrics grid = computeUnscrolledGridMetrics(HudManager.getWidgets().size(), viewport);
+
+            int padding = 8;
+            int startY = grid.startY;
+            int startX = grid.startX;
+            int totalWidth = grid.gridWidth;
+
+            return new Rect(totalWidth + startX - 2 * BACK_W - padding -1,  startY + padding, BACK_W, CHIP_H);
+        }
+        return new Rect(this.width - BACK_W - 14,  14, BACK_W, CHIP_H);
     }
 
     private Rect snapChipBounds() {
@@ -1683,13 +1740,25 @@ public class HudEditorScreen extends Screen {
     }
 
     private void drawMinecraftCenteredLabel(DrawContext ctx, Rect rect, String label, boolean highlighted) {
-        ctx.drawCenteredTextWithShadow(
-                textRenderer,
-                Text.literal(label),
-                rect.x + rect.width / 2,
-                rect.y + (rect.height - textRenderer.fontHeight) / 2,
-                minecraftTextColor(highlighted, false)
-        );
+
+        if (useMinecraftTheme()) {
+            ctx.drawCenteredTextWithShadow(
+                    textRenderer,
+                    Text.literal(label),
+                    rect.x + rect.width / 2,
+                    rect.y + (rect.height - textRenderer.fontHeight) / 2,
+                    minecraftTextColor(highlighted, false)
+            );
+        } else {
+            ctx.drawCenteredTextWithShadow(
+                    textRenderer,
+                    Text.literal(label),
+                    rect.x + rect.width / 2 + 1,
+                    rect.y + (rect.height - textRenderer.fontHeight) / 2 + 1,
+                    minecraftTextColor(highlighted, false)
+            );
+        }
+
     }
 
     private int minecraftTextColor(boolean highlighted, boolean disabled) {
@@ -1702,28 +1771,35 @@ public class HudEditorScreen extends Screen {
     private void renderThemeDropdown(DrawContext ctx, int mouseX, int mouseY) {
         Rect listBounds = themeDropdownListBounds();
         if (useMinecraftTheme()) {
-            ctx.drawGuiTexture(RenderPipelines.GUI_TEXTURED, VANILLA_POPUP_BACKGROUND_SPRITE, listBounds.x, listBounds.y, listBounds.width, listBounds.height);
+//            ctx.drawGuiTexture(RenderPipelines.GUI_TEXTURED, VANILLA_POPUP_BACKGROUND_SPRITE, listBounds.x, listBounds.y, listBounds.width, listBounds.height + 15);
+            drawPanel(ctx, listBounds, UI_PANEL_COLOR, UI_PANEL_COLOR, UI_BORDER_COLOR);
         } else {
             ctx.fill(listBounds.x, listBounds.y, listBounds.right(), listBounds.bottom(), UI_PANEL_COLOR);
             drawBorder(ctx, listBounds.x, listBounds.y, listBounds.width, listBounds.height, UI_BORDER_COLOR);
         }
 
         EditorTheme[] themes = EditorTheme.values();
-        for (int index = 0; index < themes.length; index++) {
-            Rect option = themeOptionBounds(index);
-            EditorTheme theme = themes[index];
+        for (int i = 0; i < themes.length; i++) {
+            Rect option = themeOptionBounds(i);
+            EditorTheme theme = themes[i];
             boolean hovered = option.contains(mouseX, mouseY);
             boolean selected = theme == activeTheme;
 
             if (useMinecraftTheme()) {
-                drawMinecraftButton(ctx, option, hovered || selected, false);
-                drawMinecraftCenteredLabel(ctx, option, trimToWidth(theme.label, option.width - 10), hovered || selected);
+                int color = selected ? 0xFFFFFFA0 : minecraftTextColor(hovered, false);
+                ctx.drawCenteredTextWithShadow(
+                        textRenderer,
+                        Text.literal(trimToWidth(theme.label, option.width - 10)),
+                        option.x + option.width / 2,
+                        option.y + (option.height - textRenderer.fontHeight) / 2,
+                        color
+                );
             } else {
                 if (hovered || selected) {
                     ctx.fill(option.x, option.y, option.right(), option.bottom(), hovered ? BUTTON_FILL_HOVER_COLOR : UI_PANEL_HOVER_COLOR);
                 }
 
-                if (index > 0) {
+                if (i > 0) {
                     ctx.drawHorizontalLine(option.x + 4, option.right() - 4, option.y, DIVIDER_COLOR);
                 }
 
