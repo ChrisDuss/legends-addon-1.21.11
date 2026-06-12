@@ -1,5 +1,6 @@
 package legends.ultra.cool.addons.hud;
 
+import legends.ultra.cool.addons.util.AddonServerGate;
 import net.minecraft.client.gui.DrawContext;
 
 import java.util.List;
@@ -20,6 +21,10 @@ public abstract class HudWidget {
     }
 
     public boolean isEnabled() {
+        return enabled && AddonServerGate.shouldRunOnCurrentServer();
+    }
+
+    public boolean isConfiguredEnabled() {
         return enabled;
     }
 
@@ -31,11 +36,27 @@ public abstract class HudWidget {
     public abstract double getWidth();
     public abstract double getHeight();
 
+    public double getVisualX() {
+        return x;
+    }
+
+    public double getVisualY() {
+        return y;
+    }
+
+    public double getVisualWidth() {
+        return getWidth();
+    }
+
+    public double getVisualHeight() {
+        return getHeight();
+    }
+
     public boolean isMouseOver(double mouseX, double mouseY) {
-        int ix = (int) x;
-        int iy = (int) y;
-        return mouseX >= ix && mouseX <= ix + getWidth()
-                && mouseY >= iy && mouseY <= iy + getHeight();
+        double left = getVisualX();
+        double top = getVisualY();
+        return mouseX >= left && mouseX <= left + getVisualWidth()
+                && mouseY >= top && mouseY <= top + getVisualHeight();
     }
 
     public void move(double dx, double dy) {

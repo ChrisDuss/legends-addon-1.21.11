@@ -11,6 +11,7 @@ import legends.ultra.cool.addons.hud.widget.otherTypes.NameplateWidget;
 import legends.ultra.cool.addons.hud.widget.otherTypes.NpcChatWidget;
 import legends.ultra.cool.addons.input.Keybinds;
 import legends.ultra.cool.addons.overlay.ContainerOverlay;
+import legends.ultra.cool.addons.storage.VaultStorageManager;
 import net.fabricmc.api.ClientModInitializer;
 
 
@@ -29,6 +30,7 @@ public class LegendsAddonClient implements ClientModInitializer {
         WorldJoinLeaveHandler.init();
         ClientTickHandler.init();
         ContainerOverlay.init();
+        VaultStorageManager.init();
 
         TextWidget textWidget = new TextWidget(10, 10);
         CounterWidget counterWidget = new CounterWidget(10, 30);
@@ -40,9 +42,10 @@ public class LegendsAddonClient implements ClientModInitializer {
         Mana mana = new Mana("Mana Display", 10, 70);
         Defense defense = new Defense("Defense Display", 10, 80);
         CooldownDisplay cooldownDisplay = new CooldownDisplay(10, 90);
+        VaultBrowserWidget vaultBrowserWidget = new VaultBrowserWidget();
 
-        addWidget(textWidget);
-        addWidget(counterWidget);
+//        addWidget(textWidget);
+//        addWidget(counterWidget);
         addWidget(timerWidget);
         addWidget(nameplateWidget);
         addWidget(npcChatWidget);
@@ -51,6 +54,7 @@ public class LegendsAddonClient implements ClientModInitializer {
         addWidget(mana);
         addWidget(defense);
         addWidget(cooldownDisplay);
+        addWidget(vaultBrowserWidget);
     }
 
     public void addWidget(HudWidget w) {

@@ -1,6 +1,7 @@
 package legends.ultra.cool.addons.hud.widget.otherTypes;
 
 import legends.ultra.cool.addons.hud.HudWidget;
+import legends.ultra.cool.addons.util.AddonServerGate;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.network.ClientPlayerLikeEntity;
@@ -39,7 +40,7 @@ public class NpcChatWidget extends HudWidget {
     }
 
     public static boolean isEnabledGlobal() {
-        return INSTANCE != null && INSTANCE.isEnabled();
+        return AddonServerGate.shouldRunOnCurrentServer() && INSTANCE != null && INSTANCE.isEnabled();
     }
 
     public static boolean isNpcMessage(Text message) {

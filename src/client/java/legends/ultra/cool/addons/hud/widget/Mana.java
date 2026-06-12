@@ -4,6 +4,7 @@ import legends.ultra.cool.addons.data.WidgetConfigManager;
 import legends.ultra.cool.addons.hud.BarDraggable;
 import legends.ultra.cool.addons.hud.HudWidget;
 import legends.ultra.cool.addons.mixin.client.InGameHudAccessor;
+import legends.ultra.cool.addons.util.AddonServerGate;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.text.MutableText;
@@ -38,7 +39,7 @@ public class Mana extends HudWidget implements BarDraggable {
     }
 
     public static boolean isEnabledGlobal() {
-        return INSTANCE != null && INSTANCE.isEnabled();
+        return AddonServerGate.shouldRunOnCurrentServer() && INSTANCE != null && INSTANCE.isEnabled();
     }
 
     public static boolean shouldHideOverlay(Text overlay) {
@@ -289,6 +290,31 @@ public class Mana extends HudWidget implements BarDraggable {
     }
 
     @Override
+    public double getVisualX() {
+        return usesDecoratedBounds() ? x - 3 : x;
+    }
+
+    @Override
+    public double getVisualY() {
+        return usesDecoratedBounds() ? y - 3 : y;
+    }
+
+    @Override
+    public double getVisualWidth() {
+        return getWidth() + (usesDecoratedBounds() ? 5 : 0);
+    }
+
+    @Override
+    public double getVisualHeight() {
+        return getHeight() + (usesDecoratedBounds() ? 5 : 0);
+    }
+
+    private boolean usesDecoratedBounds() {
+        return WidgetConfigManager.getBool(getName(), "bgToggle", true)
+                || WidgetConfigManager.getBool(getName(), "brdToggle", true);
+    }
+
+    @Override
     public List<HudSetting> getSettings() {
         final String w = this.getName();
 
@@ -344,6 +370,13 @@ public class Mana extends HudWidget implements BarDraggable {
                         () -> WidgetConfigManager.getFloat(w, "barWidth", 80f),
                         v -> WidgetConfigManager.setFloat(w, "barWidth", (float) v, true),
                         80f
+                ),
+                HudSetting.color(
+                        "barBrdColor", "Bar Color",
+                        () -> true,
+                        () -> WidgetConfigManager.getInt(w, "barBrdColor", 0xFFFFFFFF),
+                        c -> WidgetConfigManager.setInt(w, "barBrdColor", c, true),
+                        0xFFFFFFFF
                 )
         );
     }

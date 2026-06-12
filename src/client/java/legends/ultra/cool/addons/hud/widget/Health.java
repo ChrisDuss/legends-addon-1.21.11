@@ -4,8 +4,10 @@ import legends.ultra.cool.addons.data.WidgetConfigManager;
 import legends.ultra.cool.addons.hud.BarDraggable;
 import legends.ultra.cool.addons.hud.HudWidget;
 import legends.ultra.cool.addons.mixin.client.InGameHudAccessor;
+import legends.ultra.cool.addons.util.AddonServerGate;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Style;
 import net.minecraft.text.Text;
@@ -21,6 +23,8 @@ public class Health extends HudWidget implements BarDraggable {
 
     private static Health INSTANCE;
 
+    ClientPlayerEntity player;
+
     private String health = "Null";
     private double maxHealth = 0;
     private double currentHealth = 0;
@@ -33,12 +37,12 @@ public class Health extends HudWidget implements BarDraggable {
 
     public Health(String name, int x, int y) {
         super(name, x, y);
-        this.hpBar = new Bar(name, "HealthBar", x, y + DEFAULT_BAR_Y_OFFSET, currentHealth, maxHealth);
+        this.hpBar = new Bar(name, "HealthBar", x, y + DEFAULT_BAR_Y_OFFSET, 20, 20);
         INSTANCE = this;
     }
 
     public static boolean isEnabledGlobal() {
-        return INSTANCE != null && INSTANCE.isEnabled();
+        return AddonServerGate.shouldRunOnCurrentServer() && INSTANCE != null && INSTANCE.isEnabled();
     }
 
     public static boolean shouldHideOverlay(Text overlay) {
@@ -99,6 +103,14 @@ public class Health extends HudWidget implements BarDraggable {
     }
 
     private String getHealth() {
+        player = MinecraftClient.getInstance().player;
+
+        //for responsiveness
+        if (player != null) {
+            hpBar.setMin(player.getHealth());
+            hpBar.setMax(player.getMaxHealth());
+        }
+
         MinecraftClient client = MinecraftClient.getInstance();
         if (client == null || client.inGameHud == null) {
             return health = "0";
@@ -114,9 +126,8 @@ public class Health extends HudWidget implements BarDraggable {
         if (match != null) {
             currentHealth = Double.parseDouble(match.current().replace(',', '.'));
             maxHealth = Double.parseDouble(match.max().replace(',', '.'));
-            health = currentHealth + "/" + maxHealth;
-            hpBar.setMin(currentHealth);
-            hpBar.setMax(maxHealth);
+            currentHealth = player.getHealth() * (maxHealth/player.getMaxHealth());
+            health = String.format("%.1f", currentHealth) + "/" + maxHealth;
         }
 
         return health;
@@ -283,6 +294,31 @@ public class Health extends HudWidget implements BarDraggable {
     }
 
     @Override
+    public double getVisualX() {
+        return usesDecoratedBounds() ? x - 3 : x;
+    }
+
+    @Override
+    public double getVisualY() {
+        return usesDecoratedBounds() ? y - 3 : y;
+    }
+
+    @Override
+    public double getVisualWidth() {
+        return getWidth() + (usesDecoratedBounds() ? 5 : 0);
+    }
+
+    @Override
+    public double getVisualHeight() {
+        return getHeight() + (usesDecoratedBounds() ? 5 : 0);
+    }
+
+    private boolean usesDecoratedBounds() {
+        return WidgetConfigManager.getBool(getName(), "bgToggle", true)
+                || WidgetConfigManager.getBool(getName(), "brdToggle", true);
+    }
+
+    @Override
     public List<HudSetting> getSettings() {
         final String w = this.getName();
 
@@ -338,6 +374,13 @@ public class Health extends HudWidget implements BarDraggable {
                         () -> WidgetConfigManager.getFloat(w, "barWidth", 80f),
                         v -> WidgetConfigManager.setFloat(w, "barWidth", (float) v, true),
                         80f
+                ),
+                HudSetting.color(
+                        "barBrdColor", "Bar Color",
+                        () -> true,
+                        () -> WidgetConfigManager.getInt(w, "barBrdColor", 0xFFFFFFFF),
+                        c -> WidgetConfigManager.setInt(w, "barBrdColor", c, true),
+                        0xFFFFFFFF
                 )
         );
     }

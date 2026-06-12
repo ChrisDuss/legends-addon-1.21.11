@@ -51,6 +51,31 @@ public class TextWidget extends HudWidget {
     }
 
     @Override
+    public double getVisualX() {
+        return usesDecoratedBounds() ? x - 3 : x;
+    }
+
+    @Override
+    public double getVisualY() {
+        return usesDecoratedBounds() ? y - 3 : y;
+    }
+
+    @Override
+    public double getVisualWidth() {
+        return getWidth() + (usesDecoratedBounds() ? 5 : 0);
+    }
+
+    @Override
+    public double getVisualHeight() {
+        return getHeight() + (usesDecoratedBounds() ? 5 : 0);
+    }
+
+    private boolean usesDecoratedBounds() {
+        return WidgetConfigManager.getBool(getName(), "bgToggle", true)
+                || WidgetConfigManager.getBool(getName(), "brdToggle", true);
+    }
+
+    @Override
     public List<HudSetting> getSettings() {
         final String w = this.getName();
 

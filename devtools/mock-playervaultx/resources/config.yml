@@ -1,0 +1,22 @@
+default-unlocked-vaults: 7
+default-vault-rows: 6
+storage-menu-title: "Storage Menu"
+vault-title: "&bPersonal Vault {number}"
+
+menu:
+  unlocked-name: "&bPersonal Vault {number}"
+  unlocked-lore:
+    - "&aClick to open the vault, or do {command}"
+  locked-name: "&cLocked Vault {number}"
+  locked-lore:
+    - "&7Unlock more vaults with /pvmax"
+    - "&8Vault {number} is currently unavailable"
+
+messages:
+  player-only: "&cPlayers only."
+  invalid-number: "&cInvalid vault number: {input}"
+  locked: "&cVault {number} is locked in this dev setup."
+  updated-max: "&aUnlocked vaults set to {number}."
+  updated-max-admin: "&aSet {player}'s unlocked vault count to {number}."
+  usage-pvmax: "&eUsage: /pvmax <number>"
+  usage-pvmax-admin: "&eUsage: /pvmax <player> <number>"
