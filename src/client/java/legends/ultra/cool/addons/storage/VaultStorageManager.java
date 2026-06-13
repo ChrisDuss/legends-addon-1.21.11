@@ -16,13 +16,19 @@ import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.ChatScreen;
 import net.minecraft.client.gui.screen.ingame.HandledScreen;
 import net.minecraft.client.gui.widget.ButtonWidget;
+import net.minecraft.component.ComponentType;
 import net.minecraft.component.DataComponentTypes;
+import net.minecraft.component.type.ItemEnchantmentsComponent;
 import net.minecraft.component.type.LoreComponent;
+import net.minecraft.enchantment.Enchantment;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.StringNbtReader;
+import net.minecraft.registry.RegistryEntryLookup;
+import net.minecraft.registry.RegistryKeys;
 import net.minecraft.registry.RegistryWrapper;
+import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.screen.slot.Slot;
 import net.minecraft.text.Text;
 
@@ -992,15 +998,90 @@ public final class VaultStorageManager {
                 continue;
             }
 
-            DataResult<NbtElement> result = ItemStack.CODEC.encodeStart(ops, stack);
-            String encoded = result.resultOrPartial(error ->
-                    LegendsAddon.LOGGER.warn("[LegendsAddon] Failed to encode cached vault {} slot {}: {}", vaultNumber, slotIndex, error))
-                    .map(NbtElement::toString)
-                    .orElse("");
+            ItemStack persistenceStack = prepareStackForPersistence(stack, registries);
+            String encoded = encodeStack(persistenceStack, ops, vaultNumber, slotIndex);
+            if (encoded.isBlank()) {
+                ItemStack displayFallback = createDisplayFallback(stack);
+                encoded = encodeStack(displayFallback, ops, vaultNumber, slotIndex);
+            }
             encodedStacks.add(encoded);
         }
 
         return encodedStacks;
+    }
+
+    private static ItemStack prepareStackForPersistence(ItemStack stack, RegistryWrapper.WrapperLookup registries) {
+        ItemStack copy = stack.copy();
+        RegistryEntryLookup<Enchantment> enchantments = registries.getOptional(RegistryKeys.ENCHANTMENT).orElse(null);
+        if (enchantments == null) {
+            return copy;
+        }
+
+        rebindEnchantments(copy, DataComponentTypes.ENCHANTMENTS, enchantments);
+        rebindEnchantments(copy, DataComponentTypes.STORED_ENCHANTMENTS, enchantments);
+        return copy;
+    }
+
+    private static void rebindEnchantments(
+            ItemStack stack,
+            ComponentType<ItemEnchantmentsComponent> componentType,
+            RegistryEntryLookup<Enchantment> enchantmentLookup
+    ) {
+        ItemEnchantmentsComponent current = stack.get(componentType);
+        if (current == null || current.isEmpty()) {
+            return;
+        }
+
+        ItemEnchantmentsComponent.Builder rebound = new ItemEnchantmentsComponent.Builder(ItemEnchantmentsComponent.DEFAULT);
+        boolean droppedEntry = false;
+        for (RegistryEntry<Enchantment> enchantment : current.getEnchantments()) {
+            RegistryEntry<Enchantment> activeEntry = enchantment.getKey()
+                    .flatMap(enchantmentLookup::getOptional)
+                    .orElse(null);
+            if (activeEntry == null) {
+                droppedEntry = true;
+                continue;
+            }
+            rebound.set(activeEntry, current.getLevel(enchantment));
+        }
+
+        stack.set(componentType, rebound.build());
+        if (droppedEntry) {
+            stack.set(DataComponentTypes.ENCHANTMENT_GLINT_OVERRIDE, true);
+        }
+    }
+
+    private static String encodeStack(
+            ItemStack stack,
+            DynamicOps<NbtElement> ops,
+            int vaultNumber,
+            int slotIndex
+    ) {
+        DataResult<NbtElement> result = ItemStack.CODEC.encodeStart(ops, stack);
+        return result.resultOrPartial(error ->
+                        LegendsAddon.LOGGER.warn(
+                                "[LegendsAddon] Failed to encode cached vault {} slot {}: {}",
+                                vaultNumber,
+                                slotIndex,
+                                error
+                        ))
+                .map(NbtElement::toString)
+                .orElse("");
+    }
+
+    private static ItemStack createDisplayFallback(ItemStack source) {
+        ItemStack fallback = new ItemStack(source.getItem(), source.getCount());
+        fallback.copy(DataComponentTypes.CUSTOM_NAME, source);
+        fallback.copy(DataComponentTypes.ITEM_NAME, source);
+        fallback.copy(DataComponentTypes.LORE, source);
+        fallback.copy(DataComponentTypes.ITEM_MODEL, source);
+        fallback.copy(DataComponentTypes.CUSTOM_MODEL_DATA, source);
+        fallback.copy(DataComponentTypes.MAX_DAMAGE, source);
+        fallback.copy(DataComponentTypes.DAMAGE, source);
+        if (source.hasGlint()) {
+            fallback.set(DataComponentTypes.ENCHANTMENT_GLINT_OVERRIDE, true);
+        }
+        return fallback;
     }
 
     private static List<ItemStack> decodeStacks(List<String> encodedStacks, RegistryWrapper.WrapperLookup registries, int vaultNumber) {
