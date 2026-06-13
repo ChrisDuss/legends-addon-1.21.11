@@ -1,6 +1,6 @@
 package legends.ultra.cool.addons.mixin.client;
 
-import legends.ultra.cool.addons.hud.widget.UIToggle;
+import legends.ultra.cool.addons.hud.widget.otherTypes.UIToggle;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.hud.bar.ExperienceBar;
 import net.minecraft.client.render.RenderTickCounter;

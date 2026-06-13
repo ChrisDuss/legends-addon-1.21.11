@@ -3,7 +3,12 @@ package legends.ultra.cool.addons.hud;
 import legends.ultra.cool.addons.util.AddonServerGate;
 import net.minecraft.client.gui.DrawContext;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 public abstract class HudWidget {
     public double x;
@@ -91,9 +96,10 @@ public abstract class HudWidget {
             java.util.function.DoubleConsumer setFloat,
             boolean defaultBool,
             int defaultColor,
-            float defaultFloat
+            float defaultFloat,
+            CustomListSpec customList
     ) {
-        public enum Type { SECTION, TOGGLE, COLOR, SLIDER }
+        public enum Type { SECTION, TOGGLE, COLOR, SLIDER, CUSTOM_LIST }
 
         public boolean storesValue() {
             return type != Type.SECTION;
@@ -102,7 +108,7 @@ public abstract class HudWidget {
         public static HudSetting section(String label) {
             return new HudSetting("__section__" + label, label, Type.SECTION, 0,0,0,
                     ()->false, ()->false, b->{},
-                    ()->0, c->{}, ()->0, v->{}, false, 0, 0f);
+                    ()->0, c->{}, ()->0, v->{}, false, 0, 0f, null);
         }
 
         public static HudSetting toggle(String key, String label,
@@ -112,7 +118,7 @@ public abstract class HudWidget {
                                         boolean def) {
             return new HudSetting(key, label, Type.TOGGLE, 0,0,0,
                     enabled, get, set,
-                    ()->0, c->{}, ()->0, v->{}, def, 0, 0f);
+                    ()->0, c->{}, ()->0, v->{}, def, 0, 0f, null);
         }
 
         public static HudSetting color(String key, String label,
@@ -123,7 +129,7 @@ public abstract class HudWidget {
             return new HudSetting(key, label, Type.COLOR, 0,0,0,
                     enabled, ()->false, b->{},
                     get, set,
-                    ()->0, v->{}, false, def, 0f);
+                    ()->0, v->{}, false, def, 0f, null);
         }
 
         public static HudSetting slider(String key, String label,
@@ -135,7 +141,60 @@ public abstract class HudWidget {
             return new HudSetting(key, label, Type.SLIDER, min,max,step,
                     enabled, ()->false, b->{},
                     ()->0, c->{},
-                    get, set, false, 0, def);
+                    get, set, false, 0, def, null);
+        }
+
+        public static HudSetting customList(String key, String label,
+                                            java.util.function.BooleanSupplier enabled,
+                                            CustomListSpec customList) {
+            return new HudSetting(key, label, Type.CUSTOM_LIST, 0,0,0,
+                    enabled, ()->false, b->{},
+                    ()->0, c->{},
+                    ()->0, v->{}, false, 0, 0f, customList);
+        }
+    }
+
+    public record CustomListSpec(
+            List<CustomField> fields,
+            Supplier<List<CustomEntry>> getEntries,
+            Consumer<List<CustomEntry>> setEntries,
+            Function<CustomEntry, String> title,
+            Function<CustomEntry, String> description
+    ) {
+        public CustomListSpec {
+            fields = List.copyOf(fields);
+        }
+    }
+
+    public record CustomField(
+            String key,
+            String label,
+            String placeholder,
+            InputType inputType,
+            boolean required,
+            int maxLength
+    ) {
+        public enum InputType {
+            TEXT,
+            POSITIVE_NUMBER
+        }
+
+        public static CustomField text(String key, String label, String placeholder, boolean required, int maxLength) {
+            return new CustomField(key, label, placeholder, InputType.TEXT, required, maxLength);
+        }
+
+        public static CustomField positiveNumber(String key, String label, String placeholder, boolean required) {
+            return new CustomField(key, label, placeholder, InputType.POSITIVE_NUMBER, required, 24);
+        }
+    }
+
+    public record CustomEntry(Map<String, String> values) {
+        public CustomEntry {
+            values = Map.copyOf(new LinkedHashMap<>(values));
+        }
+
+        public String get(String key) {
+            return values.getOrDefault(key, "");
         }
     }
 

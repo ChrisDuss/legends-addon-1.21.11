@@ -6,7 +6,7 @@ import com.google.gson.reflect.TypeToken;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.DynamicOps;
 import legends.ultra.cool.addons.LegendsAddon;
-import legends.ultra.cool.addons.hud.widget.VaultBrowserWidget;
+import legends.ultra.cool.addons.hud.widget.otherTypes.VaultBrowserWidget;
 import legends.ultra.cool.addons.mixin.client.HandledScreenAccessor;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;

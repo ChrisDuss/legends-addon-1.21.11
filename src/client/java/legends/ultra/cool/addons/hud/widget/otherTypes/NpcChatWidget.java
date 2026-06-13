@@ -7,6 +7,8 @@ import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.network.ClientPlayerLikeEntity;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.decoration.ArmorStandEntity;
+import net.minecraft.entity.decoration.DisplayEntity;
+import net.minecraft.entity.decoration.MannequinEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Style;
@@ -25,6 +27,7 @@ public class NpcChatWidget extends HudWidget {
     private static final Pattern NPC_DIALOGUE_PATTERN = Pattern.compile("^\\[NPC\\]\\s+(.+?)\\s*>>\\s*(.+)$");
     private static final int DIALOGUE_DURATION_TICKS = 160;
     private static final int DIALOGUE_WRAP_WIDTH = 160;
+    private static final double HIDDEN_NAMETAG_RADIUS_SQUARED = 4.0;
 
     public static NpcChatWidget INSTANCE;
 
@@ -94,6 +97,33 @@ public class NpcChatWidget extends HudWidget {
         }
 
         return activeMessage.copy();
+    }
+
+    public static boolean shouldHideNearbyNamedEntity(Entity entity) {
+        if (!isEnabledGlobal()
+                || entity == null
+                || entity instanceof PlayerEntity
+                || entity instanceof MannequinEntity
+                || !(entity instanceof DisplayEntity.TextDisplayEntity || entity.shouldRenderName())) {
+            return false;
+        }
+
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (!hasActiveDialogue(client)) {
+            return false;
+        }
+
+        ensureResolvedTarget(client);
+        if (client == null || client.world == null || activeTargetEntityId < 0) {
+            return false;
+        }
+
+        if (entity.getId() == activeTargetEntityId) {
+            return false;
+        }
+
+        Entity target = client.world.getEntityById(activeTargetEntityId);
+        return target != null && entity.squaredDistanceTo(target) <= HIDDEN_NAMETAG_RADIUS_SQUARED;
     }
 
     @Override

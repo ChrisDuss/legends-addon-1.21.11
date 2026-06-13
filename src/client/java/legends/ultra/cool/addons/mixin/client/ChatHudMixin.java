@@ -1,6 +1,7 @@
 package legends.ultra.cool.addons.mixin.client;
 
 import legends.ultra.cool.addons.hud.widget.otherTypes.NpcChatWidget;
+import legends.ultra.cool.addons.hud.widget.CooldownDisplay;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.hud.ChatHud;
 import net.minecraft.client.gui.hud.ChatHudLine;
@@ -36,6 +37,12 @@ public abstract class ChatHudMixin {
     )
     private void legends$captureNpcMessage(Text message, MessageSignatureData signatureData, MessageIndicator indicator, CallbackInfo ci) {
         legends$npcVisibleLinesToHide = 0;
+        boolean serverMessage = MessageIndicator.system().equals(indicator)
+                || MessageIndicator.singlePlayer().equals(indicator);
+        boolean triggeredCooldown = CooldownDisplay.captureChatMessage(message, serverMessage);
+        if (triggeredCooldown) {
+            return;
+        }
 
         if (!NpcChatWidget.isEnabledGlobal()) return;
         if (!NpcChatWidget.isNpcMessage(message)) return;

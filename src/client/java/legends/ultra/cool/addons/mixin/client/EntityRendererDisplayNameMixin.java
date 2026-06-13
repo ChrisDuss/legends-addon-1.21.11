@@ -9,6 +9,7 @@ import legends.ultra.cool.addons.util.TextHeathbar;
 import legends.ultra.cool.addons.util.UiVisibility;
 import net.minecraft.client.render.entity.EntityRenderer;
 import net.minecraft.client.render.entity.state.EntityRenderState;
+import net.minecraft.client.render.Frustum;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityAttachmentType;
 import net.minecraft.entity.LivingEntity;
@@ -21,6 +22,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.HashMap;
 import java.util.Iterator;
@@ -37,6 +39,20 @@ public abstract class EntityRendererDisplayNameMixin<T extends Entity, S extends
     private static final Map<Integer, Text> TEXT_CACHE = new HashMap<>();
     private static final Map<Integer, Integer> NEXT_UPDATE_TICK = new HashMap<>();
     private static final Map<Integer, Integer> LAST_USED_TICK = new HashMap<>();
+
+    @Inject(method = "shouldRender", at = @At("HEAD"), cancellable = true)
+    private void legends$hideNearbyDialogueNametagEntity(
+            T entity,
+            Frustum frustum,
+            double x,
+            double y,
+            double z,
+            CallbackInfoReturnable<Boolean> cir
+    ) {
+        if (NpcChatWidget.shouldHideNearbyNamedEntity(entity)) {
+            cir.setReturnValue(false);
+        }
+    }
 
     @Inject(method = "updateRenderState", at = @At("TAIL"))
     private void legends$forceAndOverrideDisplayName(T entity, S state, float tickDelta, CallbackInfo ci) {

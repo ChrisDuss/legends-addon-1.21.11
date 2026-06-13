@@ -2,6 +2,7 @@ package legends.ultra.cool.addons.data;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonPrimitive;
 import com.google.gson.reflect.TypeToken;
@@ -14,6 +15,7 @@ import java.lang.reflect.Type;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public final class WidgetConfigManager {
@@ -254,6 +256,33 @@ public final class WidgetConfigManager {
         load();
         WidgetData d = ensure(widgetId);
         d.settings.put(key, new JsonPrimitive(value));
+        if (autosave) save();
+    }
+
+    public static <T> List<T> getObjectList(String widgetId, String key, Class<T> elementType) {
+        load();
+        WidgetData d = widgetDataMap.get(widgetId);
+        if (d == null) return List.of();
+
+        JsonElement element = d.settings.get(key);
+        if (element == null || !element.isJsonArray()) return List.of();
+
+        java.util.ArrayList<T> result = new java.util.ArrayList<>();
+        for (JsonElement item : element.getAsJsonArray()) {
+            try {
+                T value = GSON.fromJson(item, elementType);
+                if (value != null) {
+                    result.add(value);
+                }
+            } catch (Exception ignored) {}
+        }
+        return List.copyOf(result);
+    }
+
+    public static void setObjectList(String widgetId, String key, List<?> values, boolean autosave) {
+        load();
+        WidgetData d = ensure(widgetId);
+        d.settings.put(key, GSON.toJsonTree(values == null ? List.of() : values));
         if (autosave) save();
     }
 
@@ -502,6 +531,7 @@ public final class WidgetConfigManager {
             case TOGGLE -> data.settings.put(s.key(), new JsonPrimitive(s.defaultBool()));
             case COLOR -> data.settings.put(s.key(), new JsonPrimitive(s.defaultColor()));
             case SLIDER -> data.settings.put(s.key(), new JsonPrimitive(s.defaultFloat()));
+            case CUSTOM_LIST -> data.settings.put(s.key(), new JsonArray());
         }
     }
 

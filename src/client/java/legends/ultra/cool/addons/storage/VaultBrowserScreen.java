@@ -1,6 +1,6 @@
 package legends.ultra.cool.addons.storage;
 
-import legends.ultra.cool.addons.hud.widget.VaultBrowserWidget;
+import legends.ultra.cool.addons.hud.widget.otherTypes.VaultBrowserWidget;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;

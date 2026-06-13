@@ -3,6 +3,7 @@ package legends.ultra.cool.addons.hud;
 import legends.ultra.cool.addons.LegendsAddon;
 import legends.ultra.cool.addons.data.WidgetConfigManager;
 import legends.ultra.cool.addons.hud.widget.settings.ColorPicker;
+import legends.ultra.cool.addons.hud.widget.settings.CustomListFormScreen;
 import legends.ultra.cool.addons.input.Keybinds;
 import legends.ultra.cool.addons.util.AddonServerGate;
 import net.minecraft.client.MinecraftClient;
@@ -45,6 +46,10 @@ public class HudEditorScreen extends Screen {
     private static final int SETTINGS_ROW_GAP = 6;
     private static final int RESET_W = 12;
     private static final int RESET_H = 12;
+    private static final int CUSTOM_ADD_W = 42;
+    private static final int CUSTOM_ENTRY_H = 28;
+    private static final int CUSTOM_ENTRY_GAP = 4;
+    private static final int SETTINGS_SCROLL_STEP = 24;
 
     private static final int LAUNCHER_SQUARE = 40;
     private static final int LAUNCHER_WIDE = 100;
@@ -160,7 +165,9 @@ public class HudEditorScreen extends Screen {
     private GeneralTab activeGeneralTab = GeneralTab.LOOKS_AND_FEEL;
     private boolean themeDropdownOpen = false;
     private EditorTheme activeTheme = EditorTheme.DEFAULT;
-    private int settingsRowIndex = 0;
+    private int settingsCursorY = 0;
+    private int settingsScroll = 0;
+    private int settingsMaxScroll = 0;
 
     public HudEditorScreen() {
         super(Text.literal("HUD Editor"));
@@ -247,7 +254,7 @@ public class HudEditorScreen extends Screen {
             if (draggingSliderKey != null) {
                 SettingsLayout layout = beginSettingsLayout();
                 for (HudWidget.HudSetting setting : safeSettings(settingsWidget)) {
-                    int rowY = nextRowY(layout);
+                    int rowY = nextSettingY(layout, setting);
                     if (setting.type() != HudWidget.HudSetting.Type.SLIDER) {
                         continue;
                     }
@@ -323,6 +330,18 @@ public class HudEditorScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
+        if (isSettingsOpen()) {
+            updateSettingsScrollBounds();
+            if (settingsMaxScroll > 0 && settingsViewportBounds().contains(mouseX, mouseY)) {
+                settingsScroll = MathHelper.clamp(
+                        settingsScroll - (int) Math.round(verticalAmount * SETTINGS_SCROLL_STEP),
+                        0,
+                        settingsMaxScroll
+                );
+            }
+            return true;
+        }
+
         if (viewMode == ViewMode.MODS) {
             updateModsScrollBounds();
             if (modsMaxScroll > 0 && modsViewportBounds().contains(mouseX, mouseY)) {
@@ -341,7 +360,7 @@ public class HudEditorScreen extends Screen {
         int uiMouseX = isSettingsOpen() ? Integer.MIN_VALUE : mouseX;
         int uiMouseY = isSettingsOpen() ? Integer.MIN_VALUE : mouseY;
 
-        if (viewMode != ViewMode.MODS) {
+        if (viewMode == ViewMode.LAYOUT) {
             for (HudWidget widget : HudManager.getWidgets()) {
                 if (widget.isEnabled()) {
                     widget.render(ctx);
@@ -556,7 +575,7 @@ public class HudEditorScreen extends Screen {
         drawChip(ctx, backChipBounds(),  mouseX, mouseY, "x", BUTTON_FILL_HOVER_COLOR, UI_BUTTON_TEXT_COLOR);
 
         String hint = "Drag enabled widgets. Press ESC to return.";
-        String hint2 = "Right click to disable snap";
+        String hint2 = "Hold right click to disable snap";
         int hintX = this.width - textRenderer.getWidth(hint) - 10;
         int hint2X = this.width - textRenderer.getWidth(hint2) - 10;
         ctx.drawText(textRenderer, hint, Math.max(14, hintX), this.height - 14, UI_SUBTEXT_COLOR, false);
@@ -1144,6 +1163,8 @@ public class HudEditorScreen extends Screen {
         colorPicker = null;
         openColorKey = null;
         draggingSliderKey = null;
+        settingsScroll = 0;
+        updateSettingsScrollBounds();
     }
 
     private boolean isSettingsOpen() {
@@ -1158,6 +1179,8 @@ public class HudEditorScreen extends Screen {
         colorPicker = null;
         openColorKey = null;
         draggingSliderKey = null;
+        settingsScroll = 0;
+        settingsMaxScroll = 0;
     }
 
     private void setViewMode(ViewMode nextMode) {
@@ -1435,9 +1458,13 @@ public class HudEditorScreen extends Screen {
             return true;
         }
 
+        if (!settingsViewportBounds().contains(mouseX, mouseY)) {
+            return true;
+        }
+
         SettingsLayout layout = beginSettingsLayout();
         for (HudWidget.HudSetting setting : safeSettings(settingsWidget)) {
-            int rowY = nextRowY(layout);
+            int rowY = nextSettingY(layout, setting);
 
             if (setting.type() == HudWidget.HudSetting.Type.SECTION) {
                 continue;
@@ -1450,6 +1477,11 @@ public class HudEditorScreen extends Screen {
                     case TOGGLE -> setting.setBool().accept(setting.getBool().getAsBoolean());
                     case COLOR -> setting.setColor().accept(setting.getColor().getAsInt());
                     case SLIDER -> setting.setFloat().accept((float) setting.getFloat().getAsDouble());
+                    case CUSTOM_LIST -> {
+                        if (setting.customList() != null) {
+                            setting.customList().setEntries().accept(List.of());
+                        }
+                    }
                     case SECTION -> {
                     }
                 }
@@ -1463,6 +1495,7 @@ public class HudEditorScreen extends Screen {
                 }
 
                 WidgetConfigManager.updateWidget(settingsWidget);
+                updateSettingsScrollBounds();
                 return true;
             }
 
@@ -1514,6 +1547,37 @@ public class HudEditorScreen extends Screen {
                         return true;
                     }
                 }
+                case CUSTOM_LIST -> {
+                    if (!setting.enabled().getAsBoolean() || setting.customList() == null) {
+                        continue;
+                    }
+
+                    if (inside(mouseX, mouseY, customAddX(layout), rowY - 2, CUSTOM_ADD_W, layout.btnH)) {
+                        if (client != null) {
+                            client.setScreen(new CustomListFormScreen(this, setting));
+                        }
+                        return true;
+                    }
+
+                    List<HudWidget.CustomEntry> entries = setting.customList().getEntries().get();
+                    for (int index = 0; index < entries.size(); index++) {
+                        Rect card = customEntryBounds(layout, rowY, index);
+                        Rect remove = customRemoveBounds(card);
+                        if (remove.contains(mouseX, mouseY)) {
+                            List<HudWidget.CustomEntry> updated = new ArrayList<>(entries);
+                            updated.remove(index);
+                            setting.customList().setEntries().accept(List.copyOf(updated));
+                            WidgetConfigManager.updateWidget(settingsWidget);
+                            updateSettingsScrollBounds();
+                            return true;
+                        }
+
+                        if (card.contains(mouseX, mouseY) && client != null) {
+                            client.setScreen(new CustomListFormScreen(this, setting, index, entries.get(index)));
+                            return true;
+                        }
+                    }
+                }
                 case SECTION -> {
                 }
             }
@@ -1530,6 +1594,7 @@ public class HudEditorScreen extends Screen {
         int x = modalX();
         int y = modalY();
         int modalHeight = modalHeight();
+        updateSettingsScrollBounds();
 
         ctx.fill(0, 0, this.width, this.height, MODAL_OVERLAY_COLOR);
         if (useMinecraftTheme()) {
@@ -1540,13 +1605,15 @@ public class HudEditorScreen extends Screen {
         }
 
         ctx.drawText(textRenderer, settingsWidget.getName() + " Settings", x + 8, y + 8, MODAL_TEXT_COLOR, false);
-        ctx.drawText(textRenderer, "X", x + MODAL_W - 17, y + 6, MODAL_TEXT_COLOR, false);
+        ctx.drawText(textRenderer, "x", x + MODAL_W - 17, y + 6, MODAL_TEXT_COLOR, false);
 
         SettingsLayout layout = beginSettingsLayout();
         boolean grouped = false;
+        Rect viewport = settingsViewportBounds();
+        ctx.enableScissor(viewport.x, viewport.y, viewport.right(), viewport.bottom());
 
         for (HudWidget.HudSetting setting : safeSettings(settingsWidget)) {
-            int rowY = nextRowY(layout);
+            int rowY = nextSettingY(layout, setting);
 
             if (setting.type() == HudWidget.HudSetting.Type.SECTION) {
                 grouped = true;
@@ -1582,10 +1649,59 @@ public class HudEditorScreen extends Screen {
                     ctx.drawText(textRenderer, setting.label(), labelX, rowY, enabled ? MODAL_TEXT_COLOR : MODAL_DISABLED_TEXT_COLOR, false);
                     drawSliderRow(ctx, layout, rowY, value, setting.min(), setting.max(), setting.step(), enabled);
                 }
+                case CUSTOM_LIST -> {
+                    boolean enabled = setting.enabled().getAsBoolean() && setting.customList() != null;
+                    ctx.drawText(textRenderer, setting.label(), labelX, rowY, enabled ? MODAL_TEXT_COLOR : MODAL_DISABLED_TEXT_COLOR, false);
+
+                    if (!enabled) {
+                        ctx.drawText(textRenderer, "-", customAddX(layout) + 18, rowY, MODAL_DISABLED_TEXT_COLOR, false);
+                        continue;
+                    }
+
+                    drawCustomAddButton(ctx, customAddX(layout), rowY - 2, mouseX, mouseY);
+                    HudWidget.CustomListSpec spec = setting.customList();
+                    List<HudWidget.CustomEntry> entries = spec.getEntries().get();
+                    for (int index = 0; index < entries.size(); index++) {
+                        Rect card = customEntryBounds(layout, rowY, index);
+                        HudWidget.CustomEntry entry = entries.get(index);
+                        String title = safeCustomText(spec.title(), entry);
+                        String description = safeCustomText(spec.description(), entry);
+                        Rect remove = customRemoveBounds(card);
+                        boolean hovered = card.contains(mouseX, mouseY);
+
+                        ctx.fill(
+                                card.x,
+                                card.y,
+                                card.right(),
+                                card.bottom(),
+                                hovered ? MODAL_CONTROL_HOVER_COLOR : MODAL_CONTROL_FILL_COLOR
+                        );
+                        drawBorder(ctx, card.x, card.y, card.width, card.height, MODAL_SECTION_DIVIDER_COLOR);
+                        ctx.drawText(
+                                textRenderer,
+                                trimToWidth(title, Math.max(1, remove.x - card.x - 8)),
+                                card.x + 4,
+                                card.y + 4,
+                                MODAL_TEXT_COLOR,
+                                false
+                        );
+                        ctx.drawText(
+                                textRenderer,
+                                trimToWidth(description, Math.max(1, remove.x - card.x - 8)),
+                                card.x + 4,
+                                card.y + 15,
+                                MODAL_VALUE_TEXT_COLOR,
+                                false
+                        );
+                        ctx.drawText(textRenderer, "x", remove.x + 3, remove.y + 2, MODAL_TEXT_COLOR, false);
+                    }
+                }
                 case SECTION -> {
                 }
             }
         }
+        ctx.disableScissor();
+        drawSettingsScrollbar(ctx, viewport);
 
         if (colorPicker != null) {
             int gap = 6;
@@ -1613,6 +1729,36 @@ public class HudEditorScreen extends Screen {
         ctx.fill(x, y, x + w, y + h, bg);
         drawBorder(ctx, x, y, w, h, UI_BORDER_DARK);
         ctx.drawText(textRenderer, "Pick", x + 18, y + 3, MODAL_TEXT_COLOR, false);
+    }
+
+    private void drawCustomAddButton(DrawContext ctx, int x, int y, int mouseX, int mouseY) {
+        boolean hovered = inside(mouseX, mouseY, x, y, CUSTOM_ADD_W, 14);
+        if (useMinecraftTheme()) {
+            Rect rect = new Rect(x, y, CUSTOM_ADD_W, 14);
+            drawMinecraftButton(ctx, rect, hovered, false);
+            drawMinecraftCenteredLabel(ctx, rect, "Add", hovered);
+            return;
+        }
+
+        ctx.fill(x, y, x + CUSTOM_ADD_W, y + 14, hovered ? MODAL_CONTROL_HOVER_COLOR : MODAL_CONTROL_FILL_COLOR);
+        drawBorder(ctx, x, y, CUSTOM_ADD_W, 14, UI_BORDER_DARK);
+        ctx.drawText(textRenderer, "Add", x + 12, y + 3, MODAL_TEXT_COLOR, false);
+    }
+
+    private void drawSettingsScrollbar(DrawContext ctx, Rect viewport) {
+        if (settingsMaxScroll <= 0) {
+            return;
+        }
+
+        int trackX = viewport.right() - 3;
+        int trackHeight = viewport.height;
+        int contentHeight = settingsContentHeight();
+        int thumbHeight = Math.max(12, trackHeight * trackHeight / Math.max(1, contentHeight));
+        int travel = Math.max(1, trackHeight - thumbHeight);
+        int thumbY = viewport.y + Math.round(travel * (settingsScroll / (float) settingsMaxScroll));
+
+        ctx.fill(trackX, viewport.y, trackX + 2, viewport.bottom(), SCROLL_TRACK_COLOR);
+        ctx.fill(trackX, thumbY, trackX + 2, thumbY + thumbHeight, SCROLL_THUMB_COLOR);
     }
 
     private void drawSwatch(DrawContext ctx, int x, int y, int color) {
@@ -2078,14 +2224,9 @@ public class HudEditorScreen extends Screen {
     }
 
     private int modalHeight() {
-        int settingsCount = settingsWidget == null ? 0 : safeSettings(settingsWidget).size();
-        if (settingsCount == 0) {
-            return MODAL_MIN_H;
-        }
-
-        int contentHeight = settingsCount * SETTINGS_ROW_H
-                + Math.max(0, settingsCount - 1) * SETTINGS_ROW_GAP;
-        return Math.max(MODAL_MIN_H, 28 + contentHeight + MODAL_PAD);
+        int desiredHeight = Math.max(MODAL_MIN_H, 28 + settingsContentHeight() + MODAL_PAD);
+        int availableHeight = Math.max(100, this.height - 20);
+        return Math.min(desiredHeight, availableHeight);
     }
 
     private int modalX() {
@@ -2103,14 +2244,13 @@ public class HudEditorScreen extends Screen {
     }
 
     private SettingsLayout beginSettingsLayout() {
-        settingsRowIndex = 0;
-
         int x = modalX();
         int y = modalY();
 
         int startX = x + MODAL_PAD;
-        int startY = y + 28;
+        int startY = y + 28 - settingsScroll;
         int nestedStartX = startX + 10;
+        settingsCursorY = startY;
 
         int btnW = 60;
         int btnH = 14;
@@ -2132,10 +2272,75 @@ public class HudEditorScreen extends Screen {
         );
     }
 
-    private int nextRowY(SettingsLayout layout) {
-        int rowY = layout.startY + settingsRowIndex * (SETTINGS_ROW_H + SETTINGS_ROW_GAP);
-        settingsRowIndex++;
+    private int nextSettingY(SettingsLayout layout, HudWidget.HudSetting setting) {
+        int rowY = settingsCursorY;
+        settingsCursorY += settingBlockHeight(setting) + SETTINGS_ROW_GAP;
         return rowY;
+    }
+
+    private int settingBlockHeight(HudWidget.HudSetting setting) {
+        if (setting.type() != HudWidget.HudSetting.Type.CUSTOM_LIST || setting.customList() == null) {
+            return SETTINGS_ROW_H;
+        }
+
+        int entryCount = setting.customList().getEntries().get().size();
+        return SETTINGS_ROW_H + entryCount * (CUSTOM_ENTRY_H + CUSTOM_ENTRY_GAP);
+    }
+
+    private int settingsContentHeight() {
+        if (settingsWidget == null) {
+            return 0;
+        }
+
+        List<HudWidget.HudSetting> settings = safeSettings(settingsWidget);
+        int height = 0;
+        for (HudWidget.HudSetting setting : settings) {
+            height += settingBlockHeight(setting);
+        }
+        height += Math.max(0, settings.size() - 1) * SETTINGS_ROW_GAP;
+        return height;
+    }
+
+    private Rect settingsViewportBounds() {
+        int x = modalX();
+        int y = modalY();
+        return new Rect(x + 1, y + 26, MODAL_W - 2, Math.max(1, modalHeight() - 27));
+    }
+
+    private void updateSettingsScrollBounds() {
+        if (settingsWidget == null) {
+            settingsScroll = 0;
+            settingsMaxScroll = 0;
+            return;
+        }
+
+        int visibleContentHeight = Math.max(1, modalHeight() - 29);
+        settingsMaxScroll = Math.max(0, settingsContentHeight() - visibleContentHeight);
+        settingsScroll = MathHelper.clamp(settingsScroll, 0, settingsMaxScroll);
+    }
+
+    private int customAddX(SettingsLayout layout) {
+        return layout.resetX - 4 - CUSTOM_ADD_W;
+    }
+
+    private Rect customEntryBounds(SettingsLayout layout, int rowY, int index) {
+        int cardY = rowY + SETTINGS_ROW_H + CUSTOM_ENTRY_GAP
+                + index * (CUSTOM_ENTRY_H + CUSTOM_ENTRY_GAP);
+        int cardWidth = MODAL_W - MODAL_PAD * 2;
+        return new Rect(layout.startX, cardY, cardWidth, CUSTOM_ENTRY_H);
+    }
+
+    private Rect customRemoveBounds(Rect card) {
+        return new Rect(card.right() - 16, card.y + 6, 12, 12);
+    }
+
+    private static String safeCustomText(java.util.function.Function<HudWidget.CustomEntry, String> formatter,
+                                         HudWidget.CustomEntry entry) {
+        if (formatter == null) {
+            return "";
+        }
+        String value = formatter.apply(entry);
+        return value == null ? "" : value;
     }
 
     private static List<HudWidget.HudSetting> safeSettings(HudWidget widget) {

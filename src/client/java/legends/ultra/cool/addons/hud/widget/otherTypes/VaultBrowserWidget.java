@@ -1,4 +1,4 @@
-package legends.ultra.cool.addons.hud.widget;
+package legends.ultra.cool.addons.hud.widget.otherTypes;
 
 import legends.ultra.cool.addons.data.WidgetConfigManager;
 import legends.ultra.cool.addons.hud.HudWidget;

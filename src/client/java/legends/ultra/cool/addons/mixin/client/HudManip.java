@@ -3,7 +3,7 @@ package legends.ultra.cool.addons.mixin.client;
 import legends.ultra.cool.addons.hud.widget.Defense;
 import legends.ultra.cool.addons.hud.widget.Health;
 import legends.ultra.cool.addons.hud.widget.Mana;
-import legends.ultra.cool.addons.hud.widget.UIToggle;
+import legends.ultra.cool.addons.hud.widget.otherTypes.UIToggle;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.hud.InGameHud;
