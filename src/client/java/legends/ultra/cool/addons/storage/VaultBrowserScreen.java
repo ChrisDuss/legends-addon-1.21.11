@@ -5,7 +5,11 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.gui.screen.ingame.HandledScreen;
+import net.minecraft.client.gui.tooltip.HoveredTooltipPositioner;
+import net.minecraft.client.gui.tooltip.TooltipComponent;
 import net.minecraft.client.gui.widget.ButtonWidget;
+import net.minecraft.component.DataComponentTypes;
 import net.minecraft.item.ItemStack;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.MathHelper;
@@ -23,7 +27,8 @@ public final class VaultBrowserScreen extends Screen {
     private static final int SCREEN_HEADER_HEIGHT = 42;
     private static final int SCREEN_FOOTER_HEIGHT = 18;
     private static final int SLOT_RENDER_SIZE = 16;
-    private static final Text FOOTER_HINT = Text.literal("Left-click opens | Right-click renames");
+    private static final int LOCKED_DETAILS_HEIGHT = 28;
+    private static final Text FOOTER_HINT = Text.literal("Left-click opens or unlocks | Right-click renames");
     private static final int MAX_COLUMNS = 4;
     private static final int MIN_PANEL_WIDTH = (SLOT_SIZE * 9) + (PANEL_PADDING * 2);
 
@@ -31,9 +36,11 @@ public final class VaultBrowserScreen extends Screen {
     private int maxScroll;
     private ButtonWidget profileLabelButton;
     private ButtonWidget hintLabelButton;
+    private final HandledScreen<?> storageMenuScreen;
 
-    public VaultBrowserScreen() {
+    public VaultBrowserScreen(HandledScreen<?> storageMenuScreen) {
         super(Text.literal("Vault Browser"));
+        this.storageMenuScreen = storageMenuScreen;
     }
 
     @Override
@@ -50,8 +57,8 @@ public final class VaultBrowserScreen extends Screen {
                 .build();
         this.hintLabelButton.active = false;
 
-        addDrawableChild(ButtonWidget.builder(Text.literal("Close"), button -> close())
-                .dimensions(this.width - 90, 10, 70, 20)
+        addDrawableChild(ButtonWidget.builder(Text.literal("Storage Menu"), button -> close())
+                .dimensions(this.width - 116, 10, 96, 20)
                 .build());
 
         addDrawableChild(ButtonWidget.builder(Text.literal("Reload Range"), button -> VaultStorageManager.reloadCurrentRange(this.client))
@@ -96,10 +103,7 @@ public final class VaultBrowserScreen extends Screen {
 
     @Override
     public void close() {
-        MinecraftClient client = this.client;
-        if (client != null) {
-            client.setScreen(null);
-        }
+        VaultStorageManager.closeBrowserOverlay(this.storageMenuScreen);
     }
 
     @Override
@@ -128,9 +132,10 @@ public final class VaultBrowserScreen extends Screen {
             return false;
         }
 
-        if (click.button() == 1) {
+        if (click.button() == 1 && !clickedPanel.entry().locked()) {
             if (this.client != null) {
-                this.client.setScreen(new VaultRenameScreen(this, clickedPanel.snapshot().vaultNumber()));
+                VaultStorageManager.requestBrowserOverlay();
+                this.client.setScreen(new VaultRenameScreen(this.storageMenuScreen, clickedPanel.entry().vaultNumber()));
                 return true;
             }
             return false;
@@ -140,18 +145,20 @@ public final class VaultBrowserScreen extends Screen {
             return false;
         }
 
-        return VaultStorageManager.openVault(this.client, clickedPanel.snapshot().vaultNumber());
+        if (clickedPanel.entry().locked()) return VaultStorageManager.clickStorageMenuVault(this.client, this.storageMenuScreen, clickedPanel.entry().vaultNumber());
+        else return VaultStorageManager.openVault(client, clickedPanel.entry().vaultNumber());
     }
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
+        refreshScrollBounds();
         context.fillGradient(0, 0, this.width, this.height, 0xF0181018, 0xF0080808);
         context.drawTextWithShadow(this.textRenderer, this.title, 20, 24, 0xFFFFFF);
 
-        List<VaultStorageManager.VaultSnapshot> snapshots = VaultStorageManager.getSnapshots();
-        if (snapshots.isEmpty()) {
+        List<VaultStorageManager.VaultBrowserEntry> entries = VaultStorageManager.getBrowserEntries();
+        if (entries.isEmpty()) {
             context.drawCenteredTextWithShadow(this.textRenderer, Text.literal("No vaults cached in range " + VaultStorageManager.getRangeLabel() + "."), this.width / 2, this.height / 2 - 10, 0xFFFFFF);
-            context.drawCenteredTextWithShadow(this.textRenderer, Text.literal("Use the profile arrows, then run Load All."), this.width / 2, this.height / 2 + 6, 0xB8B8B8);
+            context.drawCenteredTextWithShadow(this.textRenderer, Text.literal("Open /ec to discover locked vaults, or run Load All."), this.width / 2, this.height / 2 + 6, 0xB8B8B8);
             super.render(context, mouseX, mouseY, deltaTicks);
             return;
         }
@@ -171,15 +178,15 @@ public final class VaultBrowserScreen extends Screen {
         int columnIndex = 0;
         int rowMaxHeight = 0;
 
-        for (VaultStorageManager.VaultSnapshot snapshot : snapshots) {
-            int panelHeight = getPanelHeight(snapshot);
+        for (VaultStorageManager.VaultBrowserEntry entry : entries) {
+            int panelHeight = getPanelHeight(entry);
             rowMaxHeight = Math.max(rowMaxHeight, panelHeight);
 
             if (isVisible(y, panelHeight)) {
-                boolean highlighted = hoveredPanel != null && hoveredPanel.snapshot().vaultNumber() == snapshot.vaultNumber();
-                boolean wardrobe = WardrobeManager.isWardrobeVault(snapshot.vaultNumber());
-                drawPanel(context, snapshot, x, y, highlighted, wardrobe);
-                HoveredSlot hoveredSlot = findHoveredSlot(snapshot, x, y, mouseX, mouseY);
+                boolean highlighted = hoveredPanel != null && hoveredPanel.entry().vaultNumber() == entry.vaultNumber();
+                boolean wardrobe = !entry.locked() && WardrobeManager.isWardrobeVault(entry.vaultNumber());
+                drawPanel(context, entry, x, y, highlighted, wardrobe);
+                HoveredSlot hoveredSlot = findHoveredSlot(entry, x, y, mouseX, mouseY);
                 if (hoveredSlot != null) {
                     hoveredStack = hoveredSlot.stack();
                     hoveredTooltip = hoveredSlot.tooltip();
@@ -203,15 +210,43 @@ public final class VaultBrowserScreen extends Screen {
             y -= getPanelGapY();
         }
 
-        int loadedCount = snapshots.size();
-        String loadedLabel = "Loaded in range: " + loadedCount;
+        int loadedCount = VaultStorageManager.getSnapshots().size();
+        long lockedCount = entries.stream().filter(VaultStorageManager.VaultBrowserEntry::locked).count();
+        String loadedLabel = "Loaded: " + loadedCount + " | Locked: " + lockedCount;
         context.drawTextWithShadow(this.textRenderer, Text.literal(loadedLabel), this.width - this.textRenderer.getWidth(loadedLabel) - 20, this.height - 16, 0xB8E0B8);
 
+        super.render(context, mouseX, mouseY, deltaTicks);
+
         if (!hoveredStack.isEmpty() && !hoveredTooltip.isEmpty()) {
-            context.drawTooltip(this.textRenderer, hoveredTooltip, mouseX, mouseY);
+            drawItemTooltipImmediately(context, hoveredStack, mouseX, mouseY);
+        }
+    }
+
+    private void drawItemTooltipImmediately(
+            DrawContext context,
+            ItemStack stack,
+            int mouseX,
+            int mouseY
+    ) {
+        if (this.client == null) {
+            return;
         }
 
-        super.render(context, mouseX, mouseY, deltaTicks);
+        List<TooltipComponent> components = new ArrayList<>();
+        for (Text line : Screen.getTooltipFromItem(this.client, stack)) {
+            components.add(TooltipComponent.of(line.asOrderedText()));
+        }
+        stack.getTooltipData().ifPresent(data ->
+                components.add(components.isEmpty() ? 0 : 1, TooltipComponent.of(data)));
+
+        context.drawTooltipImmediately(
+                this.textRenderer,
+                components,
+                mouseX,
+                mouseY,
+                HoveredTooltipPositioner.INSTANCE,
+                stack.get(DataComponentTypes.TOOLTIP_STYLE)
+        );
     }
 
     private void updateProfileLabel() {
@@ -244,16 +279,23 @@ public final class VaultBrowserScreen extends Screen {
         return scalePanelMetric(PANEL_GAP_Y);
     }
 
-    private int getBasePanelHeight(VaultStorageManager.VaultSnapshot snapshot) {
-        return PANEL_HEADER_HEIGHT + PANEL_PADDING + (snapshot.rows() * SLOT_SIZE) + PANEL_PADDING;
+    private int getBasePanelHeight(VaultStorageManager.VaultBrowserEntry entry) {
+        if (entry.locked()) {
+            return PANEL_HEADER_HEIGHT + PANEL_PADDING + LOCKED_DETAILS_HEIGHT + PANEL_PADDING;
+        }
+        if (entry.snapshot() == null) {
+            return PANEL_HEADER_HEIGHT + PANEL_PADDING + SLOT_RENDER_SIZE + PANEL_PADDING;
+        }
+
+        return PANEL_HEADER_HEIGHT + PANEL_PADDING + (entry.snapshot().rows() * SLOT_SIZE) + PANEL_PADDING;
     }
 
     private int getPanelWidth() {
         return scalePanelMetric(MIN_PANEL_WIDTH);
     }
 
-    private int getPanelHeight(VaultStorageManager.VaultSnapshot snapshot) {
-        return scalePanelMetric(getBasePanelHeight(snapshot));
+    private int getPanelHeight(VaultStorageManager.VaultBrowserEntry entry) {
+        return scalePanelMetric(getBasePanelHeight(entry));
     }
 
     private void refreshScrollBounds() {
@@ -263,8 +305,8 @@ public final class VaultBrowserScreen extends Screen {
     }
 
     private int computeContentHeight() {
-        List<VaultStorageManager.VaultSnapshot> snapshots = VaultStorageManager.getSnapshots();
-        if (snapshots.isEmpty()) {
+        List<VaultStorageManager.VaultBrowserEntry> entries = VaultStorageManager.getBrowserEntries();
+        if (entries.isEmpty()) {
             return 0;
         }
 
@@ -273,8 +315,8 @@ public final class VaultBrowserScreen extends Screen {
         int rowsHeight = 0;
         int columnIndex = 0;
 
-        for (VaultStorageManager.VaultSnapshot snapshot : snapshots) {
-            rowMaxHeight = Math.max(rowMaxHeight, getPanelHeight(snapshot));
+        for (VaultStorageManager.VaultBrowserEntry entry : entries) {
+            rowMaxHeight = Math.max(rowMaxHeight, getPanelHeight(entry));
             columnIndex++;
 
             if (columnIndex >= columns) {
@@ -309,19 +351,23 @@ public final class VaultBrowserScreen extends Screen {
 
     private void drawPanel(
             DrawContext context,
-            VaultStorageManager.VaultSnapshot snapshot,
+            VaultStorageManager.VaultBrowserEntry entry,
             int x,
             int y,
             boolean highlighted,
             boolean wardrobe
     ) {
         int width = MIN_PANEL_WIDTH;
-        int height = getBasePanelHeight(snapshot);
-        int topBorderColor = wardrobe
+        int height = getBasePanelHeight(entry);
+        int topBorderColor = entry.locked()
+                ? highlighted ? 0xFFFF7868 : 0xFF9A3C36
+                : wardrobe
                 ? highlighted ? 0xFF78C8FF : 0xFF3C91D6
                 : highlighted ? 0xFFD88C34 : 0xFF7A2A24;
         int leftBorderColor = topBorderColor;
-        int rightBorderColor = wardrobe
+        int rightBorderColor = entry.locked()
+                ? highlighted ? 0xFF9A4038 : 0xFF4D201D
+                : wardrobe
                 ? highlighted ? 0xFF397FB5 : 0xFF1D4F78
                 : highlighted ? 0xFF7A3A12 : 0xFF3A1612;
         int bottomBorderColor = rightBorderColor;
@@ -335,29 +381,56 @@ public final class VaultBrowserScreen extends Screen {
                 0,
                 width,
                 height,
-                wardrobe ? 0xE0203C58 : 0xE0201A24,
-                wardrobe ? 0xE00C1A2A : 0xE0100D12
+                entry.locked() ? 0xE02A1818 : wardrobe ? 0xE0203C58 : 0xE0201A24,
+                entry.locked() ? 0xE0140C0C : wardrobe ? 0xE00C1A2A : 0xE0100D12
         );
         context.fill(0, 0, width, 1, topBorderColor);
         context.fill(0, 1, 1, height, leftBorderColor);
         context.fill(width - 1, 1, width, height, rightBorderColor);
         context.fill(1, height - 1, width, height, bottomBorderColor);
 
-        boolean hasCustomName = VaultStorageManager.hasCustomName(snapshot.vaultNumber());
+        boolean hasCustomName = !entry.locked() && VaultStorageManager.hasCustomName(entry.vaultNumber());
         boolean showVaultTag = hasCustomName || VaultStorageManager.shouldAlwaysShowVaultNumber();
-        String title = fitTitle(VaultStorageManager.getDisplayName(snapshot.vaultNumber()), width - (PANEL_PADDING * 2) - (showVaultTag ? 28 : 0));
-        int titleColor = hasCustomName ? 0xFFE86A5C : 0xFFFFFF;
+        String title = fitTitle(VaultStorageManager.getDisplayName(entry.vaultNumber()), width - (PANEL_PADDING * 2) - (showVaultTag ? 28 : 0));
+        int titleColor = entry.locked() ? 0xFFFF8A7A : hasCustomName ? 0xFFE86A5C : 0xFFFFFF;
         context.drawTextWithShadow(this.textRenderer, Text.literal(title), PANEL_PADDING, 5, titleColor);
         if (showVaultTag) {
-            String vaultTag = "#" + snapshot.vaultNumber();
+            String vaultTag = "#" + entry.vaultNumber();
             int vaultTagWidth = this.textRenderer.getWidth(vaultTag);
             context.drawTextWithShadow(this.textRenderer, Text.literal(vaultTag), width - PANEL_PADDING - vaultTagWidth, 5, 0xB8B8B8);
         }
 
-        List<ItemStack> stacks = snapshot.stacks();
         int slotBaseX = PANEL_PADDING;
         int slotBaseY = PANEL_HEADER_HEIGHT + PANEL_PADDING;
 
+        if (entry.locked()) {
+            context.fill(slotBaseX, slotBaseY, slotBaseX + SLOT_RENDER_SIZE, slotBaseY + SLOT_RENDER_SIZE, 0xA0101010);
+            if (!entry.menuIcon().isEmpty()) {
+                context.drawItem(entry.menuIcon(), slotBaseX, slotBaseY);
+            }
+            context.drawTextWithShadow(this.textRenderer, Text.literal("Locked"), slotBaseX + SLOT_SIZE + 4, slotBaseY, 0xFFFF7868);
+            String price = entry.price().isBlank() ? "Price unavailable" : entry.price();
+            String fittedPrice = fitTitle(price, width - slotBaseX - SLOT_SIZE - PANEL_PADDING - 4);
+            context.drawTextWithShadow(this.textRenderer, Text.literal(fittedPrice), slotBaseX + SLOT_SIZE + 4, slotBaseY + 9, 0xFF55FF55);
+            if (!entry.legendLevelRequirement().isBlank()) {
+                String requirement = fitTitle(entry.legendLevelRequirement(), width - (PANEL_PADDING * 2));
+                context.drawTextWithShadow(this.textRenderer, Text.literal(requirement), slotBaseX, slotBaseY + 19, 0xFF55CCFF);
+            }
+            context.getMatrices().popMatrix();
+            return;
+        }
+
+        if (entry.snapshot() == null) {
+            context.fill(slotBaseX, slotBaseY, slotBaseX + SLOT_RENDER_SIZE, slotBaseY + SLOT_RENDER_SIZE, 0xA0101010);
+            if (!entry.menuIcon().isEmpty()) {
+                context.drawItem(entry.menuIcon(), slotBaseX, slotBaseY);
+            }
+            context.drawTextWithShadow(this.textRenderer, Text.literal("Unlocked"), slotBaseX + SLOT_SIZE + 4, slotBaseY + 4, 0xFF55DD77);
+            context.getMatrices().popMatrix();
+            return;
+        }
+
+        List<ItemStack> stacks = entry.snapshot().stacks();
         for (int index = 0; index < stacks.size(); index++) {
             int slotX = slotBaseX + ((index % 9) * SLOT_SIZE);
             int slotY = slotBaseY + ((index / 9) * SLOT_SIZE);
@@ -374,14 +447,44 @@ public final class VaultBrowserScreen extends Screen {
         context.getMatrices().popMatrix();
     }
 
-    private HoveredSlot findHoveredSlot(VaultStorageManager.VaultSnapshot snapshot, int x, int y, int mouseX, int mouseY) {
+    private HoveredSlot findHoveredSlot(VaultStorageManager.VaultBrowserEntry entry, int x, int y, int mouseX, int mouseY) {
         int localMouseX = MathHelper.floor((mouseX - x) / getPanelScale());
         int localMouseY = MathHelper.floor((mouseY - y) / getPanelScale());
         int slotBaseX = PANEL_PADDING;
         int slotBaseY = PANEL_HEADER_HEIGHT + PANEL_PADDING;
 
-        for (int index = 0; index < snapshot.stacks().size(); index++) {
-            ItemStack stack = snapshot.stacks().get(index);
+        if (entry.locked()) {
+            if (localMouseX >= slotBaseX
+                    && localMouseX < slotBaseX + SLOT_RENDER_SIZE
+                    && localMouseY >= slotBaseY
+                    && localMouseY < slotBaseY + SLOT_RENDER_SIZE
+                    && !entry.menuIcon().isEmpty()) {
+                List<Text> tooltip = new ArrayList<>();
+                tooltip.add(entry.menuIcon().getName());
+                if (!entry.price().isBlank()) {
+                    tooltip.add(Text.literal(entry.price()));
+                }
+                if (!entry.legendLevelRequirement().isBlank()) {
+                    tooltip.add(Text.literal(entry.legendLevelRequirement()));
+                }
+                return new HoveredSlot(entry.menuIcon(), List.copyOf(tooltip));
+            }
+            return null;
+        }
+
+        if (entry.snapshot() == null) {
+            if (localMouseX >= slotBaseX
+                    && localMouseX < slotBaseX + SLOT_RENDER_SIZE
+                    && localMouseY >= slotBaseY
+                    && localMouseY < slotBaseY + SLOT_RENDER_SIZE
+                    && !entry.menuIcon().isEmpty()) {
+                return new HoveredSlot(entry.menuIcon(), List.of(entry.menuIcon().getName()));
+            }
+            return null;
+        }
+
+        for (int index = 0; index < entry.snapshot().stacks().size(); index++) {
+            ItemStack stack = entry.snapshot().stacks().get(index);
             if (stack.isEmpty()) {
                 continue;
             }
@@ -418,8 +521,8 @@ public final class VaultBrowserScreen extends Screen {
     }
 
     private VaultPanel findVaultPanelAt(int mouseX, int mouseY) {
-        List<VaultStorageManager.VaultSnapshot> snapshots = VaultStorageManager.getSnapshots();
-        if (snapshots.isEmpty()) {
+        List<VaultStorageManager.VaultBrowserEntry> entries = VaultStorageManager.getBrowserEntries();
+        if (entries.isEmpty()) {
             return null;
         }
 
@@ -434,12 +537,12 @@ public final class VaultBrowserScreen extends Screen {
         int columnIndex = 0;
         int rowMaxHeight = 0;
 
-        for (VaultStorageManager.VaultSnapshot snapshot : snapshots) {
-            int panelHeight = getPanelHeight(snapshot);
+        for (VaultStorageManager.VaultBrowserEntry entry : entries) {
+            int panelHeight = getPanelHeight(entry);
             rowMaxHeight = Math.max(rowMaxHeight, panelHeight);
 
             if (mouseX >= x && mouseX < x + panelWidth && mouseY >= y && mouseY < y + panelHeight) {
-                return new VaultPanel(snapshot);
+                return new VaultPanel(entry);
             }
 
             columnIndex++;
@@ -459,6 +562,6 @@ public final class VaultBrowserScreen extends Screen {
     private record HoveredSlot(ItemStack stack, List<Text> tooltip) {
     }
 
-    private record VaultPanel(VaultStorageManager.VaultSnapshot snapshot) {
+    public record VaultPanel(VaultStorageManager.VaultBrowserEntry entry) {
     }
 }

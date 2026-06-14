@@ -83,7 +83,7 @@ public class Keybinds {
             }
 
             while (OPEN_VAULT.wasPressed()) {
-                VaultStorageManager.openBrowser(client);
+                VaultStorageManager.openStorageMenu(client);
             }
 
             while (OPEN_WARDROBE.wasPressed()) {
@@ -107,4 +107,3 @@ public class Keybinds {
         });
     }
 }
-

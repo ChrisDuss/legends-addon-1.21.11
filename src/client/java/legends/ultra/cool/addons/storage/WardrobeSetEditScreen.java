@@ -13,7 +13,7 @@ import java.util.Locale;
 
 public final class WardrobeSetEditScreen extends Screen {
     private static final int PANEL_WIDTH = 320;
-    private static final int PANEL_HEIGHT = 188;
+    private static final int PANEL_HEIGHT = 218;
 
     private final Screen parent;
     private final int setIndex;
@@ -71,6 +71,15 @@ public final class WardrobeSetEditScreen extends Screen {
                 .build());
         this.addDrawableChild(ButtonWidget.builder(Text.literal("Cancel"), button -> close())
                 .dimensions(left + 220, top + 158, 80, 20)
+                .build());
+        this.addDrawableChild(ButtonWidget.builder(Text.literal("Unassign Set (items are not moved)"), button -> {
+                    MinecraftClient client = this.client;
+                    if (client != null) {
+                        WardrobeManager.unassignSet(client, this.setIndex);
+                    }
+                    close();
+                })
+                .dimensions(left + 20, top + 188, PANEL_WIDTH - 40, 20)
                 .build());
 
         this.setFocused(this.nameField);
