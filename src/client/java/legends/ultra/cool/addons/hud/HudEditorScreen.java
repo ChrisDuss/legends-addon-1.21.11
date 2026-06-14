@@ -136,7 +136,6 @@ public class HudEditorScreen extends Screen {
     private static final String COUNTER_WIDGET_ICON_PATH = "";
     private static final String TIMER_WIDGET_ICON_PATH = "textures/icon/stopwatch_icon.png";
     private static final String NAMEPLATES_WIDGET_ICON_PATH = "textures/icon/nameplate_icon.png";
-    private static final String BETTER_DIALOGUE_WIDGET_ICON_PATH = "textures/icon/better_dialogue_icon.png";
     private static final String UI_TOGGLE_WIDGET_ICON_PATH = "textures/icon/ui_toggle_icon.png";
     private static final String HEALTH_DISPLAY_WIDGET_ICON_PATH = "textures/icon/health_display_icon.png";
     private static final String MANA_DISPLAY_WIDGET_ICON_PATH = "textures/icon/mana_display_icon.png";
@@ -2370,7 +2369,6 @@ public class HudEditorScreen extends Screen {
             case "Counter" -> COUNTER_WIDGET_ICON_PATH;
             case "Timer" -> TIMER_WIDGET_ICON_PATH;
             case "Nameplates" -> NAMEPLATES_WIDGET_ICON_PATH;
-            case "Better Dialogue" -> BETTER_DIALOGUE_WIDGET_ICON_PATH;
             case "UIToggle" -> UI_TOGGLE_WIDGET_ICON_PATH;
             case "Health Display" -> HEALTH_DISPLAY_WIDGET_ICON_PATH;
             case "Mana Display" -> MANA_DISPLAY_WIDGET_ICON_PATH;

@@ -2,14 +2,11 @@ package legends.ultra.cool.addons.mixin.client;
 
 import legends.ultra.cool.addons.data.WidgetConfigManager;
 import legends.ultra.cool.addons.hud.widget.otherTypes.NameplateWidget;
-import legends.ultra.cool.addons.hud.widget.otherTypes.NpcChatWidget;
-import legends.ultra.cool.addons.render.DialogueRenderStateExt;
 import legends.ultra.cool.addons.util.EntityDebug;
 import legends.ultra.cool.addons.util.TextHeathbar;
 import legends.ultra.cool.addons.util.UiVisibility;
 import net.minecraft.client.render.entity.EntityRenderer;
 import net.minecraft.client.render.entity.state.EntityRenderState;
-import net.minecraft.client.render.Frustum;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityAttachmentType;
 import net.minecraft.entity.LivingEntity;
@@ -22,7 +19,6 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.HashMap;
 import java.util.Iterator;
@@ -40,34 +36,11 @@ public abstract class EntityRendererDisplayNameMixin<T extends Entity, S extends
     private static final Map<Integer, Integer> NEXT_UPDATE_TICK = new HashMap<>();
     private static final Map<Integer, Integer> LAST_USED_TICK = new HashMap<>();
 
-    @Inject(method = "shouldRender", at = @At("HEAD"), cancellable = true)
-    private void legends$hideNearbyDialogueNametagEntity(
-            T entity,
-            Frustum frustum,
-            double x,
-            double y,
-            double z,
-            CallbackInfoReturnable<Boolean> cir
-    ) {
-        if (NpcChatWidget.shouldHideNearbyNamedEntity(entity)) {
-            cir.setReturnValue(false);
-        }
-    }
-
     @Inject(method = "updateRenderState", at = @At("TAIL"))
     private void legends$forceAndOverrideDisplayName(T entity, S state, float tickDelta, CallbackInfo ci) {
         if (UiVisibility.isHudHidden()) return;
 
         EntityRenderStateAccessor acc = (EntityRenderStateAccessor) (Object) state;
-        DialogueRenderStateExt dialogue = (DialogueRenderStateExt) (Object) state;
-        dialogue.legends$setNpcDialogue(null);
-
-        Text npcDialogue = NpcChatWidget.getDialogueLabel(entity);
-        if (npcDialogue != null) {
-            ensureNameLabelPos(entity, tickDelta, acc);
-            dialogue.legends$setNpcDialogue(npcDialogue);
-            return;
-        }
 
         float range = WidgetConfigManager.getFloat("Nameplates", "range", 50f);
         double maxSq = (double) range * (double) range;
