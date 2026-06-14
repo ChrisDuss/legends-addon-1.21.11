@@ -10,6 +10,7 @@ import legends.ultra.cool.addons.hud.widget.otherTypes.VaultBrowserWidget;
 import legends.ultra.cool.addons.mixin.client.HandledScreenAccessor;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
+import net.fabricmc.fabric.api.client.screen.v1.ScreenMouseEvents;
 import net.fabricmc.fabric.api.client.screen.v1.Screens;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
@@ -22,6 +23,7 @@ import net.minecraft.component.type.ItemEnchantmentsComponent;
 import net.minecraft.component.type.LoreComponent;
 import net.minecraft.enchantment.Enchantment;
 import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
 import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.StringNbtReader;
@@ -30,14 +32,17 @@ import net.minecraft.registry.RegistryKeys;
 import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.screen.slot.Slot;
+import net.minecraft.screen.slot.SlotActionType;
 import net.minecraft.text.Text;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.WeakHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.io.Reader;
@@ -55,6 +60,8 @@ public final class VaultStorageManager {
     private static final String VAULT_SETTINGS_FILE = "legendsaddon_vault_settings.json";
     private static final String VAULT_SNAPSHOTS_FILE = "legendsaddon_vault_snapshots.json";
     private static final Pattern VAULT_NUMBER_PATTERN = Pattern.compile("(?:vault\\s*#?\\s*|/pv\\s+)(\\d+)", Pattern.CASE_INSENSITIVE);
+    private static final Pattern PURCHASE_PRICE_PATTERN = Pattern.compile("buy\\s+this\\s+vault\\s+for\\s+(.+?\\bcoins?\\b)", Pattern.CASE_INSENSITIVE);
+    private static final Pattern LEGEND_LEVEL_PATTERN = Pattern.compile("requires\\s+legend\\s+level\\s+\\d+", Pattern.CASE_INSENSITIVE);
     private static final int PLAYER_INVENTORY_SLOTS = 36;
     private static final int VAULTS_PER_PROFILE = 14;
     private static final int PROFILE_COUNT = 5;
@@ -71,6 +78,10 @@ public final class VaultStorageManager {
     private static final Map<Integer, VaultSnapshot> SNAPSHOTS = new TreeMap<>();
     private static final Map<Integer, String> CUSTOM_NAMES = new TreeMap<>();
     private static final Map<Integer, PersistedVaultSnapshot> PERSISTED_SNAPSHOTS = new TreeMap<>();
+    private static final Map<Integer, VaultMenuEntry> VAULT_MENU_ENTRIES = new TreeMap<>();
+    private static final Map<HandledScreen<?>, VaultBrowserScreen> BROWSER_OVERLAYS = new WeakHashMap<>();
+    private static final java.util.Set<net.minecraft.client.gui.screen.Screen> BROWSER_EVENT_SCREENS =
+            Collections.newSetFromMap(new WeakHashMap<>());
 
     private static boolean loadingAll;
     private static boolean customNamesLoaded;
@@ -83,6 +94,7 @@ public final class VaultStorageManager {
     private static int cooldownTicks;
     private static int selectedProfile = DEFAULT_PROFILE;
     private static boolean browserOpenRequested;
+    private static boolean browserOverlayRequested;
     private static String pendingBrowserStatusMessage = "";
     private static Object trackedVaultScreen;
     private static int trackedVaultNumber = -1;
@@ -118,10 +130,11 @@ public final class VaultStorageManager {
             }
 
             if (isStorageMenuScreen(handledScreen)) {
+                refreshStorageMenuEntries(handledScreen);
                 addStorageMenuButtons(screen, handledScreen);
-                ScreenEvents.afterRender(screen).register((scr, context, mouseX, mouseY, delta) -> renderStorageMenuStatus(handledScreen, context));
-                if (shouldAutoOpenBrowserOnStorageMenu()) {
-                    openBrowser(client);
+                installStorageMenuOverlayEvents(screen, handledScreen);
+                if (browserOverlayRequested || shouldAutoOpenBrowserOnStorageMenu()) {
+                    openBrowserOverlay(client, handledScreen);
                 }
                 return;
             }
@@ -164,6 +177,7 @@ public final class VaultStorageManager {
         }
 
         HandledScreen<?> handledScreen = client.currentScreen instanceof HandledScreen<?> hs ? hs : null;
+        processStorageMenu(handledScreen);
         processVisibleVaultScreen(client, handledScreen);
 
         if (!loadingAll) {
@@ -214,6 +228,49 @@ public final class VaultStorageManager {
                 .filter(snapshot -> isWithinSelectedRange(snapshot.vaultNumber()))
                 .sorted(Comparator.comparingInt(VaultSnapshot::vaultNumber))
                 .toList();
+    }
+
+    public static List<VaultBrowserEntry> getBrowserEntries() {
+        Map<Integer, VaultBrowserEntry> entries = new TreeMap<>();
+        for (VaultSnapshot snapshot : getSnapshots()) {
+            entries.put(snapshot.vaultNumber(), new VaultBrowserEntry(
+                    snapshot.vaultNumber(),
+                    false,
+                    snapshot,
+                    ItemStack.EMPTY,
+                    "",
+                    ""
+            ));
+        }
+
+        for (VaultMenuEntry menuEntry : VAULT_MENU_ENTRIES.values()) {
+            if (!isWithinSelectedRange(menuEntry.vaultNumber())) {
+                continue;
+            }
+
+            VaultBrowserEntry cachedEntry = entries.get(menuEntry.vaultNumber());
+            if (menuEntry.locked()) {
+                entries.put(menuEntry.vaultNumber(), new VaultBrowserEntry(
+                        menuEntry.vaultNumber(),
+                        true,
+                        null,
+                        menuEntry.icon().copy(),
+                        menuEntry.price(),
+                        menuEntry.legendLevelRequirement()
+                ));
+            } else if (cachedEntry == null) {
+                entries.put(menuEntry.vaultNumber(), new VaultBrowserEntry(
+                        menuEntry.vaultNumber(),
+                        false,
+                        null,
+                        menuEntry.icon().copy(),
+                        "",
+                        ""
+                ));
+            }
+        }
+
+        return List.copyOf(entries.values());
     }
 
     public static void clearSnapshots() {
@@ -322,17 +379,35 @@ public final class VaultStorageManager {
     }
 
     public static void openBrowser(MinecraftClient client) {
-        if (client == null || !VaultBrowserWidget.isEnabledGlobal()) {
+        if (client == null
+                || client.player == null
+                || client.getNetworkHandler() == null
+                || !VaultBrowserWidget.isEnabledGlobal()) {
             return;
         }
 
         ensureSnapshotsLoaded(client);
-
-        if (client.player != null && client.currentScreen instanceof HandledScreen<?>) {
-            client.player.closeHandledScreen();
+        if (client.currentScreen instanceof HandledScreen<?> handledScreen && isStorageMenuScreen(handledScreen)) {
+            openBrowserOverlay(client, handledScreen);
+            return;
         }
 
-        client.setScreen(new VaultBrowserScreen());
+        browserOverlayRequested = true;
+        lastStatus = "Opening Storage Menu...";
+        client.getNetworkHandler().sendChatCommand("ec");
+    }
+
+    public static void openStorageMenu(MinecraftClient client) {
+        if (client == null
+                || client.player == null
+                || client.getNetworkHandler() == null
+                || !VaultBrowserWidget.isEnabledGlobal()) {
+            return;
+        }
+
+        browserOverlayRequested = false;
+        lastStatus = "Opening Storage Menu...";
+        client.getNetworkHandler().sendChatCommand("ec");
     }
 
     public static boolean reloadCurrentRange(MinecraftClient client) {
@@ -359,6 +434,50 @@ public final class VaultStorageManager {
         client.setScreen(null);
         client.getNetworkHandler().sendChatCommand("pv " + vaultNumber);
         return true;
+    }
+
+    public static boolean clickStorageMenuVault(
+            MinecraftClient client,
+            HandledScreen<?> storageMenuScreen,
+            int vaultNumber
+    ) {
+        if (client == null
+                || client.player == null
+                || client.interactionManager == null
+                || vaultNumber < 1
+                || storageMenuScreen == null
+                || client.currentScreen != storageMenuScreen
+                || !isStorageMenuScreen(storageMenuScreen)
+                || !VaultBrowserWidget.isEnabledGlobal()) {
+            return false;
+        }
+
+        Slot targetSlot = findVaultMenuSlot(storageMenuScreen, vaultNumber);
+        if (targetSlot == null) {
+            lastStatus = "Could not find vault " + vaultNumber + " in the Storage Menu.";
+            sendStatusMessage(client, lastStatus);
+            return false;
+        }
+
+        client.interactionManager.clickSlot(
+                storageMenuScreen.getScreenHandler().syncId,
+                targetSlot.id,
+                0,
+                SlotActionType.PICKUP,
+                client.player
+        );
+        lastStatus = "Clicked vault " + vaultNumber + " in the Storage Menu.";
+        return true;
+    }
+
+    public static void closeBrowserOverlay(HandledScreen<?> storageMenuScreen) {
+        if (storageMenuScreen != null) {
+            BROWSER_OVERLAYS.remove(storageMenuScreen);
+        }
+    }
+
+    public static void requestBrowserOverlay() {
+        browserOverlayRequested = true;
     }
 
     public static boolean shouldAutoOpenBrowserOnStorageMenu() {
@@ -445,6 +564,174 @@ public final class VaultStorageManager {
         context.drawTextWithShadow(MinecraftClient.getInstance().textRenderer, Text.literal("Profile: " + getSelectedProfile() + "/" + PROFILE_COUNT), x, y + 24, 0xD8C090);
         context.drawTextWithShadow(MinecraftClient.getInstance().textRenderer, Text.literal("Range: " + getRangeLabel()), x, y + 36, 0xD8C090);
         context.drawTextWithShadow(MinecraftClient.getInstance().textRenderer, Text.literal(lastStatus), x, y + 48, 0xE0C090);
+    }
+
+    private static void installStorageMenuOverlayEvents(
+            net.minecraft.client.gui.screen.Screen screen,
+            HandledScreen<?> handledScreen
+    ) {
+        if (!BROWSER_EVENT_SCREENS.add(screen)) {
+            VaultBrowserScreen overlay = BROWSER_OVERLAYS.get(handledScreen);
+            if (overlay != null) {
+                overlay.init(screen.width, screen.height);
+            }
+            return;
+        }
+
+        ScreenMouseEvents.allowMouseClick(screen).register((scr, click) -> {
+            VaultBrowserScreen overlay = BROWSER_OVERLAYS.get(handledScreen);
+            if (overlay == null) {
+                return true;
+            }
+            overlay.mouseClicked(click, false);
+            return false;
+        });
+
+        ScreenMouseEvents.allowMouseScroll(screen).register((scr, mouseX, mouseY, horizontalAmount, verticalAmount) -> {
+            VaultBrowserScreen overlay = BROWSER_OVERLAYS.get(handledScreen);
+            if (overlay == null) {
+                return true;
+            }
+            overlay.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
+            return false;
+        });
+
+        ScreenEvents.afterRender(screen).register((scr, context, mouseX, mouseY, delta) -> {
+            VaultBrowserScreen overlay = BROWSER_OVERLAYS.get(handledScreen);
+            if (overlay != null) {
+                overlay.render(context, mouseX, mouseY, delta);
+            } else {
+                renderStorageMenuStatus(handledScreen, context);
+            }
+        });
+
+        ScreenEvents.remove(screen).register(scr -> {
+            BROWSER_OVERLAYS.remove(handledScreen);
+            BROWSER_EVENT_SCREENS.remove(scr);
+        });
+    }
+
+    private static void openBrowserOverlay(MinecraftClient client, HandledScreen<?> handledScreen) {
+        if (client == null || handledScreen == null || !isStorageMenuScreen(handledScreen)) {
+            return;
+        }
+
+        browserOverlayRequested = false;
+        refreshStorageMenuEntries(handledScreen);
+        VaultBrowserScreen overlay = new VaultBrowserScreen(handledScreen);
+        overlay.init(handledScreen.width, handledScreen.height);
+        BROWSER_OVERLAYS.put(handledScreen, overlay);
+    }
+
+    private static void processStorageMenu(HandledScreen<?> handledScreen) {
+        if (handledScreen != null && isStorageMenuScreen(handledScreen)) {
+            refreshStorageMenuEntries(handledScreen);
+        }
+    }
+
+    private static boolean refreshStorageMenuEntries(HandledScreen<?> handledScreen) {
+        List<Slot> slots = handledScreen.getScreenHandler().slots;
+        int containerSlotCount = Math.max(0, slots.size() - PLAYER_INVENTORY_SLOTS);
+        List<VaultMenuEntry> discoveredEntries = new ArrayList<>();
+
+        for (int i = 0; i < containerSlotCount; i++) {
+            VaultMenuEntry menuEntry = inspectVaultMenuItem(slots.get(i).getStack());
+            if (menuEntry != null) {
+                discoveredEntries.add(menuEntry);
+            }
+        }
+
+        if (discoveredEntries.isEmpty()) {
+            return false;
+        }
+
+        int rangeStart = getSelectedRangeStart();
+        int rangeEnd = getSelectedRangeEnd();
+        VAULT_MENU_ENTRIES.entrySet().removeIf(entry ->
+                entry.getKey() >= rangeStart && entry.getKey() <= rangeEnd);
+        for (VaultMenuEntry entry : discoveredEntries) {
+            VAULT_MENU_ENTRIES.put(entry.vaultNumber(), entry);
+        }
+        return true;
+    }
+
+    private static Slot findVaultMenuSlot(HandledScreen<?> handledScreen, int vaultNumber) {
+        List<Slot> slots = handledScreen.getScreenHandler().slots;
+        int containerSlotCount = Math.max(0, slots.size() - PLAYER_INVENTORY_SLOTS);
+
+        for (int i = 0; i < containerSlotCount; i++) {
+            Slot slot = slots.get(i);
+            VaultMenuEntry menuEntry = inspectVaultMenuItem(slot.getStack());
+            if (menuEntry != null && menuEntry.vaultNumber() == vaultNumber) {
+                return slot;
+            }
+        }
+
+        return null;
+    }
+
+    private static VaultMenuEntry inspectVaultMenuItem(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) {
+            return null;
+        }
+
+        int displayedVaultNumber = extractVaultNumber(stack.getName().getString());
+        if (displayedVaultNumber <= 0) {
+            displayedVaultNumber = extractVaultNumber(readLoreText(stack));
+        }
+        if (displayedVaultNumber <= 0) {
+            return null;
+        }
+
+        int vaultNumber = resolveStorageMenuVaultNumber(displayedVaultNumber);
+        String price = extractPurchasePrice(stack);
+        String legendLevelRequirement = extractLegendLevelRequirement(stack);
+        boolean unlocked = stack.isOf(Items.BARREL) || isUnlockedVaultIcon(stack);
+        boolean locked = !unlocked && (stack.isOf(Items.CHEST) || !price.isBlank());
+        if (!unlocked && !locked) {
+            return null;
+        }
+
+        return new VaultMenuEntry(vaultNumber, locked, stack.copy(), price, legendLevelRequirement);
+    }
+
+    private static int resolveStorageMenuVaultNumber(int displayedVaultNumber) {
+        if (displayedVaultNumber >= 1 && displayedVaultNumber <= VAULTS_PER_PROFILE) {
+            return getSelectedRangeStart() + displayedVaultNumber - 1;
+        }
+        return displayedVaultNumber;
+    }
+
+    private static String extractPurchasePrice(ItemStack stack) {
+        LoreComponent lore = stack.get(DataComponentTypes.LORE);
+        if (lore == null) {
+            return "";
+        }
+
+        for (Text line : lore.lines()) {
+            Matcher matcher = PURCHASE_PRICE_PATTERN.matcher(line.getString());
+            if (matcher.find()) {
+                return matcher.group(1).trim();
+            }
+        }
+
+        return "";
+    }
+
+    private static String extractLegendLevelRequirement(ItemStack stack) {
+        LoreComponent lore = stack.get(DataComponentTypes.LORE);
+        if (lore == null) {
+            return "";
+        }
+
+        for (Text line : lore.lines()) {
+            String text = line.getString().trim();
+            if (LEGEND_LEVEL_PATTERN.matcher(text).find()) {
+                return text;
+            }
+        }
+
+        return "";
     }
 
     private static void processVisibleVaultScreen(MinecraftClient client, HandledScreen<?> handledScreen) {
@@ -648,6 +935,9 @@ public final class VaultStorageManager {
     private static boolean isUnlockedVaultIcon(ItemStack stack) {
         if (stack.isEmpty()) {
             return false;
+        }
+        if (stack.isOf(Items.BARREL)) {
+            return true;
         }
 
         int vaultNumber = extractVaultNumber(stack.getName().getString());
@@ -1183,5 +1473,24 @@ public final class VaultStorageManager {
     }
 
     public record VaultSnapshot(int vaultNumber, int rows, List<ItemStack> stacks) {
+    }
+
+    public record VaultBrowserEntry(
+            int vaultNumber,
+            boolean locked,
+            VaultSnapshot snapshot,
+            ItemStack menuIcon,
+            String price,
+            String legendLevelRequirement
+    ) {
+    }
+
+    private record VaultMenuEntry(
+            int vaultNumber,
+            boolean locked,
+            ItemStack icon,
+            String price,
+            String legendLevelRequirement
+    ) {
     }
 }
