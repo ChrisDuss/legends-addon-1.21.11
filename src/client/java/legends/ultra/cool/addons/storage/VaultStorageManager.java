@@ -259,6 +259,10 @@ public final class VaultStorageManager {
         return PROFILE_COUNT;
     }
 
+    public static int getProfileForVaultNumber(int vaultNumber) {
+        return getProfileForVault(vaultNumber);
+    }
+
     public static String getSelectedProfileLabel() {
         return "Profile " + getSelectedProfile() + " (" + getRangeLabel() + ")";
     }
@@ -500,7 +504,7 @@ public final class VaultStorageManager {
         saveSnapshots(MinecraftClient.getInstance());
     }
 
-    private static void cacheVisibleVault(HandledScreen<?> handledScreen) {
+    public static void refreshVisibleVaultSnapshot(HandledScreen<?> handledScreen) {
         if (handledScreen == null || !isVaultScreen(handledScreen, -1)) {
             return;
         }
@@ -511,8 +515,13 @@ public final class VaultStorageManager {
         }
 
         List<ItemStack> stacks = readVaultContents(handledScreen);
+        ensureSnapshotsLoaded(MinecraftClient.getInstance());
+        trackedVaultScreen = handledScreen;
         trackedVaultStacks = stacks;
         trackedVaultNumber = vaultNumber;
+        trackedVaultOpenTicks = VAULT_SNAPSHOT_DELAY_TICKS;
+        trackedVaultStableTicks = VAULT_UPDATE_STABLE_TICKS;
+        trackedVaultDirty = false;
         snapshotVault(vaultNumber, stacks);
         lastStatus = "Cached vault " + vaultNumber + ".";
     }
@@ -589,7 +598,7 @@ public final class VaultStorageManager {
             stopLoading("Load cancelled.");
         }
 
-        cacheVisibleVault(handledScreen);
+        refreshVisibleVaultSnapshot(handledScreen);
         openBrowser(client);
     }
 

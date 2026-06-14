@@ -68,6 +68,11 @@ public class HudEditorScreen extends Screen {
     private static final int LAUNCHER_ICON_SIZE = 12;
     private static final int GENERAL_TAB_H = 16;
     private static final int GENERAL_TAB_GAP = 12;
+    private static final int GENERAL_PANEL_MIN_H = 188;
+    private static final int GENERAL_KEYBIND_START_Y = 66;
+    private static final int GENERAL_KEYBIND_ROW_H = 18;
+    private static final int GENERAL_KEYBIND_ROW_SPAN = 24;
+    private static final int GENERAL_KEYBIND_FOOTER_SPACE = 24;
     private static final int GENERAL_ROW_H = 26;
     private static final int GENERAL_TOGGLE_W = 48;
     private static final int GENERAL_TOGGLE_H = 16;
@@ -143,7 +148,8 @@ public class HudEditorScreen extends Screen {
             new KeybindRow("Open editor", () -> Keybinds.OPEN_EDITOR),
             new KeybindRow("Toggle timer", () -> Keybinds.TOGGLE_TIMER),
             new KeybindRow("Reset timer", () -> Keybinds.RESET_TIMER),
-            new KeybindRow("Open Vault", () -> Keybinds.OPEN_VAULT)
+            new KeybindRow("Open Vault", () -> Keybinds.OPEN_VAULT),
+            new KeybindRow("Open Wardrobe", () -> Keybinds.OPEN_WARDROBE)
     );
 
     private HudWidget dragging;
@@ -382,6 +388,11 @@ public class HudEditorScreen extends Screen {
 
     private boolean handleHomeClick(double mouseX, double mouseY) {
         LauncherLayout launcher = launcherLayout();
+        if (backChipBounds().contains(mouseX, mouseY)) {
+            close();
+            return true;
+        }
+
         if (launcher.layoutButton.contains(mouseX, mouseY)) {
             setViewMode(ViewMode.LAYOUT);
             return true;
@@ -527,6 +538,8 @@ public class HudEditorScreen extends Screen {
 
     private void renderHome(DrawContext ctx, int mouseX, int mouseY) {
         LauncherLayout launcher = launcherLayout();
+
+        drawChip(ctx, backChipBounds(),  mouseX, mouseY, "x", BUTTON_FILL_HOVER_COLOR, UI_BUTTON_TEXT_COLOR);
 
         ctx.drawCenteredTextWithShadow(textRenderer, Text.literal("HUD Editor"), this.width / 2, launcher.modsButton.y - 24, UI_BUTTON_TEXT_COLOR);
 
@@ -966,7 +979,11 @@ public class HudEditorScreen extends Screen {
 
     private Rect generalPanelBounds() {
         int panelWidth = 388;
-        int panelHeight = 188;
+        int keybindContentHeight = GENERAL_KEYBIND_START_Y
+                + Math.max(0, keybindRows.size() - 1) * GENERAL_KEYBIND_ROW_SPAN
+                + GENERAL_KEYBIND_ROW_H
+                + GENERAL_KEYBIND_FOOTER_SPACE;
+        int panelHeight = Math.max(GENERAL_PANEL_MIN_H, keybindContentHeight);
         return new Rect((this.width - panelWidth) / 2, (this.height - panelHeight) / 2, panelWidth, panelHeight);
     }
 
@@ -1039,8 +1056,8 @@ public class HudEditorScreen extends Screen {
     private Rect keybindRowBounds(int index) {
         Rect panel = generalPanelBounds();
         int rowX = panel.x + 18;
-        int rowY = panel.y + 66 + index * 24;
-        return new Rect(rowX, rowY, panel.width - 36, 18);
+        int rowY = panel.y + GENERAL_KEYBIND_START_Y + index * GENERAL_KEYBIND_ROW_SPAN;
+        return new Rect(rowX, rowY, panel.width - 36, GENERAL_KEYBIND_ROW_H);
     }
 
     private Rect keybindValueBounds(Rect rowBounds) {

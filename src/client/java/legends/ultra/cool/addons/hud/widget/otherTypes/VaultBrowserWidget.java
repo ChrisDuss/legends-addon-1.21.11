@@ -14,11 +14,13 @@ public final class VaultBrowserWidget extends HudWidget {
     private static final String SHOW_BROWSER_HINT_KEY = "showBrowserHint";
     private static final String ALWAYS_SHOW_VAULT_NUMBER_KEY = "alwaysShowVaultNumber";
     private static final String SCALE_KEY = "scale";
+    private static final String WARDROBE_SCALE_KEY = "wardrobeScale";
     private static final boolean DEFAULT_AUTO_OPEN_FROM_STORAGE_MENU = false;
     private static final boolean DEFAULT_AUTO_OPEN_AFTER_LOAD = true;
     private static final boolean DEFAULT_SHOW_BROWSER_HINT = true;
     private static final boolean DEFAULT_ALWAYS_SHOW_VAULT_NUMBER = false;
     private static final float DEFAULT_SCALE = 1.0f;
+    private static final float DEFAULT_WARDROBE_SCALE = 1.0f;
 
     private static VaultBrowserWidget INSTANCE;
 
@@ -50,6 +52,10 @@ public final class VaultBrowserWidget extends HudWidget {
 
     public static float getScaleSetting() {
         return WidgetConfigManager.getFloat(WIDGET_NAME, SCALE_KEY, DEFAULT_SCALE);
+    }
+
+    public static float getWardrobeScaleSetting() {
+        return WidgetConfigManager.getFloat(WIDGET_NAME, WARDROBE_SCALE_KEY, DEFAULT_WARDROBE_SCALE);
     }
 
     public static boolean getAutoOpenFromStorageMenuSetting() {
@@ -86,6 +92,10 @@ public final class VaultBrowserWidget extends HudWidget {
 
     public static void setScaleSetting(float value) {
         WidgetConfigManager.setFloat(WIDGET_NAME, SCALE_KEY, value, true);
+    }
+
+    public static void setWardrobeScaleSetting(float value) {
+        WidgetConfigManager.setFloat(WIDGET_NAME, WARDROBE_SCALE_KEY, value, true);
     }
 
     @Override
@@ -136,12 +146,21 @@ public final class VaultBrowserWidget extends HudWidget {
                         DEFAULT_ALWAYS_SHOW_VAULT_NUMBER
                 ),
                 HudSetting.slider(
-                        "scale", "Scale",
+                        "scale", "Vault panel scale",
                         0.6f, 2f, 0.1f,
                         () -> true,
                         VaultBrowserWidget::getScaleSetting,
                         v -> VaultBrowserWidget.setScaleSetting((float) v),
                         DEFAULT_SCALE
+                ),
+                HudSetting.section("Wardrobe"),
+                HudSetting.slider(
+                        WARDROBE_SCALE_KEY, "Wardrobe UI scale",
+                        0.6f, 1.5f, 0.1f,
+                        () -> true,
+                        VaultBrowserWidget::getWardrobeScaleSetting,
+                        v -> VaultBrowserWidget.setWardrobeScaleSetting((float) v),
+                        DEFAULT_WARDROBE_SCALE
                 )
         );
     }

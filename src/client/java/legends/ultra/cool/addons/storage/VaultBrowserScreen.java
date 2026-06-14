@@ -177,7 +177,8 @@ public final class VaultBrowserScreen extends Screen {
 
             if (isVisible(y, panelHeight)) {
                 boolean highlighted = hoveredPanel != null && hoveredPanel.snapshot().vaultNumber() == snapshot.vaultNumber();
-                drawPanel(context, snapshot, x, y, highlighted);
+                boolean wardrobe = WardrobeManager.isWardrobeVault(snapshot.vaultNumber());
+                drawPanel(context, snapshot, x, y, highlighted, wardrobe);
                 HoveredSlot hoveredSlot = findHoveredSlot(snapshot, x, y, mouseX, mouseY);
                 if (hoveredSlot != null) {
                     hoveredStack = hoveredSlot.stack();
@@ -306,19 +307,37 @@ public final class VaultBrowserScreen extends Screen {
         return panelY + panelHeight >= top && panelY <= bottom;
     }
 
-    private void drawPanel(DrawContext context, VaultStorageManager.VaultSnapshot snapshot, int x, int y, boolean highlighted) {
+    private void drawPanel(
+            DrawContext context,
+            VaultStorageManager.VaultSnapshot snapshot,
+            int x,
+            int y,
+            boolean highlighted,
+            boolean wardrobe
+    ) {
         int width = MIN_PANEL_WIDTH;
         int height = getBasePanelHeight(snapshot);
-        int topBorderColor = highlighted ? 0xFFD88C34 : 0xFF7A2A24;
-        int leftBorderColor = highlighted ? 0xFFD88C34 : 0xFF7A2A24;
-        int rightBorderColor = highlighted ? 0xFF7A3A12 : 0xFF3A1612;
-        int bottomBorderColor = highlighted ? 0xFF7A3A12 : 0xFF3A1612;
+        int topBorderColor = wardrobe
+                ? highlighted ? 0xFF78C8FF : 0xFF3C91D6
+                : highlighted ? 0xFFD88C34 : 0xFF7A2A24;
+        int leftBorderColor = topBorderColor;
+        int rightBorderColor = wardrobe
+                ? highlighted ? 0xFF397FB5 : 0xFF1D4F78
+                : highlighted ? 0xFF7A3A12 : 0xFF3A1612;
+        int bottomBorderColor = rightBorderColor;
 
         context.getMatrices().pushMatrix();
         context.getMatrices().translate(x, y);
         context.getMatrices().scale(getPanelScale(), getPanelScale());
 
-        context.fillGradient(0, 0, width, height, 0xE0201A24, 0xE0100D12);
+        context.fillGradient(
+                0,
+                0,
+                width,
+                height,
+                wardrobe ? 0xE0203C58 : 0xE0201A24,
+                wardrobe ? 0xE00C1A2A : 0xE0100D12
+        );
         context.fill(0, 0, width, 1, topBorderColor);
         context.fill(0, 1, 1, height, leftBorderColor);
         context.fill(width - 1, 1, width, height, rightBorderColor);
