@@ -16,6 +16,9 @@ commands:
   storage:
     description: Open the mock storage menu.
     usage: /storage
+  ec:
+    description: Open the mock storage menu.
+    usage: /ec
   pvmax:
     description: Set the number of unlocked vaults for testing.
     usage: /pvmax <number> or /pvmax <player> <number>

@@ -47,6 +47,7 @@ public final class MockPlayerVaultsPlugin extends JavaPlugin implements Listener
         Objects.requireNonNull(getCommand("pv"), "pv command missing").setTabCompleter(this);
         Objects.requireNonNull(getCommand("pvgui"), "pvgui command missing").setExecutor(this);
         Objects.requireNonNull(getCommand("storage"), "storage command missing").setExecutor(this);
+        Objects.requireNonNull(getCommand("ec"), "ec command missing").setExecutor(this);
         Objects.requireNonNull(getCommand("pvmax"), "pvmax command missing").setExecutor(this);
         Objects.requireNonNull(getCommand("pvmax"), "pvmax command missing").setTabCompleter(this);
 
@@ -64,7 +65,7 @@ public final class MockPlayerVaultsPlugin extends JavaPlugin implements Listener
         String name = command.getName().toLowerCase(Locale.ROOT);
         return switch (name) {
             case "pv" -> handlePvCommand(sender, args);
-            case "pvgui", "storage" -> handleStorageCommand(sender);
+            case "pvgui", "storage", "ec" -> handleStorageCommand(sender);
             case "pvmax" -> handlePvMaxCommand(sender, args);
             default -> false;
         };
@@ -134,7 +135,9 @@ public final class MockPlayerVaultsPlugin extends JavaPlugin implements Listener
         }
 
         if (!isVaultUnlocked(player.getUniqueId(), vaultNumber)) {
-            sendConfiguredMessage(player, "messages.locked", Map.of("{number}", Integer.toString(vaultNumber)));
+            setUnlockedVaultCount(player.getUniqueId(), Math.max(getUnlockedVaultCount(player.getUniqueId()), vaultNumber));
+            topInventory.setItem(event.getSlot(), createMenuItem(vaultNumber, true));
+            sendConfiguredMessage(player, "messages.purchased", Map.of("{number}", Integer.toString(vaultNumber)));
             return;
         }
 
@@ -225,7 +228,7 @@ public final class MockPlayerVaultsPlugin extends JavaPlugin implements Listener
         Inventory inventory = Bukkit.createInventory(holder, STORAGE_MENU_SIZE, colorize(getConfig().getString("storage-menu-title", "Storage Menu")));
         holder.setInventory(inventory);
 
-        for (int vaultNumber = 1; vaultNumber <= MAX_VAULTS; vaultNumber++) {
+        for (int vaultNumber = 1; vaultNumber <= Math.min(MAX_VAULTS, STORAGE_MENU_SLOTS.length); vaultNumber++) {
             boolean unlocked = isVaultUnlocked(player.getUniqueId(), vaultNumber);
             inventory.setItem(STORAGE_MENU_SLOTS[vaultNumber - 1], createMenuItem(vaultNumber, unlocked));
         }
@@ -246,7 +249,7 @@ public final class MockPlayerVaultsPlugin extends JavaPlugin implements Listener
     }
 
     private ItemStack createMenuItem(int vaultNumber, boolean unlocked) {
-        Material material = unlocked ? Material.BARREL : Material.RED_STAINED_GLASS_PANE;
+        Material material = unlocked ? Material.BARREL : Material.CHEST;
         ItemStack stack = new ItemStack(material);
         ItemMeta meta = stack.getItemMeta();
 
@@ -262,11 +265,22 @@ public final class MockPlayerVaultsPlugin extends JavaPlugin implements Listener
         for (String line : loreTemplate) {
             lore.add(colorize(line
                     .replace("{number}", Integer.toString(vaultNumber))
-                    .replace("{command}", "/pv " + vaultNumber)));
+                    .replace("{command}", "/pv " + vaultNumber)
+                    .replace("{price}", Integer.toString(getVaultPrice(vaultNumber)))
+                    .replace("{level}", Integer.toString(Math.max(1, (vaultNumber - 1) * 5)))));
         }
         meta.setLore(lore);
         stack.setItemMeta(meta);
         return stack;
+    }
+
+    private int getVaultPrice(int vaultNumber) {
+        return switch (vaultNumber) {
+            case 3 -> 333;
+            case 4 -> 496;
+            case 5 -> 739;
+            default -> vaultNumber * 111;
+        };
     }
 
     private boolean isVaultUnlocked(UUID playerId, int vaultNumber) {
