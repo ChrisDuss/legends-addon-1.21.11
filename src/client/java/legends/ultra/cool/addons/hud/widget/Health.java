@@ -81,6 +81,11 @@ public class Health extends HudWidget implements BarDraggable {
         String text = getHealth();
         int width = client.textRenderer.getWidth(text);
         int height = client.textRenderer.fontHeight;
+        if (cachedTextWidth > 0 && cachedTextWidth != width) {
+            double centerX = x + cachedTextWidth / 2d;
+            x = centerX - width / 2d;
+        }
+
         cachedTextWidth = width;
         cachedTextHeight = height;
 
