@@ -476,6 +476,10 @@ public final class VaultStorageManager {
         }
     }
 
+    public static boolean hasBrowserOverlay(HandledScreen<?> handledScreen) {
+        return handledScreen != null && BROWSER_OVERLAYS.containsKey(handledScreen);
+    }
+
     public static void requestBrowserOverlay() {
         browserOverlayRequested = true;
     }
@@ -595,6 +599,14 @@ public final class VaultStorageManager {
             overlay.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
             return false;
         });
+
+        ScreenMouseEvents.allowMouseRelease(screen).register((scr, click) ->
+                BROWSER_OVERLAYS.get(handledScreen) == null
+        );
+
+        ScreenMouseEvents.allowMouseDrag(screen).register((scr, click, mouseX, mouseY) ->
+                BROWSER_OVERLAYS.get(handledScreen) == null
+        );
 
         ScreenEvents.afterRender(screen).register((scr, context, mouseX, mouseY, delta) -> {
             VaultBrowserScreen overlay = BROWSER_OVERLAYS.get(handledScreen);

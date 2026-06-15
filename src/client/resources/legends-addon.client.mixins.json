@@ -8,6 +8,7 @@
     "EntityRendererMultilineLabelMixin",
     "EntityRenderStateAccessor",
     "ExperienceBarMixin",
+    "HandledScreenTooltipMixin",
     "TitleScreenMixin",
     "HandledScreenAccessor",
     "HudManip",
