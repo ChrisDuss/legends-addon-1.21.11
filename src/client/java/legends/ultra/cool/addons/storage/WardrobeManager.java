@@ -2068,75 +2068,77 @@ public final class WardrobeManager {
                 currentStatus = "Wardrobe switch stopped because the PV was closed.";
                 return OperationResult.FAILED;
             }
-            if (taskIndex >= tasks.size()) {
-                if (++stableTicks < 5) {
-                    return OperationResult.RUNNING;
-                }
-                taskIndex = 0;
-                step = 0;
-                waitTicks = 0;
-                stableTicks = 0;
-                client.player.closeHandledScreen();
-                client.setScreen(new InventoryScreen(client.player));
-                phase = SwapPhase.WAIT_INVENTORY;
-                return OperationResult.RUNNING;
-            }
-
-            SwapTask task = tasks.get(taskIndex);
-            if (task.target.isEmpty()) {
-                finishTask();
-                return OperationResult.RUNNING;
-            }
-
-            if (step == 0) {
-                Slot target = findMatchingContainerSlot(
-                        initialScreen,
-                        task.targetPhysicalIndex,
-                        task.target
-                );
-                if (target == null) {
-                    return OperationResult.RUNNING;
+            while (taskIndex < tasks.size()) {
+                SwapTask task = tasks.get(taskIndex);
+                if (task.target.isEmpty()) {
+                    finishTask();
+                    continue;
                 }
 
-                task.withdrawPhysicalIndex = initialScreen.getScreenHandler().slots.indexOf(target);
-                task.inventoryMatchesBeforeWithdraw = countMatchingPlayerInventory(
+                boolean clickedThisPass = false;
+                if (step == 0) {
+                    Slot target = findMatchingContainerSlot(
+                            initialScreen,
+                            task.targetPhysicalIndex,
+                            task.target
+                    );
+                    if (target == null) {
+                        return OperationResult.RUNNING;
+                    }
+
+                    task.withdrawPhysicalIndex = initialScreen.getScreenHandler().slots.indexOf(target);
+                    task.inventoryMatchesBeforeWithdraw = countMatchingPlayerInventory(
+                            client.player.getInventory(),
+                            task.target
+                    );
+                    clickQuickMove(client, initialScreen, target.id);
+                    step = 1;
+                    waitTicks = 0;
+                    stableTicks = 0;
+                    retryTicks = ACTION_RETRY_TICKS;
+                    clickedThisPass = true;
+                }
+
+                int currentMatches = countMatchingPlayerInventory(
                         client.player.getInventory(),
                         task.target
                 );
-                clickQuickMove(client, initialScreen, target.id);
-                step = 1;
-                waitTicks = 0;
-                stableTicks = 0;
-                retryTicks = ACTION_RETRY_TICKS;
+                if (currentMatches > task.inventoryMatchesBeforeWithdraw) {
+                    Slot work = findMatchingPlayerInventoryTransferSlot(
+                            initialScreen,
+                            client.player.getInventory(),
+                            task.inventoryIndex,
+                            -1,
+                            task.target
+                    );
+                    if (work != null) {
+                        task.inventoryIndex = work.getIndex();
+                    }
+                    finishTask();
+                    continue;
+                }
+
+                if (!clickedThisPass
+                        && task.withdrawPhysicalIndex >= 0
+                        && task.withdrawPhysicalIndex < getContainerSlotCount(initialScreen)) {
+                    Slot target = initialScreen.getScreenHandler().slots.get(task.withdrawPhysicalIndex);
+                    if (sameWardrobeTransferItem(target.getStack(), task.target)) {
+                        retryQuickMove(client, initialScreen, target.id);
+                    }
+                }
                 return OperationResult.RUNNING;
             }
 
-            int currentMatches = countMatchingPlayerInventory(
-                    client.player.getInventory(),
-                    task.target
-            );
-            if (currentMatches > task.inventoryMatchesBeforeWithdraw) {
-                Slot work = findMatchingPlayerInventoryTransferSlot(
-                        initialScreen,
-                        client.player.getInventory(),
-                        task.inventoryIndex,
-                        -1,
-                        task.target
-                );
-                if (work != null) {
-                    task.inventoryIndex = work.getIndex();
-                }
-                finishTask();
+            if (++stableTicks < 5) {
                 return OperationResult.RUNNING;
             }
-
-            if (task.withdrawPhysicalIndex >= 0
-                    && task.withdrawPhysicalIndex < getContainerSlotCount(initialScreen)) {
-                Slot target = initialScreen.getScreenHandler().slots.get(task.withdrawPhysicalIndex);
-                if (sameWardrobeTransferItem(target.getStack(), task.target)) {
-                    retryQuickMove(client, initialScreen, target.id);
-                }
-            }
+            taskIndex = 0;
+            step = 0;
+            waitTicks = 0;
+            stableTicks = 0;
+            client.player.closeHandledScreen();
+            client.setScreen(new InventoryScreen(client.player));
+            phase = SwapPhase.WAIT_INVENTORY;
             return OperationResult.RUNNING;
         }
 
@@ -2156,46 +2158,54 @@ public final class WardrobeManager {
                 currentStatus = "Wardrobe switch stopped because the inventory was closed.";
                 return OperationResult.FAILED;
             }
-            if (taskIndex >= tasks.size()) {
-                if (!inventoryScreen.getScreenHandler().getCursorStack().isEmpty()) {
-                    currentStatus = "Wardrobe switch paused with an item on the cursor. Place it in your inventory.";
+            while (taskIndex < tasks.size()) {
+                SwapTask task = tasks.get(taskIndex);
+                Slot armor = findArmorSlot(inventoryScreen, client.player.getInventory(), task.part);
+                if (armor == null) {
+                    currentStatus = "Wardrobe switch could not find the " + task.part.label.toLowerCase(Locale.ROOT) + " slot.";
                     return OperationResult.FAILED;
                 }
-                if (++stableTicks < 5) {
-                    return OperationResult.RUNNING;
+
+                int beforeTaskIndex = taskIndex;
+                int beforeStep = step;
+                OperationResult result = !task.target.isEmpty()
+                        ? equipTarget(client, inventoryScreen, armor, task)
+                        : unequipCurrent(client, inventoryScreen, armor, task);
+                if (result != OperationResult.RUNNING) {
+                    return result;
                 }
-                taskIndex = 0;
-                step = 0;
-                waitTicks = 0;
-                stableTicks = 0;
-                setActiveSet(
-                        VaultStorageManager.getProfileForVaultNumber(vaultNumber),
-                        unequipSelectedSet ? -1 : setIndex
-                );
-                if (!returnCurrentToWardrobe && !reopenWardrobeAfterSwitch) {
-                    client.setScreen(null);
-                    currentStatus = "Equipped wardrobe set " + (setIndex + 1)
-                            + ". Previous armor was moved to your inventory.";
-                    return OperationResult.COMPLETE;
+                if (taskIndex != beforeTaskIndex || step != beforeStep) {
+                    continue;
                 }
-                client.setScreen(null);
-                client.getNetworkHandler().sendChatCommand("pv " + vaultNumber);
-                phase = SwapPhase.WAIT_VAULT;
-                vaultOpenAttempts = 1;
                 return OperationResult.RUNNING;
             }
 
-            SwapTask task = tasks.get(taskIndex);
-            Slot armor = findArmorSlot(inventoryScreen, client.player.getInventory(), task.part);
-            if (armor == null) {
-                currentStatus = "Wardrobe switch could not find the " + task.part.label.toLowerCase(Locale.ROOT) + " slot.";
+            if (!inventoryScreen.getScreenHandler().getCursorStack().isEmpty()) {
+                currentStatus = "Wardrobe switch paused with an item on the cursor. Place it in your inventory.";
                 return OperationResult.FAILED;
             }
-
-            if (!task.target.isEmpty()) {
-                return equipTarget(client, inventoryScreen, armor, task);
+            if (++stableTicks < 5) {
+                return OperationResult.RUNNING;
             }
-            return unequipCurrent(client, inventoryScreen, armor, task);
+            taskIndex = 0;
+            step = 0;
+            waitTicks = 0;
+            stableTicks = 0;
+            setActiveSet(
+                    VaultStorageManager.getProfileForVaultNumber(vaultNumber),
+                    unequipSelectedSet ? -1 : setIndex
+            );
+            if (!returnCurrentToWardrobe && !reopenWardrobeAfterSwitch) {
+                client.setScreen(null);
+                currentStatus = "Equipped wardrobe set " + (setIndex + 1)
+                        + ". Previous armor was moved to your inventory.";
+                return OperationResult.COMPLETE;
+            }
+            client.setScreen(null);
+            client.getNetworkHandler().sendChatCommand("pv " + vaultNumber);
+            phase = SwapPhase.WAIT_VAULT;
+            vaultOpenAttempts = 1;
+            return OperationResult.RUNNING;
         }
 
         private OperationResult equipTarget(
@@ -2204,55 +2214,65 @@ public final class WardrobeManager {
                 Slot armor,
                 SwapTask task
         ) {
-            if (step == 0 && sameWardrobeTransferItem(armor.getStack(), task.target)) {
-                finishTask();
-                return OperationResult.RUNNING;
-            }
-
-            if (step == 0) {
-                Slot source = findMatchingPlayerInventoryTransferSlot(
-                        screen,
-                        client.player.getInventory(),
-                        task.inventoryIndex,
-                        -1,
-                        task.target
-                );
-                if (source == null) {
+            while (true) {
+                if (step == 0 && sameWardrobeTransferItem(armor.getStack(), task.target)) {
+                    finishTask();
                     return OperationResult.RUNNING;
                 }
 
-                task.inventoryIndex = source.getIndex();
-                task.swapSourceIndex = source.getIndex();
-                if (source.getIndex() < PlayerInventory.getHotbarSize()) {
-                    clickSwap(client, screen, armor.id, source.getIndex());
-                    step = 3;
-                } else {
-                    if (!client.player.getInventory().getStack(stagingHotbarIndex).isEmpty()) {
+                if (step == 0) {
+                    Slot source = findMatchingPlayerInventoryTransferSlot(
+                            screen,
+                            client.player.getInventory(),
+                            task.inventoryIndex,
+                            -1,
+                            task.target
+                    );
+                    if (source == null) {
                         return OperationResult.RUNNING;
                     }
-                    clickSwap(client, screen, source.id, stagingHotbarIndex);
-                    step = 1;
-                }
-                resetActionWait();
-                return OperationResult.RUNNING;
-            }
 
-            ItemStack staging = client.player.getInventory().getStack(stagingHotbarIndex);
-            if (step == 1 && sameWardrobeTransferItem(staging, task.target)) {
-                clickSwap(client, screen, armor.id, stagingHotbarIndex);
-                step = 2;
-                resetActionWait();
-                return OperationResult.RUNNING;
-            }
-            if (step == 2 && sameWardrobeTransferItem(armor.getStack(), task.target)) {
-                Slot source = findPlayerInventorySlot(
-                        screen,
-                        client.player.getInventory(),
-                        task.swapSourceIndex
-                );
-                if (staging.isEmpty()) {
-                    step = 3;
-                } else {
+                    task.inventoryIndex = source.getIndex();
+                    task.swapSourceIndex = source.getIndex();
+                    if (source.getIndex() < PlayerInventory.getHotbarSize()) {
+                        clickSwap(client, screen, armor.id, source.getIndex());
+                        step = 3;
+                    } else {
+                        if (!client.player.getInventory().getStack(stagingHotbarIndex).isEmpty()) {
+                            return OperationResult.RUNNING;
+                        }
+                        clickSwap(client, screen, source.id, stagingHotbarIndex);
+                        step = 1;
+                    }
+                    resetActionWait();
+                    continue;
+                }
+
+                ItemStack staging = client.player.getInventory().getStack(stagingHotbarIndex);
+                if (step == 1) {
+                    if (!sameWardrobeTransferItem(staging, task.target)) {
+                        return OperationResult.RUNNING;
+                    }
+                    clickSwap(client, screen, armor.id, stagingHotbarIndex);
+                    step = 2;
+                    resetActionWait();
+                    continue;
+                }
+
+                if (step == 2) {
+                    if (!sameWardrobeTransferItem(armor.getStack(), task.target)) {
+                        return OperationResult.RUNNING;
+                    }
+                    Slot source = findPlayerInventorySlot(
+                            screen,
+                            client.player.getInventory(),
+                            task.swapSourceIndex
+                    );
+                    if (staging.isEmpty()) {
+                        step = 3;
+                        continue;
+                    }
+
                     Slot parking = source != null && source.getStack().isEmpty()
                             ? source
                             : findAvailableEmptyWorkSlot(
@@ -2267,48 +2287,57 @@ public final class WardrobeManager {
                     task.swapSourceIndex = parking.getIndex();
                     step = 3;
                     resetActionWait();
+                    continue;
                 }
-                return OperationResult.RUNNING;
-            }
 
-            if (step == 3 && sameWardrobeTransferItem(armor.getStack(), task.target)) {
-                staging = client.player.getInventory().getStack(stagingHotbarIndex);
-                if (!staging.isEmpty()) {
-                    Slot parking = findAvailableEmptyWorkSlot(
-                            screen,
-                            client.player.getInventory(),
-                            task
-                    );
-                    if (parking != null) {
+                if (step == 3) {
+                    if (!sameWardrobeTransferItem(armor.getStack(), task.target)) {
+                        return OperationResult.RUNNING;
+                    }
+
+                    staging = client.player.getInventory().getStack(stagingHotbarIndex);
+                    if (!staging.isEmpty()) {
+                        Slot parking = findAvailableEmptyWorkSlot(
+                                screen,
+                                client.player.getInventory(),
+                                task
+                        );
+                        if (parking == null) {
+                            return OperationResult.RUNNING;
+                        }
                         clickSwap(client, screen, parking.id, stagingHotbarIndex);
                         task.swapSourceIndex = parking.getIndex();
                         step = 4;
                         resetActionWait();
+                        continue;
+                    }
+
+                    Slot previous = findPreviousArmorSlot(screen, client.player.getInventory(), task);
+                    if (task.current.isEmpty() || previous != null) {
+                        if (previous != null) {
+                            task.inventoryIndex = previous.getIndex();
+                        }
+                        finishTask();
                     }
                     return OperationResult.RUNNING;
                 }
 
-                Slot previous = findPreviousArmorSlot(screen, client.player.getInventory(), task);
-                if (task.current.isEmpty() || previous != null) {
-                    if (previous != null) {
-                        task.inventoryIndex = previous.getIndex();
+                if (step == 4) {
+                    if (!client.player.getInventory().getStack(stagingHotbarIndex).isEmpty()) {
+                        return OperationResult.RUNNING;
                     }
-                    finishTask();
+                    Slot previous = findPreviousArmorSlot(screen, client.player.getInventory(), task);
+                    if (task.current.isEmpty() || previous != null) {
+                        if (previous != null) {
+                            task.inventoryIndex = previous.getIndex();
+                        }
+                        finishTask();
+                    }
+                    return OperationResult.RUNNING;
                 }
+
                 return OperationResult.RUNNING;
             }
-
-            if (step == 4
-                    && client.player.getInventory().getStack(stagingHotbarIndex).isEmpty()) {
-                Slot previous = findPreviousArmorSlot(screen, client.player.getInventory(), task);
-                if (task.current.isEmpty() || previous != null) {
-                    if (previous != null) {
-                        task.inventoryIndex = previous.getIndex();
-                    }
-                    finishTask();
-                }
-            }
-            return OperationResult.RUNNING;
         }
 
         private OperationResult unequipCurrent(
@@ -2336,6 +2365,13 @@ public final class WardrobeManager {
             }
 
             retryQuickMove(client, screen, armor.id);
+            if (armor.getStack().isEmpty()) {
+                Slot previous = findPreviousArmorSlot(screen, client.player.getInventory(), task);
+                if (previous != null) {
+                    task.inventoryIndex = previous.getIndex();
+                    finishTask();
+                }
+            }
             return OperationResult.RUNNING;
         }
 
@@ -2373,54 +2409,60 @@ public final class WardrobeManager {
                 currentStatus = "Wardrobe switch stopped because the PV was closed.";
                 return OperationResult.FAILED;
             }
-            if (taskIndex >= tasks.size()) {
-                currentStatus = unequipSelectedSet
-                        ? "Unequipped wardrobe set " + (setIndex + 1) + "."
-                        : "Equipped wardrobe set " + (setIndex + 1) + ".";
-                if (!reopenWardrobeAfterSwitch && client.player != null) {
-                    VaultStorageManager.refreshVisibleVaultSnapshot(handledScreen);
-                    client.player.closeHandledScreen();
+            while (taskIndex < tasks.size()) {
+                SwapTask task = tasks.get(taskIndex);
+                if (task.current.isEmpty()) {
+                    finishTask();
+                    continue;
                 }
-                return OperationResult.COMPLETE;
-            }
 
-            SwapTask task = tasks.get(taskIndex);
-            if (task.current.isEmpty()) {
-                finishTask();
+                Slot work = step == 0
+                        ? findMatchingPlayerInventoryTransferSlot(
+                                handledScreen,
+                                client.player.getInventory(),
+                                task.inventoryIndex,
+                                -1,
+                                task.current
+                        )
+                        : findPlayerInventorySlot(
+                                handledScreen,
+                                client.player.getInventory(),
+                                task.storeSourceInventoryIndex
+                        );
+                if (work == null) {
+                    return OperationResult.RUNNING;
+                }
+
+                boolean clickedThisPass = false;
+                if (step == 0) {
+                    task.inventoryIndex = work.getIndex();
+                    task.storeSourceInventoryIndex = work.getIndex();
+                    clickQuickMove(client, handledScreen, work.id);
+                    step = 1;
+                    waitTicks = 0;
+                    stableTicks = 0;
+                    retryTicks = ACTION_RETRY_TICKS;
+                    clickedThisPass = true;
+                }
+
+                if (!sameWardrobeTransferItem(work.getStack(), task.current)) {
+                    finishTask();
+                    continue;
+                }
+                if (!clickedThisPass) {
+                    retryQuickMove(client, handledScreen, work.id);
+                }
                 return OperationResult.RUNNING;
             }
 
-            Slot work = step == 0
-                    ? findMatchingPlayerInventoryTransferSlot(
-                            handledScreen,
-                            client.player.getInventory(),
-                            task.inventoryIndex,
-                            -1,
-                            task.current
-                    )
-                    : findPlayerInventorySlot(
-                            handledScreen,
-                            client.player.getInventory(),
-                            task.storeSourceInventoryIndex
-                    );
-            if (work == null) {
-                return OperationResult.RUNNING;
+            currentStatus = unequipSelectedSet
+                    ? "Unequipped wardrobe set " + (setIndex + 1) + "."
+                    : "Equipped wardrobe set " + (setIndex + 1) + ".";
+            if (!reopenWardrobeAfterSwitch && client.player != null) {
+                VaultStorageManager.refreshVisibleVaultSnapshot(handledScreen);
+                client.player.closeHandledScreen();
             }
-
-            if (step == 0) {
-                task.inventoryIndex = work.getIndex();
-                task.storeSourceInventoryIndex = work.getIndex();
-                clickQuickMove(client, handledScreen, work.id);
-                step = 1;
-                waitTicks = 0;
-                stableTicks = 0;
-                retryTicks = ACTION_RETRY_TICKS;
-            } else if (!sameWardrobeTransferItem(work.getStack(), task.current)) {
-                finishTask();
-            } else {
-                retryQuickMove(client, handledScreen, work.id);
-            }
-            return OperationResult.RUNNING;
+            return OperationResult.COMPLETE;
         }
 
         private Slot findAvailableEmptyWorkSlot(
