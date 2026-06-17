@@ -39,9 +39,10 @@ public class HudEditorScreen extends Screen {
     private static final int HOTBAR_SLOT_OFFSET_Y = 1;
     private static final int HOTBAR_SLOT_COUNT = 9;
 
-    private static final int MODAL_W = 220;
+    private static final int MODAL_MIN_W = 220;
     private static final int MODAL_MIN_H = 180;
     private static final int MODAL_PAD = 8;
+    private static final int MODAL_LABEL_CONTROL_GAP = 8;
     private static final int SETTINGS_ROW_H = 16;
     private static final int SETTINGS_ROW_GAP = 6;
     private static final int RESET_W = 12;
@@ -50,6 +51,12 @@ public class HudEditorScreen extends Screen {
     private static final int CUSTOM_ENTRY_H = 28;
     private static final int CUSTOM_ENTRY_GAP = 4;
     private static final int SETTINGS_SCROLL_STEP = 24;
+    private static final int SETTINGS_CONTROL_W = 60;
+    private static final int SETTINGS_CONTROL_H = 14;
+    private static final int SETTINGS_TOGGLE_W = 42;
+    private static final int SETTINGS_SLIDER_W = 120;
+    private static final int SETTINGS_RESET_GAP = 4;
+    private static final int SETTINGS_COLOR_SWATCH_W = 18;
 
     private static final int LAUNCHER_SQUARE = 40;
     private static final int LAUNCHER_WIDE = 100;
@@ -1466,8 +1473,9 @@ public class HudEditorScreen extends Screen {
     private boolean handleSettingsClick(double mouseX, double mouseY, int button) {
         int x = modalX();
         int y = modalY();
+        int modalWidth = modalWidth();
 
-        int closeX = x + MODAL_W - 18;
+        int closeX = x + modalWidth - 18;
         int closeY = y + 6;
         if (inside(mouseX, mouseY, closeX, closeY, 10, 10)) {
             closeSettingsModal();
@@ -1541,7 +1549,7 @@ public class HudEditorScreen extends Screen {
                     if (inside(mouseX, mouseY, layout.btnX, rowY - 2, layout.btnW, layout.btnH)) {
                         int gap = 6;
                         int pickerW = 180;
-                        int px = modalX() + MODAL_W + gap;
+                        int px = modalX() + modalWidth() + gap;
                         int py = modalY();
                         if (px + pickerW > this.width) {
                             px = modalX() - pickerW - gap;
@@ -1609,19 +1617,20 @@ public class HudEditorScreen extends Screen {
 
         int x = modalX();
         int y = modalY();
+        int modalWidth = modalWidth();
         int modalHeight = modalHeight();
         updateSettingsScrollBounds();
 
         ctx.fill(0, 0, this.width, this.height, MODAL_OVERLAY_COLOR);
         if (useMinecraftTheme()) {
-            ctx.drawGuiTexture(RenderPipelines.GUI_TEXTURED, VANILLA_POPUP_BACKGROUND_SPRITE, x, y, MODAL_W, modalHeight);
+            ctx.drawGuiTexture(RenderPipelines.GUI_TEXTURED, VANILLA_POPUP_BACKGROUND_SPRITE, x, y, modalWidth, modalHeight);
         } else {
-            ctx.fill(x, y, x + MODAL_W, y + modalHeight, MODAL_PANEL_COLOR);
-            drawBorder(ctx, x, y, MODAL_W, modalHeight, MODAL_BORDER_COLOR);
+            ctx.fill(x, y, x + modalWidth, y + modalHeight, MODAL_PANEL_COLOR);
+            drawBorder(ctx, x, y, modalWidth, modalHeight, MODAL_BORDER_COLOR);
         }
 
         ctx.drawText(textRenderer, settingsWidget.getName() + " Settings", x + 8, y + 8, MODAL_TEXT_COLOR, false);
-        ctx.drawText(textRenderer, "x", x + MODAL_W - 17, y + 6, MODAL_TEXT_COLOR, false);
+        ctx.drawText(textRenderer, "x", x + modalWidth - 17, y + 6, MODAL_TEXT_COLOR, false);
 
         SettingsLayout layout = beginSettingsLayout();
         boolean grouped = false;
@@ -1722,7 +1731,7 @@ public class HudEditorScreen extends Screen {
         if (colorPicker != null) {
             int gap = 6;
             int pickerW = colorPicker.getWidth();
-            int px = modalX() + MODAL_W + gap;
+            int px = modalX() + modalWidth() + gap;
             int py = modalY();
             if (px + pickerW > this.width) {
                 px = modalX() - pickerW - gap;
@@ -2245,8 +2254,14 @@ public class HudEditorScreen extends Screen {
         return Math.min(desiredHeight, availableHeight);
     }
 
+    private int modalWidth() {
+        int desiredWidth = Math.max(MODAL_MIN_W, settingsRequiredModalWidth());
+        int availableWidth = Math.max(MODAL_MIN_W, this.width - 20);
+        return Math.min(desiredWidth, availableWidth);
+    }
+
     private int modalX() {
-        int base = (this.width - MODAL_W) / 2;
+        int base = (this.width - modalWidth()) / 2;
         if (colorPicker != null) {
             int pickerW = colorPicker.getWidth();
             int gap = 8;
@@ -2268,15 +2283,15 @@ public class HudEditorScreen extends Screen {
         int nestedStartX = startX + 10;
         settingsCursorY = startY;
 
-        int btnW = 60;
-        int btnH = 14;
-        int rightEdge = x + MODAL_W - MODAL_PAD;
+        int btnW = SETTINGS_CONTROL_W;
+        int btnH = SETTINGS_CONTROL_H;
+        int rightEdge = x + modalWidth() - MODAL_PAD;
         int resetX = rightEdge - RESET_W;
-        int controlsRight = resetX - 4;
+        int controlsRight = resetX - SETTINGS_RESET_GAP;
         int btnX = controlsRight - btnW;
-        int toggleW = 42;
+        int toggleW = SETTINGS_TOGGLE_W;
         int toggleX = controlsRight - toggleW;
-        int sliderBarW = 120;
+        int sliderBarW = SETTINGS_SLIDER_W;
         int sliderBarX = controlsRight - sliderBarW;
 
         return new SettingsLayout(
@@ -2317,10 +2332,40 @@ public class HudEditorScreen extends Screen {
         return height;
     }
 
+    private int settingsRequiredModalWidth() {
+        int requiredWidth = MODAL_MIN_W;
+        if (settingsWidget == null || textRenderer == null) {
+            return requiredWidth;
+        }
+
+        int titleWidth = textRenderer.getWidth(settingsWidget.getName() + " Settings");
+        requiredWidth = Math.max(requiredWidth, MODAL_PAD + titleWidth + 24 + MODAL_PAD);
+
+        boolean grouped = false;
+        for (HudWidget.HudSetting setting : safeSettings(settingsWidget)) {
+            int labelStart = grouped ? MODAL_PAD + 10 : MODAL_PAD;
+            int labelWidth = textRenderer.getWidth(setting.label());
+            int rightReservedWidth = switch (setting.type()) {
+                case TOGGLE -> MODAL_PAD + RESET_W + SETTINGS_RESET_GAP + SETTINGS_TOGGLE_W;
+                case COLOR -> MODAL_PAD + RESET_W + SETTINGS_RESET_GAP + SETTINGS_CONTROL_W + SETTINGS_COLOR_SWATCH_W;
+                case SLIDER -> MODAL_PAD + RESET_W + SETTINGS_RESET_GAP + SETTINGS_SLIDER_W;
+                case CUSTOM_LIST -> MODAL_PAD + RESET_W + SETTINGS_RESET_GAP + CUSTOM_ADD_W;
+                case SECTION -> MODAL_PAD + RESET_W + SETTINGS_RESET_GAP;
+            };
+            int gap = setting.type() == HudWidget.HudSetting.Type.SECTION ? 6 : MODAL_LABEL_CONTROL_GAP;
+            requiredWidth = Math.max(requiredWidth, labelStart + labelWidth + gap + rightReservedWidth);
+            if (setting.type() == HudWidget.HudSetting.Type.SECTION) {
+                grouped = true;
+            }
+        }
+
+        return requiredWidth;
+    }
+
     private Rect settingsViewportBounds() {
         int x = modalX();
         int y = modalY();
-        return new Rect(x + 1, y + 26, MODAL_W - 2, Math.max(1, modalHeight() - 27));
+        return new Rect(x + 1, y + 26, modalWidth() - 2, Math.max(1, modalHeight() - 27));
     }
 
     private void updateSettingsScrollBounds() {
@@ -2342,7 +2387,7 @@ public class HudEditorScreen extends Screen {
     private Rect customEntryBounds(SettingsLayout layout, int rowY, int index) {
         int cardY = rowY + SETTINGS_ROW_H + CUSTOM_ENTRY_GAP
                 + index * (CUSTOM_ENTRY_H + CUSTOM_ENTRY_GAP);
-        int cardWidth = MODAL_W - MODAL_PAD * 2;
+        int cardWidth = modalWidth() - MODAL_PAD * 2;
         return new Rect(layout.startX, cardY, cardWidth, CUSTOM_ENTRY_H);
     }
 
