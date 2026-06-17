@@ -1,5 +1,6 @@
 package legends.ultra.cool.addons.mixin.client;
 
+import legends.ultra.cool.addons.util.CustomNameplateState;
 import legends.ultra.cool.addons.util.MultilineLabelRenderer;
 import net.minecraft.client.render.command.OrderedRenderCommandQueue;
 import net.minecraft.client.render.entity.EntityRenderer;
@@ -15,15 +16,36 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class EntityRendererMultilineLabelMixin<S extends EntityRenderState> {
 
     @Inject(method = "renderLabelIfPresent", at = @At("HEAD"), cancellable = true)
-    private void legends$renderMultiline(
+    private void legends$cancelVanillaLabelWhenCustomNameplateIsActive(
             S state,
             MatrixStack matrices,
             OrderedRenderCommandQueue queue,
             CameraRenderState cameraRenderState,
             CallbackInfo ci
     ) {
-        if (MultilineLabelRenderer.render(state.displayName, state.nameLabelPos, matrices, queue, state.light)) {
+        if (((CustomNameplateState) state).legends$getCustomNameplate() != null) {
             ci.cancel();
         }
+    }
+
+    @Inject(method = "render", at = @At("TAIL"))
+    private void legends$renderCustomNameplate(
+            S state,
+            MatrixStack matrices,
+            OrderedRenderCommandQueue queue,
+            CameraRenderState cameraRenderState,
+            CallbackInfo ci
+    ) {
+        CustomNameplateState customState = (CustomNameplateState) state;
+        MultilineLabelRenderer.render(
+                customState.legends$getCustomNameText(),
+                customState.legends$getCustomStatsText(),
+                customState.legends$getCustomNameplatePos(),
+                customState.legends$getHealth(),
+                customState.legends$getMaxHealth(),
+                matrices,
+                queue,
+                state.light
+        );
     }
 }

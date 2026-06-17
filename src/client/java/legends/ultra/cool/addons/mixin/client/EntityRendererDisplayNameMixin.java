@@ -2,8 +2,8 @@ package legends.ultra.cool.addons.mixin.client;
 
 import legends.ultra.cool.addons.data.WidgetConfigManager;
 import legends.ultra.cool.addons.hud.widget.otherTypes.NameplateWidget;
+import legends.ultra.cool.addons.util.CustomNameplateState;
 import legends.ultra.cool.addons.util.EntityDebug;
-import legends.ultra.cool.addons.util.TextHeathbar;
 import legends.ultra.cool.addons.util.UiVisibility;
 import net.minecraft.client.render.entity.EntityRenderer;
 import net.minecraft.client.render.entity.state.EntityRenderState;
@@ -41,6 +41,7 @@ public abstract class EntityRendererDisplayNameMixin<T extends Entity, S extends
         if (UiVisibility.isHudHidden()) return;
 
         EntityRenderStateAccessor acc = (EntityRenderStateAccessor) (Object) state;
+        CustomNameplateState customState = (CustomNameplateState) state;
 
         float range = WidgetConfigManager.getFloat("Nameplates", "range", 50f);
         double maxSq = (double) range * (double) range;
@@ -53,58 +54,68 @@ public abstract class EntityRendererDisplayNameMixin<T extends Entity, S extends
         if (entity instanceof MannequinEntity) return;
         if (entity instanceof ArmorStandEntity) return;
 
-        ensureNameLabelPos(entity, tickDelta, acc);
+        customState.legends$setCustomNameplatePos(resolveNameLabelPos(entity, tickDelta, acc));
 
         int now = entity.age;
         int id = entity.getId();
+        double[] stats = EntityDebug.getMobStats(living);
+        customState.legends$setHealth(stats[0]);
+        customState.legends$setMaxHealth(stats[1]);
+
+        String mobName = entity.getDisplayName().getString();
+        int bracket = mobName.indexOf('[');
+        if (bracket > 0) {
+            mobName = mobName.substring(0, bracket).trim();
+        }
+
+        customState.legends$setCustomNameText(Text.literal(mobName));
+        customState.legends$setCustomStatsText(
+                Text.literal("§c" + stats[0] + "\u2764 §r| §2" + stats[2] + "\ud83d\udee1 §r| §c" + stats[3] + "\u2694")
+        );
+
+        if (!NameplateWidget.shouldShowNameText()
+                && !NameplateWidget.shouldShowHealthBar()
+                && !NameplateWidget.shouldShowStatsText()) {
+            customState.legends$setCustomNameplate(null);
+            acc.legends$setDisplayName(null);
+            return;
+        }
 
         Integer next = NEXT_UPDATE_TICK.get(id);
         if (next != null && now < next) {
             Text cached = TEXT_CACHE.get(id);
             if (cached != null) {
                 LAST_USED_TICK.put(id, now);
-                acc.legends$setDisplayName(cached);
+                customState.legends$setCustomNameplate(cached);
+                acc.legends$setDisplayName(null);
 
                 if ((now % CLEANUP_EVERY_TICKS) == 0) cleanupCache(now);
                 return;
             }
         }
 
-        String mobName = entity.getDisplayName().getString();
-
-        int bracket = mobName.indexOf('[');
-        if (bracket > 0) {
-            mobName = mobName.substring(0, bracket).trim();
-        }
-
-        double[] stats = EntityDebug.getMobStats(living);
-
-        Text custom = Text.literal(
-                mobName
-                        + "\n§c" + TextHeathbar.heathBar(stats[0], stats[1])
-                        + "\n§c" + stats[0] + "❤ §r| §2" + stats[2] + "🛡 §r| §c" + stats[3] + "⚔"
-        );
+        Text custom = Text.empty();
 
         TEXT_CACHE.put(id, custom);
         NEXT_UPDATE_TICK.put(id, now + UPDATE_EVERY_TICKS);
         LAST_USED_TICK.put(id, now);
 
-        acc.legends$setDisplayName(custom);
+        customState.legends$setCustomNameplate(custom);
+        acc.legends$setDisplayName(null);
 
         if ((now % CLEANUP_EVERY_TICKS) == 0) cleanupCache(now);
     }
 
-    private static <T extends Entity> void ensureNameLabelPos(T entity, float tickDelta, EntityRenderStateAccessor acc) {
+    private static <T extends Entity> Vec3d resolveNameLabelPos(T entity, float tickDelta, EntityRenderStateAccessor acc) {
         if (acc.legends$getNameLabelPos() != null) {
-            return;
+            return acc.legends$getNameLabelPos();
         }
 
-        Vec3d p = entity.getAttachments().getPointNullable(
+        return entity.getAttachments().getPointNullable(
                 EntityAttachmentType.NAME_TAG,
                 0,
                 entity.getLerpedYaw(tickDelta)
         );
-        acc.legends$setNameLabelPos(p);
     }
 
     private static void cleanupCache(int now) {
