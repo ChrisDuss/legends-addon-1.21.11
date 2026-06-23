@@ -14,6 +14,7 @@ import net.minecraft.util.Identifier;
 
 public final class ContainerOverlay {
     private static final String FORAGING_TREE_TITLE = "foraging tree";
+    private static final String RYAN_TITLE = "ryan's shop";
     private static final String TIER_ONE_TEXTURE = "textures/gui/t1_inv.png";
 
     private ContainerOverlay() {
@@ -101,5 +102,16 @@ public final class ContainerOverlay {
 
     private static boolean hasTitle(HandledScreen<?> hs, String expectedTitle) {
         return hs.getTitle().getString().toLowerCase().contains(expectedTitle);
+    }
+
+    public static void ryanContainer() {
+        if (!AddonServerGate.shouldRunOnCurrentServer()) {
+            return;
+        }
+
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (!(client.currentScreen instanceof HandledScreen<?> hs) || !hasTitle(hs, RYAN_TITLE)) {
+            setTexture("texture/gui/ryanshop_container_overlay");
+        }
     }
 }
