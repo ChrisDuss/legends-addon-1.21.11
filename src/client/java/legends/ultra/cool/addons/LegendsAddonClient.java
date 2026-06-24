@@ -13,7 +13,7 @@ import legends.ultra.cool.addons.hud.widget.otherTypes.VaultBrowserWidget;
 import legends.ultra.cool.addons.input.Keybinds;
 import legends.ultra.cool.addons.overlay.ContainerOverlay;
 import legends.ultra.cool.addons.storage.VaultStorageManager;
-import legends.ultra.cool.addons.storage.WardrobeManager;
+// import legends.ultra.cool.addons.storage.WardrobeManager;
 import net.fabricmc.api.ClientModInitializer;
 
 
@@ -33,7 +33,6 @@ public class LegendsAddonClient implements ClientModInitializer {
         ClientTickHandler.init();
         ContainerOverlay.init();
         VaultStorageManager.init();
-        WardrobeManager.init();
 
         TextWidget textWidget = new TextWidget(10, 10);
         CounterWidget counterWidget = new CounterWidget(10, 30);

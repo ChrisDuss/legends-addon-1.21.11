@@ -184,8 +184,7 @@ public final class VaultBrowserScreen extends Screen {
 
             if (isVisible(y, panelHeight)) {
                 boolean highlighted = hoveredPanel != null && hoveredPanel.entry().vaultNumber() == entry.vaultNumber();
-                boolean wardrobe = !entry.locked() && WardrobeManager.isWardrobeVault(entry.vaultNumber());
-                drawPanel(context, entry, x, y, highlighted, wardrobe);
+                drawPanel(context, entry, x, y, highlighted);
                 HoveredSlot hoveredSlot = findHoveredSlot(entry, x, y, mouseX, mouseY);
                 if (hoveredSlot != null) {
                     hoveredStack = hoveredSlot.stack();
@@ -354,21 +353,16 @@ public final class VaultBrowserScreen extends Screen {
             VaultStorageManager.VaultBrowserEntry entry,
             int x,
             int y,
-            boolean highlighted,
-            boolean wardrobe
+            boolean highlighted
     ) {
         int width = MIN_PANEL_WIDTH;
         int height = getBasePanelHeight(entry);
         int topBorderColor = entry.locked()
                 ? highlighted ? 0xFFFF7868 : 0xFF9A3C36
-                : wardrobe
-                ? highlighted ? 0xFF78C8FF : 0xFF3C91D6
                 : highlighted ? 0xFFD88C34 : 0xFF7A2A24;
         int leftBorderColor = topBorderColor;
         int rightBorderColor = entry.locked()
                 ? highlighted ? 0xFF9A4038 : 0xFF4D201D
-                : wardrobe
-                ? highlighted ? 0xFF397FB5 : 0xFF1D4F78
                 : highlighted ? 0xFF7A3A12 : 0xFF3A1612;
         int bottomBorderColor = rightBorderColor;
 
@@ -381,8 +375,8 @@ public final class VaultBrowserScreen extends Screen {
                 0,
                 width,
                 height,
-                entry.locked() ? 0xE02A1818 : wardrobe ? 0xE0203C58 : 0xE0201A24,
-                entry.locked() ? 0xE0140C0C : wardrobe ? 0xE00C1A2A : 0xE0100D12
+                entry.locked() ? 0xE02A1818 : 0xE0201A24,
+                entry.locked() ? 0xE0140C0C : 0xE0100D12
         );
         context.fill(0, 0, width, 1, topBorderColor);
         context.fill(0, 1, 1, height, leftBorderColor);

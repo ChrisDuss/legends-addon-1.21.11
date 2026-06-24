@@ -166,22 +166,6 @@ public final class VaultBrowserWidget extends HudWidget {
                         VaultBrowserWidget::getScaleSetting,
                         v -> VaultBrowserWidget.setScaleSetting((float) v),
                         DEFAULT_SCALE
-                ),
-                HudSetting.section("Wardrobe"),
-                HudSetting.toggle(
-                        REOPEN_WARDROBE_AFTER_SWITCH_KEY, "Reopen wardrobe after switching",
-                        () -> true,
-                        VaultBrowserWidget::getReopenWardrobeAfterSwitchSetting,
-                        VaultBrowserWidget::setReopenWardrobeAfterSwitchSetting,
-                        DEFAULT_REOPEN_WARDROBE_AFTER_SWITCH
-                ),
-                HudSetting.slider(
-                        WARDROBE_SCALE_KEY, "Wardrobe UI scale",
-                        0.6f, 1.5f, 0.1f,
-                        () -> true,
-                        VaultBrowserWidget::getWardrobeScaleSetting,
-                        v -> VaultBrowserWidget.setWardrobeScaleSetting((float) v),
-                        DEFAULT_WARDROBE_SCALE
                 )
         );
     }
