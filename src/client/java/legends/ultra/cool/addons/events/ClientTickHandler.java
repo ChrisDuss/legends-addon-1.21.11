@@ -50,7 +50,7 @@ public class ClientTickHandler {
 
                 if (isContainerOpen && (!wasOpen || containerTicks >= CONTAINER_SCAN_INTERVAL_TICKS)) {
                     ContainerOverlay.fTreeCheck();
-                    ContainerOverlay.ryanContainer();
+                    //ContainerOverlay.ryanContainer();
                     containerTicks = 0;
                 }
             } else {
