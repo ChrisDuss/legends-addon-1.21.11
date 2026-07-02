@@ -1,28 +1,16 @@
 package legends.ultra.cool.addons.input;
 
+import legends.ultra.cool.addons.LegendsAddon;
 import legends.ultra.cool.addons.hud.HudEditorScreen;
 import legends.ultra.cool.addons.hud.HudManager;
 import legends.ultra.cool.addons.hud.widget.TimerWidget;
-import legends.ultra.cool.addons.hud.widget.otherTypes.VaultBrowserWidget;
-import legends.ultra.cool.addons.overlay.ContainerOverlay;
 import legends.ultra.cool.addons.storage.VaultStorageManager;
-// import legends.ultra.cool.addons.storage.WardrobeManager;
 import legends.ultra.cool.addons.util.AddonServerGate;
-import legends.ultra.cool.addons.util.EntityDebug;
-import legends.ultra.cool.addons.util.ItemDebugDump;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
-import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
-import net.fabricmc.fabric.api.client.screen.v1.ScreenKeyboardEvents;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.screen.ingame.HandledScreen;
-import net.minecraft.client.input.KeyInput;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.text.Text;
-import net.minecraft.util.hit.EntityHitResult;
-import  net.minecraft.util.Identifier;
+import net.minecraft.util.Identifier;
 import org.lwjgl.glfw.GLFW;
 
 public class Keybinds {
@@ -31,7 +19,8 @@ public class Keybinds {
     public static KeyBinding RESET_TIMER;
     public static KeyBinding OPEN_VAULT;
     public static KeyBinding OPEN_WARDROBE;
-    public static final KeyBinding.Category MAIN_CATEGORY = KeyBinding.Category.create(Identifier.of("legends_addon"));
+    public static KeyBinding OPEN_BESTIARY;
+    public static final KeyBinding.Category MAIN_CATEGORY = KeyBinding.Category.create(Identifier.of(LegendsAddon.MOD_ID, "main"));
 
     public static void init() {
         OPEN_EDITOR = KeyBindingHelper.registerKeyBinding(
@@ -71,6 +60,13 @@ public class Keybinds {
                         MAIN_CATEGORY
                 ));
 
+        OPEN_BESTIARY = KeyBindingHelper.registerKeyBinding(
+                new KeyBinding(
+                        "Open Bestiary",
+                        GLFW.GLFW_ANGLE_PLATFORM_TYPE_NONE,
+                        MAIN_CATEGORY
+                ));
+
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
 
@@ -90,6 +86,12 @@ public class Keybinds {
             while (OPEN_WARDROBE.wasPressed()) {
                 if (client.currentScreen == null && client.getNetworkHandler() != null) {
                     client.getNetworkHandler().sendChatCommand("wardrobe");
+                }
+            }
+
+            while (OPEN_BESTIARY.wasPressed()) {
+                if (client.currentScreen == null && client.getNetworkHandler() != null) {
+                    client.getNetworkHandler().sendChatCommand("bestiary");
                 }
             }
 
