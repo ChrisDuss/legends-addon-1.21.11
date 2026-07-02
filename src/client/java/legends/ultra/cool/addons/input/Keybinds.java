@@ -63,7 +63,7 @@ public class Keybinds {
         OPEN_BESTIARY = KeyBindingHelper.registerKeyBinding(
                 new KeyBinding(
                         "Open Bestiary",
-                        GLFW.GLFW_ANGLE_PLATFORM_TYPE_NONE,
+                        GLFW.GLFW_KEY_UNKNOWN,
                         MAIN_CATEGORY
                 ));
 

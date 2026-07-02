@@ -158,7 +158,8 @@ public class HudEditorScreen extends Screen {
             new KeybindRow("Toggle timer", () -> Keybinds.TOGGLE_TIMER),
             new KeybindRow("Reset timer", () -> Keybinds.RESET_TIMER),
             new KeybindRow("Open Vault", () -> Keybinds.OPEN_VAULT),
-            new KeybindRow("Open Wardrobe", () -> Keybinds.OPEN_WARDROBE)
+            new KeybindRow("Open Wardrobe", () -> Keybinds.OPEN_WARDROBE),
+            new KeybindRow("Open Bestiary", () -> Keybinds.OPEN_BESTIARY)
     );
 
     private HudWidget dragging;
