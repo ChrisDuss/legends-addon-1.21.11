@@ -9,13 +9,17 @@ import net.minecraft.client.gui.screen.ingame.HandledScreen;
 import net.minecraft.client.gui.tooltip.HoveredTooltipPositioner;
 import net.minecraft.client.gui.tooltip.TooltipComponent;
 import net.minecraft.client.gui.widget.ButtonWidget;
+import net.minecraft.client.gui.widget.TextFieldWidget;
+import net.minecraft.client.input.KeyInput;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.item.ItemStack;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.MathHelper;
+import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 public final class VaultBrowserScreen extends Screen {
     private static final int OUTER_MARGIN = 20;
@@ -26,6 +30,10 @@ public final class VaultBrowserScreen extends Screen {
     private static final int PANEL_HEADER_HEIGHT = 18;
     private static final int SCREEN_HEADER_HEIGHT = 42;
     private static final int SCREEN_FOOTER_HEIGHT = 18;
+    private static final int SEARCH_FIELD_MAX_WIDTH = 260;
+    private static final int SEARCH_FIELD_MIN_WIDTH = 160;
+    private static final int SEARCH_FIELD_HEIGHT = 20;
+    private static final int SEARCH_FIELD_BOTTOM_MARGIN = 4;
     private static final int SLOT_RENDER_SIZE = 16;
     private static final int LOCKED_DETAILS_HEIGHT = 28;
     private static final Text FOOTER_HINT = Text.literal("Left-click opens or unlocks | Right-click renames");
@@ -35,7 +43,8 @@ public final class VaultBrowserScreen extends Screen {
     private int scroll;
     private int maxScroll;
     private ButtonWidget profileLabelButton;
-    private ButtonWidget hintLabelButton;
+    private TextFieldWidget searchField;
+    private String searchQuery = "";
     private final HandledScreen<?> storageMenuScreen;
 
     public VaultBrowserScreen(HandledScreen<?> storageMenuScreen) {
@@ -51,11 +60,6 @@ public final class VaultBrowserScreen extends Screen {
                 .dimensions(selectorCenterX - 60, 10, 120, 20)
                 .build();
         this.profileLabelButton.active = false;
-        this.hintLabelButton = ButtonWidget.builder(FOOTER_HINT, button -> {
-                })
-                .dimensions(20, this.height - 26, this.textRenderer.getWidth(FOOTER_HINT) + 16, 20)
-                .build();
-        this.hintLabelButton.active = false;
 
         addDrawableChild(ButtonWidget.builder(Text.literal("Storage Menu"), button -> close())
                 .dimensions(this.width - 116, 10, 96, 20)
@@ -94,9 +98,23 @@ public final class VaultBrowserScreen extends Screen {
                 .dimensions(selectorCenterX + 68, 10, 20, 20)
                 .build());
 
-        if (VaultStorageManager.shouldShowBrowserHint()) {
-            addDrawableChild(this.hintLabelButton);
-        }
+        int searchWidth = getSearchFieldWidth();
+        this.searchField = new TextFieldWidget(
+                this.textRenderer,
+                (this.width - searchWidth) / 2,
+                getSearchFieldY(),
+                searchWidth,
+                SEARCH_FIELD_HEIGHT,
+                Text.literal("Search")
+        );
+        this.searchField.setMaxLength(80);
+        this.searchField.setPlaceholder(Text.literal("Search items"));
+        this.searchField.setText(this.searchQuery);
+        this.searchField.setChangedListener(value -> {
+            this.searchQuery = value == null ? "" : value;
+            refreshScrollBounds();
+        });
+        addDrawableChild(this.searchField);
 
         refreshScrollBounds();
     }
@@ -109,6 +127,39 @@ public final class VaultBrowserScreen extends Screen {
     @Override
     public boolean shouldPause() {
         return false;
+    }
+
+    @Override
+    public boolean keyPressed(KeyInput input) {
+        if (input.key() == GLFW.GLFW_KEY_F && (input.modifiers() & GLFW.GLFW_MOD_CONTROL) != 0) {
+            focusSearchField();
+            return true;
+        }
+
+        if (isSearchFocused()) {
+            if (input.key() == GLFW.GLFW_KEY_ESCAPE) {
+                if (!this.searchField.getText().isBlank()) {
+                    this.searchField.setText("");
+                    return true;
+                }
+
+                this.searchField.setFocused(false);
+                return true;
+            }
+
+            if (this.searchField.keyPressed(input)) {
+                return true;
+            }
+
+            writeSearchCharacter(input);
+            return true;
+        }
+
+        return false;
+    }
+
+    public boolean capturesKeyboard() {
+        return isSearchFocused();
     }
 
     @Override
@@ -184,7 +235,7 @@ public final class VaultBrowserScreen extends Screen {
 
             if (isVisible(y, panelHeight)) {
                 boolean highlighted = hoveredPanel != null && hoveredPanel.entry().vaultNumber() == entry.vaultNumber();
-                drawPanel(context, entry, x, y, highlighted);
+                drawPanel(context, entry, x, y, highlighted, entryHasSearchMatch(entry));
                 HoveredSlot hoveredSlot = findHoveredSlot(entry, x, y, mouseX, mouseY);
                 if (hoveredSlot != null) {
                     hoveredStack = hoveredSlot.stack();
@@ -211,14 +262,19 @@ public final class VaultBrowserScreen extends Screen {
 
         int loadedCount = VaultStorageManager.getSnapshots().size();
         long lockedCount = entries.stream().filter(VaultStorageManager.VaultBrowserEntry::locked).count();
-        String loadedLabel = "Loaded: " + loadedCount + " | Locked: " + lockedCount;
-        context.drawTextWithShadow(this.textRenderer, Text.literal(loadedLabel), this.width - this.textRenderer.getWidth(loadedLabel) - 20, this.height - 16, 0xB8E0B8);
+        String loadedLabel = isSearchActive()
+                ? "Matches: " + countMatchingItemSlots(entries) + " | Loaded: " + loadedCount + " | Locked: " + lockedCount
+                : "Loaded: " + loadedCount + " | Locked: " + lockedCount;
+        loadedLabel = fitTitle(loadedLabel, Math.max(1, this.width - 40));
+        context.drawTextWithShadow(this.textRenderer, Text.literal(loadedLabel), this.width - this.textRenderer.getWidth(loadedLabel) - 20, this.height - SCREEN_FOOTER_HEIGHT + 10, 0xB8E0B8);
 
         super.render(context, mouseX, mouseY, deltaTicks);
 
         if (!hoveredStack.isEmpty() && !hoveredTooltip.isEmpty()) {
             drawItemTooltipImmediately(context, hoveredStack, mouseX, mouseY);
         }
+
+        if (VaultStorageManager.shouldShowBrowserHint()) context.drawTextWithShadow(this.textRenderer, FOOTER_HINT, 20, this.height - SCREEN_FOOTER_HEIGHT + 4, 0xFFFFFFFF);
     }
 
     private void drawItemTooltipImmediately(
@@ -252,6 +308,199 @@ public final class VaultBrowserScreen extends Screen {
         if (this.profileLabelButton != null) {
             this.profileLabelButton.setMessage(Text.literal(VaultStorageManager.getSelectedProfileLabel()));
         }
+    }
+
+    private void focusSearchField() {
+        if (this.searchField == null) {
+            return;
+        }
+
+        setFocused(this.searchField);
+        this.searchField.setFocused(true);
+    }
+
+    private boolean isSearchFocused() {
+        return this.searchField != null && this.searchField.isFocused();
+    }
+
+    private void writeSearchCharacter(KeyInput input) {
+        String character = searchCharacterForKey(input);
+        if (!character.isEmpty()) {
+            this.searchField.write(character);
+        }
+    }
+
+    private String searchCharacterForKey(KeyInput input) {
+        if (hasTextModifier(input)) {
+            return "";
+        }
+
+        int key = input.key();
+        boolean shifted = (input.modifiers() & GLFW.GLFW_MOD_SHIFT) != 0;
+
+        if (key >= GLFW.GLFW_KEY_A && key <= GLFW.GLFW_KEY_Z) {
+            char character = (char) ('a' + (key - GLFW.GLFW_KEY_A));
+            return String.valueOf(shifted ? Character.toUpperCase(character) : character);
+        }
+
+        if (key >= GLFW.GLFW_KEY_0 && key <= GLFW.GLFW_KEY_9) {
+            String normal = "0123456789";
+            String shiftedNumbers = ")!@#$%^&*(";
+            int index = key - GLFW.GLFW_KEY_0;
+            return String.valueOf((shifted ? shiftedNumbers : normal).charAt(index));
+        }
+
+        if (key >= GLFW.GLFW_KEY_KP_0 && key <= GLFW.GLFW_KEY_KP_9) {
+            return String.valueOf((char) ('0' + (key - GLFW.GLFW_KEY_KP_0)));
+        }
+
+        switch (key) {
+            case GLFW.GLFW_KEY_SPACE:
+                return " ";
+            case GLFW.GLFW_KEY_MINUS:
+                return shifted ? "_" : "-";
+            case GLFW.GLFW_KEY_EQUAL:
+                return shifted ? "+" : "=";
+            case GLFW.GLFW_KEY_LEFT_BRACKET:
+                return shifted ? "{" : "[";
+            case GLFW.GLFW_KEY_RIGHT_BRACKET:
+                return shifted ? "}" : "]";
+            case GLFW.GLFW_KEY_BACKSLASH:
+                return shifted ? "|" : "\\";
+            case GLFW.GLFW_KEY_SEMICOLON:
+                return shifted ? ":" : ";";
+            case GLFW.GLFW_KEY_APOSTROPHE:
+                return shifted ? "\"" : "'";
+            case GLFW.GLFW_KEY_GRAVE_ACCENT:
+                return shifted ? "~" : "`";
+            case GLFW.GLFW_KEY_COMMA:
+                return shifted ? "<" : ",";
+            case GLFW.GLFW_KEY_PERIOD:
+                return shifted ? ">" : ".";
+            case GLFW.GLFW_KEY_SLASH:
+                return shifted ? "?" : "/";
+            case GLFW.GLFW_KEY_KP_DECIMAL:
+                return ".";
+            case GLFW.GLFW_KEY_KP_DIVIDE:
+                return "/";
+            case GLFW.GLFW_KEY_KP_MULTIPLY:
+                return "*";
+            case GLFW.GLFW_KEY_KP_SUBTRACT:
+                return "-";
+            case GLFW.GLFW_KEY_KP_ADD:
+                return "+";
+            default:
+                return "";
+        }
+    }
+
+    private boolean hasTextModifier(KeyInput input) {
+        int modifiers = input.modifiers();
+        int textModifiers = GLFW.GLFW_MOD_CONTROL | GLFW.GLFW_MOD_ALT | GLFW.GLFW_MOD_SUPER;
+        return (modifiers & textModifiers) != 0;
+    }
+
+    private int getSearchFieldWidth() {
+        int availableWidth = Math.max(80, this.width - 40);
+        int desiredWidth = Math.min(SEARCH_FIELD_MAX_WIDTH, Math.max(SEARCH_FIELD_MIN_WIDTH, this.width - 360));
+        return Math.min(availableWidth, desiredWidth);
+    }
+
+    private int getSearchFieldY() {
+        return this.height - SEARCH_FIELD_BOTTOM_MARGIN - SEARCH_FIELD_HEIGHT;
+    }
+
+    private String getSearchQuery() {
+        return this.searchField == null ? this.searchQuery : this.searchField.getText();
+    }
+
+    private boolean isSearchActive() {
+        return !normalizeSearchText(getSearchQuery()).isBlank();
+    }
+
+    private int countMatchingItemSlots(List<VaultStorageManager.VaultBrowserEntry> entries) {
+        if (!isSearchActive()) {
+            return 0;
+        }
+
+        int matches = 0;
+        for (VaultStorageManager.VaultBrowserEntry entry : entries) {
+            if (entry.locked() || entry.snapshot() == null) {
+                if (stackMatchesSearch(entry.menuIcon())) {
+                    matches++;
+                }
+                continue;
+            }
+
+            for (ItemStack stack : entry.snapshot().stacks()) {
+                if (stackMatchesSearch(stack)) {
+                    matches++;
+                }
+            }
+        }
+        return matches;
+    }
+
+    private boolean entryHasSearchMatch(VaultStorageManager.VaultBrowserEntry entry) {
+        if (!isSearchActive()) {
+            return false;
+        }
+
+        if (entry.locked() || entry.snapshot() == null) {
+            return stackMatchesSearch(entry.menuIcon());
+        }
+
+        for (ItemStack stack : entry.snapshot().stacks()) {
+            if (stackMatchesSearch(stack)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean stackMatchesSearch(ItemStack stack) {
+        String query = normalizeSearchText(getSearchQuery());
+        if (query.isBlank() || stack == null || stack.isEmpty()) {
+            return false;
+        }
+
+        String searchable = stackSearchableText(stack);
+        for (String term : query.split("\\s+")) {
+            if (!term.isBlank() && !searchable.contains(term)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private String stackSearchableText(ItemStack stack) {
+        StringBuilder builder = new StringBuilder();
+        if (stack == null || stack.isEmpty()) {
+            return "";
+        }
+
+        appendSearchValue(builder, stack.getName().getString());
+        appendSearchValue(builder, stack.getItem().toString());
+        for (Text loreLine : VaultStorageManager.getLoreLines(stack)) {
+            appendSearchValue(builder, loreLine.getString());
+        }
+        return builder.toString();
+    }
+
+    private void appendSearchValue(StringBuilder builder, String value) {
+        String normalized = normalizeSearchText(value);
+        if (normalized.isBlank()) {
+            return;
+        }
+
+        if (builder.length() > 0) {
+            builder.append(' ');
+        }
+        builder.append(normalized);
+    }
+
+    private static String normalizeSearchText(String value) {
+        return value == null ? "" : value.toLowerCase(Locale.ROOT).replace('_', ' ').trim();
     }
 
     private float getPanelScale() {
@@ -353,17 +602,18 @@ public final class VaultBrowserScreen extends Screen {
             VaultStorageManager.VaultBrowserEntry entry,
             int x,
             int y,
-            boolean highlighted
+            boolean highlighted,
+            boolean searchMatched
     ) {
         int width = MIN_PANEL_WIDTH;
         int height = getBasePanelHeight(entry);
         int topBorderColor = entry.locked()
-                ? highlighted ? 0xFFFF7868 : 0xFF9A3C36
-                : highlighted ? 0xFFD88C34 : 0xFF7A2A24;
+                ? searchMatched ? 0xFFFFD84D : highlighted ? 0xFFFF7868 : 0xFF9A3C36
+                : searchMatched ? 0xFFFFD84D : highlighted ? 0xFFD88C34 : 0xFF7A2A24;
         int leftBorderColor = topBorderColor;
         int rightBorderColor = entry.locked()
-                ? highlighted ? 0xFF9A4038 : 0xFF4D201D
-                : highlighted ? 0xFF7A3A12 : 0xFF3A1612;
+                ? searchMatched ? 0xFFB88920 : highlighted ? 0xFF9A4038 : 0xFF4D201D
+                : searchMatched ? 0xFFB88920 : highlighted ? 0xFF7A3A12 : 0xFF3A1612;
         int bottomBorderColor = rightBorderColor;
 
         context.getMatrices().pushMatrix();
@@ -399,8 +649,15 @@ public final class VaultBrowserScreen extends Screen {
 
         if (entry.locked()) {
             context.fill(slotBaseX, slotBaseY, slotBaseX + SLOT_RENDER_SIZE, slotBaseY + SLOT_RENDER_SIZE, 0xA0101010);
+            boolean menuIconMatched = stackMatchesSearch(entry.menuIcon());
+            if (menuIconMatched) {
+                fillSlotHighlight(context, slotBaseX, slotBaseY);
+            }
             if (!entry.menuIcon().isEmpty()) {
                 context.drawItem(entry.menuIcon(), slotBaseX, slotBaseY);
+            }
+            if (menuIconMatched) {
+                drawSlotHighlight(context, slotBaseX, slotBaseY);
             }
             context.drawTextWithShadow(this.textRenderer, Text.literal("Locked"), slotBaseX + SLOT_SIZE + 4, slotBaseY, 0xFFFF7868);
             String price = entry.price().isBlank() ? "Price unavailable" : entry.price();
@@ -416,8 +673,15 @@ public final class VaultBrowserScreen extends Screen {
 
         if (entry.snapshot() == null) {
             context.fill(slotBaseX, slotBaseY, slotBaseX + SLOT_RENDER_SIZE, slotBaseY + SLOT_RENDER_SIZE, 0xA0101010);
+            boolean menuIconMatched = stackMatchesSearch(entry.menuIcon());
+            if (menuIconMatched) {
+                fillSlotHighlight(context, slotBaseX, slotBaseY);
+            }
             if (!entry.menuIcon().isEmpty()) {
                 context.drawItem(entry.menuIcon(), slotBaseX, slotBaseY);
+            }
+            if (menuIconMatched) {
+                drawSlotHighlight(context, slotBaseX, slotBaseY);
             }
             context.drawTextWithShadow(this.textRenderer, Text.literal("Unlocked"), slotBaseX + SLOT_SIZE + 4, slotBaseY + 4, 0xFF55DD77);
             context.getMatrices().popMatrix();
@@ -432,13 +696,33 @@ public final class VaultBrowserScreen extends Screen {
             context.fill(slotX, slotY, slotX + SLOT_RENDER_SIZE, slotY + SLOT_RENDER_SIZE, 0xA0101010);
 
             ItemStack stack = stacks.get(index);
+            boolean itemMatched = stackMatchesSearch(stack);
+            if (itemMatched) {
+                fillSlotHighlight(context, slotX, slotY);
+            }
             if (!stack.isEmpty()) {
                 context.drawItem(stack, slotX, slotY);
                 context.drawStackOverlay(this.textRenderer, stack, slotX, slotY);
             }
+            if (itemMatched) {
+                drawSlotHighlight(context, slotX, slotY);
+            }
         }
 
         context.getMatrices().popMatrix();
+    }
+
+    private void fillSlotHighlight(DrawContext context, int x, int y) {
+        context.fill(x, y, x + SLOT_RENDER_SIZE, y + SLOT_RENDER_SIZE, 0x55FFD84D);
+    }
+
+    private void drawSlotHighlight(DrawContext context, int x, int y) {
+        int right = x + SLOT_RENDER_SIZE;
+        int bottom = y + SLOT_RENDER_SIZE;
+        context.fill(x - 1, y - 1, right + 1, y, 0xFFFFD84D);
+        context.fill(x - 1, bottom, right + 1, bottom + 1, 0xFFFFD84D);
+        context.fill(x - 1, y, x, bottom, 0xFFFFD84D);
+        context.fill(right, y, right + 1, bottom, 0xFFFFD84D);
     }
 
     private HoveredSlot findHoveredSlot(VaultStorageManager.VaultBrowserEntry entry, int x, int y, int mouseX, int mouseY) {

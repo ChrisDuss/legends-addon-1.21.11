@@ -10,6 +10,7 @@ import legends.ultra.cool.addons.hud.widget.otherTypes.VaultBrowserWidget;
 import legends.ultra.cool.addons.mixin.client.HandledScreenAccessor;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
+import net.fabricmc.fabric.api.client.screen.v1.ScreenKeyboardEvents;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenMouseEvents;
 import net.fabricmc.fabric.api.client.screen.v1.Screens;
 import net.minecraft.client.MinecraftClient;
@@ -598,6 +599,16 @@ public final class VaultStorageManager {
             }
             overlay.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
             return false;
+        });
+
+        ScreenKeyboardEvents.allowKeyPress(screen).register((scr, input) -> {
+            VaultBrowserScreen overlay = BROWSER_OVERLAYS.get(handledScreen);
+            if (overlay == null) {
+                return true;
+            }
+
+            boolean handled = overlay.keyPressed(input);
+            return !handled && !overlay.capturesKeyboard();
         });
 
         ScreenMouseEvents.allowMouseRelease(screen).register((scr, click) ->
