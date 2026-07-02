@@ -21,6 +21,7 @@ import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 public class HudEditorScreen extends Screen {
@@ -57,6 +58,8 @@ public class HudEditorScreen extends Screen {
     private static final int SETTINGS_SLIDER_W = 120;
     private static final int SETTINGS_RESET_GAP = 4;
     private static final int SETTINGS_COLOR_SWATCH_W = 18;
+    private static final int SETTINGS_DROPDOWN_OPTION_H = 16;
+    private static final int SETTINGS_DROPDOWN_GAP = 2;
 
     private static final int LAUNCHER_SQUARE = 40;
     private static final int LAUNCHER_WIDE = 100;
@@ -172,6 +175,7 @@ public class HudEditorScreen extends Screen {
     private HudWidget settingsWidget;
     private ColorPicker colorPicker;
     private String openColorKey;
+    private String openDropdownKey;
     private String draggingSliderKey;
     private KeybindRow editingKeybindRow;
     private GeneralTab activeGeneralTab = GeneralTab.LOOKS_AND_FEEL;
@@ -211,6 +215,11 @@ public class HudEditorScreen extends Screen {
 
         if (input.key() == GLFW.GLFW_KEY_ESCAPE) {
             if (isSettingsOpen()) {
+                if (openDropdownKey != null) {
+                    openDropdownKey = null;
+                    return true;
+                }
+
                 closeSettingsModal();
                 return true;
             }
@@ -345,6 +354,7 @@ public class HudEditorScreen extends Screen {
         if (isSettingsOpen()) {
             updateSettingsScrollBounds();
             if (settingsMaxScroll > 0 && settingsViewportBounds().contains(mouseX, mouseY)) {
+                openDropdownKey = null;
                 settingsScroll = MathHelper.clamp(
                         settingsScroll - (int) Math.round(verticalAmount * SETTINGS_SCROLL_STEP),
                         0,
@@ -1185,6 +1195,7 @@ public class HudEditorScreen extends Screen {
         settingsWidget = widget;
         colorPicker = null;
         openColorKey = null;
+        openDropdownKey = null;
         draggingSliderKey = null;
         settingsScroll = 0;
         updateSettingsScrollBounds();
@@ -1201,6 +1212,7 @@ public class HudEditorScreen extends Screen {
         settingsWidget = null;
         colorPicker = null;
         openColorKey = null;
+        openDropdownKey = null;
         draggingSliderKey = null;
         settingsScroll = 0;
         settingsMaxScroll = 0;
@@ -1470,6 +1482,42 @@ public class HudEditorScreen extends Screen {
         );
     }
 
+    private boolean handleOpenSettingsDropdownClick(double mouseX, double mouseY) {
+        if (openDropdownKey == null) {
+            return false;
+        }
+
+        SettingsLayout layout = beginSettingsLayout();
+        for (HudWidget.HudSetting setting : safeSettings(settingsWidget)) {
+            int rowY = nextSettingY(layout, setting);
+            if (setting.type() != HudWidget.HudSetting.Type.DROPDOWN || !setting.key().equals(openDropdownKey)) {
+                continue;
+            }
+
+            Rect button = settingsDropdownButtonBounds(layout, rowY);
+            if (button.contains(mouseX, mouseY)) {
+                return false;
+            }
+
+            Rect list = settingsDropdownListBounds(layout, rowY, setting);
+            List<HudWidget.HudOption> options = safeOptions(setting);
+            for (int index = 0; index < options.size(); index++) {
+                if (settingsDropdownOptionBounds(list, index).contains(mouseX, mouseY)) {
+                    setting.setString().accept(options.get(index).value());
+                    openDropdownKey = null;
+                    WidgetConfigManager.updateWidget(settingsWidget);
+                    return true;
+                }
+            }
+
+            openDropdownKey = null;
+            return false;
+        }
+
+        openDropdownKey = null;
+        return false;
+    }
+
     private boolean handleSettingsClick(double mouseX, double mouseY, int button) {
         int x = modalX();
         int y = modalY();
@@ -1482,7 +1530,12 @@ public class HudEditorScreen extends Screen {
             return true;
         }
 
+        if (handleOpenSettingsDropdownClick(mouseX, mouseY)) {
+            return true;
+        }
+
         if (!settingsViewportBounds().contains(mouseX, mouseY)) {
+            openDropdownKey = null;
             return true;
         }
 
@@ -1501,6 +1554,7 @@ public class HudEditorScreen extends Screen {
                     case TOGGLE -> setting.setBool().accept(setting.getBool().getAsBoolean());
                     case COLOR -> setting.setColor().accept(setting.getColor().getAsInt());
                     case SLIDER -> setting.setFloat().accept((float) setting.getFloat().getAsDouble());
+                    case DROPDOWN -> setting.setString().accept(setting.getString().get());
                     case CUSTOM_LIST -> {
                         if (setting.customList() != null) {
                             setting.customList().setEntries().accept(List.of());
@@ -1513,6 +1567,9 @@ public class HudEditorScreen extends Screen {
                 if (setting.key().equals(openColorKey)) {
                     openColorKey = null;
                     colorPicker = null;
+                }
+                if (setting.key().equals(openDropdownKey)) {
+                    openDropdownKey = null;
                 }
                 if (setting.key().equals(draggingSliderKey)) {
                     draggingSliderKey = null;
@@ -1538,6 +1595,9 @@ public class HudEditorScreen extends Screen {
                             openColorKey = null;
                             colorPicker = null;
                         }
+                        if (!newValue) {
+                            openDropdownKey = null;
+                        }
                         return true;
                     }
                 }
@@ -1554,6 +1614,7 @@ public class HudEditorScreen extends Screen {
                         if (px + pickerW > this.width) {
                             px = modalX() - pickerW - gap;
                         }
+                        openDropdownKey = null;
                         openColorPicker(setting, px, py, pickerW);
                         return true;
                     }
@@ -1564,10 +1625,28 @@ public class HudEditorScreen extends Screen {
                     }
 
                     if (inside(mouseX, mouseY, layout.sliderBarX, rowY - 1, layout.sliderBarW, 12)) {
+                        openDropdownKey = null;
                         draggingSliderKey = setting.key();
                         float nextValue = sliderValueForMouse(setting, layout.sliderBarX, layout.sliderBarW, mouseX);
                         setting.setFloat().accept(nextValue);
                         WidgetConfigManager.updateWidget(settingsWidget);
+                        return true;
+                    }
+                }
+                case DROPDOWN -> {
+                    if (!setting.enabled().getAsBoolean()) {
+                        continue;
+                    }
+
+                    if (settingsDropdownButtonBounds(layout, rowY).contains(mouseX, mouseY)) {
+                        if (safeOptions(setting).isEmpty()) {
+                            openDropdownKey = null;
+                            return true;
+                        }
+
+                        colorPicker = null;
+                        openColorKey = null;
+                        openDropdownKey = setting.key().equals(openDropdownKey) ? null : setting.key();
                         return true;
                     }
                 }
@@ -1634,6 +1713,8 @@ public class HudEditorScreen extends Screen {
 
         SettingsLayout layout = beginSettingsLayout();
         boolean grouped = false;
+        HudWidget.HudSetting openDropdownSetting = null;
+        int openDropdownRowY = 0;
         Rect viewport = settingsViewportBounds();
         ctx.enableScissor(viewport.x, viewport.y, viewport.right(), viewport.bottom());
 
@@ -1673,6 +1754,22 @@ public class HudEditorScreen extends Screen {
                     float value = (float) setting.getFloat().getAsDouble();
                     ctx.drawText(textRenderer, setting.label(), labelX, rowY, enabled ? MODAL_TEXT_COLOR : MODAL_DISABLED_TEXT_COLOR, false);
                     drawSliderRow(ctx, layout, rowY, value, setting.min(), setting.max(), setting.step(), enabled);
+                }
+                case DROPDOWN -> {
+                    boolean enabled = setting.enabled().getAsBoolean();
+                    String value = currentOptionLabel(setting);
+                    ctx.drawText(textRenderer, setting.label(), labelX, rowY, enabled ? MODAL_TEXT_COLOR : MODAL_DISABLED_TEXT_COLOR, false);
+
+                    if (enabled) {
+                        boolean open = setting.key().equals(openDropdownKey);
+                        drawDropdownButton(ctx, settingsDropdownButtonBounds(layout, rowY), value, mouseX, mouseY, open);
+                        if (open) {
+                            openDropdownSetting = setting;
+                            openDropdownRowY = rowY;
+                        }
+                    } else {
+                        ctx.drawText(textRenderer, "-", layout.btnX + 26, rowY, MODAL_DISABLED_TEXT_COLOR, false);
+                    }
                 }
                 case CUSTOM_LIST -> {
                     boolean enabled = setting.enabled().getAsBoolean() && setting.customList() != null;
@@ -1725,6 +1822,7 @@ public class HudEditorScreen extends Screen {
                 }
             }
         }
+        renderOpenSettingsDropdown(ctx, layout, openDropdownSetting, openDropdownRowY, mouseX, mouseY);
         ctx.disableScissor();
         drawSettingsScrollbar(ctx, viewport);
 
@@ -1738,6 +1836,160 @@ public class HudEditorScreen extends Screen {
             }
             colorPicker.setPos(px, py);
             colorPicker.render(ctx, mouseX, mouseY);
+        }
+    }
+
+    private String currentOptionLabel(HudWidget.HudSetting setting) {
+        String current = setting.getString().get();
+        for (HudWidget.HudOption option : safeOptions(setting)) {
+            if (Objects.equals(option.value(), current)) {
+                return optionText(option);
+            }
+        }
+        return current == null || current.isBlank() ? "-" : current;
+    }
+
+    private List<HudWidget.HudOption> safeOptions(HudWidget.HudSetting setting) {
+        List<HudWidget.HudOption> options = setting.options();
+        return options == null ? List.of() : options;
+    }
+
+    private String optionText(HudWidget.HudOption option) {
+        if (option.label() != null && !option.label().isBlank()) {
+            return option.label();
+        }
+        return option.value() == null ? "" : option.value();
+    }
+
+    private Rect settingsDropdownButtonBounds(SettingsLayout layout, int rowY) {
+        return new Rect(layout.btnX, rowY - 2, layout.btnW, layout.btnH);
+    }
+
+    private Rect settingsDropdownListBounds(SettingsLayout layout, int rowY, HudWidget.HudSetting setting) {
+        Rect button = settingsDropdownButtonBounds(layout, rowY);
+        int listHeight = Math.max(1, safeOptions(setting).size() * SETTINGS_DROPDOWN_OPTION_H);
+        int belowY = button.bottom() + SETTINGS_DROPDOWN_GAP;
+        int aboveY = button.y - SETTINGS_DROPDOWN_GAP - listHeight;
+        Rect viewport = settingsViewportBounds();
+
+        int y = belowY;
+        if (belowY + listHeight > viewport.bottom() && aboveY >= viewport.y) {
+            y = aboveY;
+        } else if (belowY + listHeight > viewport.bottom()) {
+            y = Math.max(viewport.y, viewport.bottom() - listHeight);
+        }
+
+        return new Rect(button.x, y, button.width, listHeight);
+    }
+
+    private Rect settingsDropdownOptionBounds(Rect list, int index) {
+        int optionY = list.y + index * SETTINGS_DROPDOWN_OPTION_H + 1;
+        return new Rect(list.x + 1, optionY, Math.max(1, list.width - 2), SETTINGS_DROPDOWN_OPTION_H - 1);
+    }
+
+    private void drawDropdownButton(DrawContext ctx, Rect rect, String label, int mouseX, int mouseY, boolean open) {
+        boolean hovered = rect.contains(mouseX, mouseY);
+        String visibleLabel = trimToWidth(label, Math.max(1, rect.width - 14));
+        if (useMinecraftTheme()) {
+            drawMinecraftButton(ctx, rect, hovered || open, false);
+            ctx.drawText(
+                    textRenderer,
+                    visibleLabel,
+                    rect.x + 5,
+                    rect.y + (rect.height - textRenderer.fontHeight) / 2 + 1,
+                    minecraftTextColor(hovered || open, false),
+                    false
+            );
+            ctx.drawText(
+                    textRenderer,
+                    open ? "▲" : "▼",
+                    rect.right() - 8,
+                    rect.y + (rect.height - textRenderer.fontHeight) / 2 + 1,
+                    minecraftTextColor(hovered || open, false),
+                    false
+            );
+            return;
+        }
+
+        int bg = hovered || open ? MODAL_CONTROL_HOVER_COLOR : MODAL_CONTROL_FILL_COLOR;
+        ctx.fill(rect.x, rect.y, rect.right(), rect.bottom(), bg);
+        drawBorder(ctx, rect.x, rect.y, rect.width, rect.height, UI_BORDER_DARK);
+        ctx.drawText(
+                textRenderer,
+                visibleLabel,
+                rect.x + 4,
+                rect.y + 3,
+                MODAL_TEXT_COLOR,
+                false
+        );
+        ctx.drawText(
+                textRenderer,
+                open ? "^" : "v",
+                rect.right() - 8,
+                rect.y + 3,
+                MODAL_TEXT_COLOR,
+                false
+        );
+    }
+
+    private void renderOpenSettingsDropdown(DrawContext ctx, SettingsLayout layout,
+                                            HudWidget.HudSetting setting, int rowY,
+                                            int mouseX, int mouseY) {
+        if (setting == null || !setting.enabled().getAsBoolean() || safeOptions(setting).isEmpty()) {
+            return;
+        }
+
+        Rect list = settingsDropdownListBounds(layout, rowY, setting);
+        if (useMinecraftTheme()) {
+            drawPanel(ctx, list, UI_PANEL_COLOR, UI_PANEL_COLOR, UI_BORDER_COLOR);
+        } else {
+            ctx.fill(list.x, list.y, list.right(), list.bottom(), MODAL_PANEL_COLOR);
+            drawBorder(ctx, list.x, list.y, list.width, list.height, UI_BORDER_COLOR);
+        }
+
+        String current = setting.getString().get();
+        List<HudWidget.HudOption> options = safeOptions(setting);
+        for (int index = 0; index < options.size(); index++) {
+            HudWidget.HudOption option = options.get(index);
+            Rect optionBounds = settingsDropdownOptionBounds(list, index);
+            boolean hovered = optionBounds.contains(mouseX, mouseY);
+            boolean selected = Objects.equals(option.value(), current);
+            String label = trimToWidth(optionText(option), Math.max(1, optionBounds.width - 10));
+
+            if (useMinecraftTheme()) {
+                int color = selected ? 0xFFFFFFA0 : minecraftTextColor(hovered, false);
+                ctx.drawCenteredTextWithShadow(
+                        textRenderer,
+                        Text.literal(label),
+                        optionBounds.x + optionBounds.width / 2,
+                        optionBounds.y + (optionBounds.height - textRenderer.fontHeight) / 2,
+                        color
+                );
+                continue;
+            }
+
+            if (hovered || selected) {
+                ctx.fill(
+                        optionBounds.x,
+                        optionBounds.y,
+                        optionBounds.right(),
+                        optionBounds.bottom(),
+                        hovered ? MODAL_CONTROL_HOVER_COLOR : UI_PANEL_HOVER_COLOR
+                );
+            }
+
+            if (index > 0) {
+                ctx.drawHorizontalLine(optionBounds.x + 3, optionBounds.right() - 3, optionBounds.y, DIVIDER_COLOR);
+            }
+
+            ctx.drawText(
+                    textRenderer,
+                    label,
+                    optionBounds.x + 5,
+                    optionBounds.y + 4,
+                    selected ? MODAL_TEXT_COLOR : MODAL_VALUE_TEXT_COLOR,
+                    false
+            );
         }
     }
 
@@ -2349,6 +2601,7 @@ public class HudEditorScreen extends Screen {
                 case TOGGLE -> MODAL_PAD + RESET_W + SETTINGS_RESET_GAP + SETTINGS_TOGGLE_W;
                 case COLOR -> MODAL_PAD + RESET_W + SETTINGS_RESET_GAP + SETTINGS_CONTROL_W + SETTINGS_COLOR_SWATCH_W;
                 case SLIDER -> MODAL_PAD + RESET_W + SETTINGS_RESET_GAP + SETTINGS_SLIDER_W;
+                case DROPDOWN -> MODAL_PAD + RESET_W + SETTINGS_RESET_GAP + SETTINGS_CONTROL_W;
                 case CUSTOM_LIST -> MODAL_PAD + RESET_W + SETTINGS_RESET_GAP + CUSTOM_ADD_W;
                 case SECTION -> MODAL_PAD + RESET_W + SETTINGS_RESET_GAP;
             };

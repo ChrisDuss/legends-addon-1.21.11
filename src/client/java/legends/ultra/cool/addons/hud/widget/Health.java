@@ -75,15 +75,18 @@ public class Health extends HudWidget implements BarDraggable {
         int bgColor = WidgetConfigManager.getInt(w, "bgColor", 0x80000000);
         boolean brdToggle = WidgetConfigManager.getBool(w, "brdToggle", true);
         int brdColor = WidgetConfigManager.getInt(w, "brdColor", 0xFFFFFFFF);
+        boolean textToggle = WidgetConfigManager.getBool(w, "textToggle", true);
         int textColor = WidgetConfigManager.getInt(w, "textColor", 0xFFFC5454);
+        TextAlignment textAlignment = TextAlignment.fromId(
+                WidgetConfigManager.getString(w, TextAlignment.SETTING_KEY, TextAlignment.DEFAULT_ID)
+        );
         barToggle = WidgetConfigManager.getBool(w, "barToggle", false);
 
         String text = getHealth();
         int width = client.textRenderer.getWidth(text);
         int height = client.textRenderer.fontHeight;
         if (cachedTextWidth > 0 && cachedTextWidth != width) {
-            double centerX = x + cachedTextWidth / 2d;
-            x = centerX - width / 2d;
+            x = textAlignment.alignedX(x, cachedTextWidth, width);
         }
 
         cachedTextWidth = width;
@@ -95,15 +98,10 @@ public class Health extends HudWidget implements BarDraggable {
             hpBar.render(context);
         }
 
-        if (bgToggle) {
-            context.fill((int) (x - 3), (int) (y - 3), (int) (x + width + 2), (int) (y + height + 2), bgColor);
-        }
+        if (bgToggle)   context.fill((int) (x - 3), (int) (y - 3), (int) (x + width + 2), (int) (y + height + 2), bgColor);
+        if (brdToggle)  drawBorder(context, (int) (x - 3), (int) (y - 3), width + 5, height + 5, brdColor);
+        if (textToggle) context.drawText(client.textRenderer, text, (int) x, (int) y, textColor, !bgToggle);
 
-        if (brdToggle) {
-            drawBorder(context, (int) (x - 3), (int) (y - 3), width + 5, height + 5, brdColor);
-        }
-
-        context.drawText(client.textRenderer, text, (int) x, (int) y, textColor, !bgToggle);
         syncBarPosition();
     }
 
@@ -352,6 +350,19 @@ public class Health extends HudWidget implements BarDraggable {
                         () -> WidgetConfigManager.getInt(w, "brdColor", 0xFFFFFFFF),
                         c -> WidgetConfigManager.setInt(w, "brdColor", c, true),
                         0x00000000
+                ),
+                HudSetting.toggle("textToggle", "Text",
+                        () -> true,
+                        () -> WidgetConfigManager.getBool(w, "textToggle", true),
+                        b -> WidgetConfigManager.setBool(w, "textToggle", b, true),
+                        true
+                ),
+                HudSetting.dropdown(TextAlignment.SETTING_KEY, "Text Align",
+                        () -> WidgetConfigManager.getBool(w, "textToggle", true),
+                        () -> WidgetConfigManager.getString(w, TextAlignment.SETTING_KEY, TextAlignment.DEFAULT_ID),
+                        value -> WidgetConfigManager.setString(w, TextAlignment.SETTING_KEY, value, true),
+                        TextAlignment.DEFAULT_ID,
+                        TextAlignment.options()
                 ),
                 HudSetting.color("textColor", "Text Color",
                         () -> true,

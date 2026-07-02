@@ -531,6 +531,7 @@ public final class WidgetConfigManager {
             case TOGGLE -> data.settings.put(s.key(), new JsonPrimitive(s.defaultBool()));
             case COLOR -> data.settings.put(s.key(), new JsonPrimitive(s.defaultColor()));
             case SLIDER -> data.settings.put(s.key(), new JsonPrimitive(s.defaultFloat()));
+            case DROPDOWN -> data.settings.put(s.key(), new JsonPrimitive(s.defaultString()));
             case CUSTOM_LIST -> data.settings.put(s.key(), new JsonArray());
         }
     }

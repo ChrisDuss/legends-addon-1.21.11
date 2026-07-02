@@ -97,9 +97,13 @@ public abstract class HudWidget {
             boolean defaultBool,
             int defaultColor,
             float defaultFloat,
+            String defaultString,
+            java.util.function.Supplier<String> getString,
+            java.util.function.Consumer<String> setString,
+            List<HudOption> options,
             CustomListSpec customList
     ) {
-        public enum Type { SECTION, TOGGLE, COLOR, SLIDER, CUSTOM_LIST }
+        public enum Type { SECTION, TOGGLE, COLOR, SLIDER, DROPDOWN, CUSTOM_LIST }
 
         public boolean storesValue() {
             return type != Type.SECTION;
@@ -108,7 +112,8 @@ public abstract class HudWidget {
         public static HudSetting section(String label) {
             return new HudSetting("__section__" + label, label, Type.SECTION, 0,0,0,
                     ()->false, ()->false, b->{},
-                    ()->0, c->{}, ()->0, v->{}, false, 0, 0f, null);
+                    ()->0, c->{}, ()->0, v->{}, false, 0, 0f,
+                    "", () -> "", s -> {}, List.of(), null);
         }
 
         public static HudSetting toggle(String key, String label,
@@ -118,7 +123,8 @@ public abstract class HudWidget {
                                         boolean def) {
             return new HudSetting(key, label, Type.TOGGLE, 0,0,0,
                     enabled, get, set,
-                    ()->0, c->{}, ()->0, v->{}, def, 0, 0f, null);
+                    ()->0, c->{}, ()->0, v->{}, def, 0, 0f,
+                    "", () -> "", s -> {}, List.of(), null);
         }
 
         public static HudSetting color(String key, String label,
@@ -129,7 +135,8 @@ public abstract class HudWidget {
             return new HudSetting(key, label, Type.COLOR, 0,0,0,
                     enabled, ()->false, b->{},
                     get, set,
-                    ()->0, v->{}, false, def, 0f, null);
+                    ()->0, v->{}, false, def, 0f,
+                    "", () -> "", s -> {}, List.of(), null);
         }
 
         public static HudSetting slider(String key, String label,
@@ -141,7 +148,23 @@ public abstract class HudWidget {
             return new HudSetting(key, label, Type.SLIDER, min,max,step,
                     enabled, ()->false, b->{},
                     ()->0, c->{},
-                    get, set, false, 0, def, null);
+                    get, set, false, 0, def,
+                    "", () -> "", s -> {}, List.of(), null);
+        }
+
+        public static HudSetting dropdown(String key, String label,
+                                          java.util.function.BooleanSupplier enabled,
+                                          java.util.function.Supplier<String> get,
+                                          java.util.function.Consumer<String> set,
+                                          String def,
+                                          List<HudOption> options) {
+            String defaultValue = def == null ? "" : def;
+            List<HudOption> safeOptions = options == null ? List.of() : List.copyOf(options);
+            return new HudSetting(key, label, Type.DROPDOWN, 0,0,0,
+                    enabled, ()->false, b->{},
+                    ()->0, c->{},
+                    ()->0, v->{}, false, 0, 0f,
+                    defaultValue, get, set, safeOptions, null);
         }
 
         public static HudSetting customList(String key, String label,
@@ -150,7 +173,14 @@ public abstract class HudWidget {
             return new HudSetting(key, label, Type.CUSTOM_LIST, 0,0,0,
                     enabled, ()->false, b->{},
                     ()->0, c->{},
-                    ()->0, v->{}, false, 0, 0f, customList);
+                    ()->0, v->{}, false, 0, 0f,
+                    "", () -> "", s -> {}, List.of(), customList);
+        }
+    }
+
+    public record HudOption(String value, String label) {
+        public static HudOption of(String value, String label) {
+            return new HudOption(value, label);
         }
     }
 
