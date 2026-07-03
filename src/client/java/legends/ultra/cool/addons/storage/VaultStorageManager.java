@@ -557,12 +557,13 @@ public final class VaultStorageManager {
 
     private static void addVaultScreenButtons(net.minecraft.client.gui.screen.Screen screen, HandledScreen<?> handledScreen) {
         HandledScreenAccessor accessor = (HandledScreenAccessor) handledScreen;
-        int x = accessor.legends$getX() + accessor.legends$getBackgroundWidth() + 6;
-        int y = accessor.legends$getY() + 6;
+        int x = accessor.legends$getX();
+        int y = accessor.legends$getY() - 24;
+        int width = accessor.legends$getBackgroundWidth();
 
         Screens.getButtons(screen).add(ButtonWidget.builder(Text.literal("PV Menu"), button ->
                         returnToBrowser(Screens.getClient(screen), handledScreen))
-                .dimensions(x, y, 72, 20)
+                .dimensions(x, y, width, 20)
                 .build());
     }
 
