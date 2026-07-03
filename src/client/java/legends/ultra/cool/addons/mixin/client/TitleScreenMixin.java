@@ -48,7 +48,7 @@ public abstract class TitleScreenMixin extends Screen {
 
     @Inject(method = "init", at = @At("TAIL"))
     private void legends$addUpdateButton(CallbackInfo ci) {
-        int buttonY = this.height / 4 + 48 + 96;
+        int buttonY = this.height / 4 + 48 + 96 + 20;
         this.legends$updateButton = ButtonWidget.builder(UpdateManager.getButtonText(), button -> legends$handleUpdateButton())
                 .dimensions(this.width / 2 - 100, buttonY, 200, 20)
                 .build();

@@ -12,6 +12,7 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Util;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -135,12 +136,18 @@ public final class UpdateManager {
                 .thenAccept(response -> {
                     try {
                         if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                            throw new IOException("Download failed with HTTP " + response.statusCode());
+                            throw new IOException("Download failed with HTTP " + response.statusCode() + " for " + downloadUrl);
                         }
-                        installDownloadedJar(manifest, response.body());
+                        boolean deferredInstall = installDownloadedJar(manifest, response.body());
                         state = State.INSTALLED;
-                        statusMessage = "Installed " + manifest.version() + ". Restart Minecraft.";
-                        showToast(client, "Legends Addon updated", "Restart Minecraft to finish.");
+                        statusMessage = deferredInstall
+                                ? "Downloaded " + manifest.version() + ". Close and reopen Minecraft."
+                                : "Installed " + manifest.version() + ". Restart Minecraft.";
+                        showToast(
+                                client,
+                                "Legends Addon updated",
+                                deferredInstall ? "Close Minecraft to finish." : "Restart Minecraft to finish."
+                        );
                     } catch (Exception exception) {
                         failInstall(client, "Could not install update", exception);
                     }
@@ -256,7 +263,7 @@ public final class UpdateManager {
         }
     }
 
-    private static void installDownloadedJar(UpdateManifest manifest, byte[] jarBytes) throws IOException {
+    private static boolean installDownloadedJar(UpdateManifest manifest, byte[] jarBytes) throws IOException {
         String jarName = safeJarName(manifest.jarName());
         verifySha256(manifest, jarBytes);
 
@@ -269,16 +276,21 @@ public final class UpdateManager {
 
         List<MovedJar> movedJars = new ArrayList<>();
         try {
-            for (Path oldJar : findActiveAddonJars(modsDir, target.getFileName().toString())) {
+            for (Path oldJar : findActiveAddonJars(modsDir)) {
                 Path disabledPath = nextDisabledPath(oldJar);
                 Files.move(oldJar, disabledPath, StandardCopyOption.REPLACE_EXISTING);
                 movedJars.add(new MovedJar(oldJar, disabledPath));
             }
 
             Files.move(temp, target, StandardCopyOption.REPLACE_EXISTING);
+            return false;
         } catch (IOException exception) {
             rollbackMovedJars(movedJars);
             Files.deleteIfExists(temp);
+            if (isLikelyFileLock(exception)) {
+                stageDeferredInstall(jarBytes, modsDir, target);
+                return true;
+            }
             throw exception;
         }
     }
@@ -315,7 +327,103 @@ public final class UpdateManager {
         }
     }
 
-    private static List<Path> findActiveAddonJars(Path modsDir, String newJarName) throws IOException {
+    private static void stageDeferredInstall(byte[] jarBytes, Path modsDir, Path target) throws IOException {
+        Path stagingDir = modsDir.resolve(".legends-addon-update");
+        Files.createDirectories(stagingDir);
+
+        Path stagedJar = stagingDir.resolve(target.getFileName().toString());
+        Files.write(stagedJar, jarBytes);
+
+        List<MovedJar> jarsToMove = new ArrayList<>();
+        for (Path oldJar : findActiveAddonJars(modsDir)) {
+            jarsToMove.add(new MovedJar(oldJar, nextDisabledPath(oldJar)));
+        }
+
+        Path script = createDeferredInstallScript(stagingDir, stagedJar, target, jarsToMove);
+        launchDeferredInstallScript(script);
+    }
+
+    private static Path createDeferredInstallScript(
+            Path stagingDir,
+            Path stagedJar,
+            Path target,
+            List<MovedJar> jarsToMove
+    ) throws IOException {
+        boolean windows = isWindows();
+        Path script = stagingDir.resolve(windows ? "apply-legends-addon-update.cmd" : "apply-legends-addon-update.sh");
+        StringBuilder builder = new StringBuilder();
+        long currentPid = ProcessHandle.current().pid();
+
+        if (windows) {
+            builder.append("@echo off\r\n");
+            builder.append("setlocal\r\n");
+            builder.append(":wait\r\n");
+            builder.append("tasklist /FI \"PID eq ").append(currentPid).append("\" /FO CSV 2>NUL | findstr /C:\"")
+                    .append(currentPid).append("\" >NUL\r\n");
+            builder.append("if not errorlevel 1 (\r\n");
+            builder.append("  timeout /T 1 /NOBREAK >NUL\r\n");
+            builder.append("  goto wait\r\n");
+            builder.append(")\r\n");
+            for (MovedJar movedJar : jarsToMove) {
+                builder.append("move /Y ").append(quoteWindowsPath(movedJar.originalPath())).append(' ')
+                        .append(quoteWindowsPath(movedJar.disabledPath())).append(" >NUL\r\n");
+                builder.append("if errorlevel 1 exit /B 1\r\n");
+            }
+            builder.append("move /Y ").append(quoteWindowsPath(stagedJar)).append(' ')
+                    .append(quoteWindowsPath(target)).append(" >NUL\r\n");
+            builder.append("if errorlevel 1 exit /B 1\r\n");
+            builder.append("rmdir /S /Q ").append(quoteWindowsPath(stagingDir)).append(" >NUL 2>NUL\r\n");
+        } else {
+            builder.append("#!/bin/sh\n");
+            builder.append("while kill -0 ").append(currentPid).append(" 2>/dev/null; do\n");
+            builder.append("  sleep 1\n");
+            builder.append("done\n");
+            for (MovedJar movedJar : jarsToMove) {
+                builder.append("mv -f ").append(quoteShellPath(movedJar.originalPath())).append(' ')
+                        .append(quoteShellPath(movedJar.disabledPath())).append(" || exit 1\n");
+            }
+            builder.append("mv -f ").append(quoteShellPath(stagedJar)).append(' ')
+                    .append(quoteShellPath(target)).append(" || exit 1\n");
+            builder.append("rm -rf ").append(quoteShellPath(stagingDir)).append("\n");
+        }
+
+        Files.writeString(script, builder.toString(), StandardCharsets.UTF_8);
+        if (!windows) {
+            script.toFile().setExecutable(true);
+        }
+        return script;
+    }
+
+    private static void launchDeferredInstallScript(Path script) throws IOException {
+        if (isWindows()) {
+            new ProcessBuilder("cmd.exe", "/c", "start", "\"\"", "/min", script.toAbsolutePath().toString()).start();
+            return;
+        }
+        new ProcessBuilder("sh", script.toAbsolutePath().toString()).start();
+    }
+
+    private static boolean isLikelyFileLock(IOException exception) {
+        if (!isWindows()) {
+            return false;
+        }
+
+        String message = exception.getMessage();
+        return message != null && message.toLowerCase(Locale.ROOT).contains("process");
+    }
+
+    private static boolean isWindows() {
+        return System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win");
+    }
+
+    private static String quoteWindowsPath(Path path) {
+        return "\"" + path.toAbsolutePath().toString().replace("\"", "\\\"") + "\"";
+    }
+
+    private static String quoteShellPath(Path path) {
+        return "'" + path.toAbsolutePath().toString().replace("'", "'\"'\"'") + "'";
+    }
+
+    private static List<Path> findActiveAddonJars(Path modsDir) throws IOException {
         List<Path> jars = new ArrayList<>();
         if (!Files.isDirectory(modsDir)) {
             return jars;
@@ -326,9 +434,7 @@ public final class UpdateManager {
                 if (!Files.isRegularFile(path)) {
                     continue;
                 }
-                if (!path.getFileName().toString().equals(newJarName)) {
-                    jars.add(path);
-                }
+                jars.add(path);
             }
         }
         return jars;
