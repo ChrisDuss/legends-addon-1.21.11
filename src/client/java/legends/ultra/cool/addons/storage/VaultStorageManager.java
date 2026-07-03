@@ -503,11 +503,19 @@ public final class VaultStorageManager {
 
     private static void addStorageMenuButtons(net.minecraft.client.gui.screen.Screen screen, HandledScreen<?> handledScreen) {
         HandledScreenAccessor accessor = (HandledScreenAccessor) handledScreen;
-        int x = accessor.legends$getX() + accessor.legends$getBackgroundWidth() + 6;
-        int y = accessor.legends$getY() + 6;
+        int x = accessor.legends$getX();
+        int y = accessor.legends$getY() - 24;
+        int width = accessor.legends$getBackgroundWidth();
+
+        ButtonWidget profileLabelButton = ButtonWidget.builder(Text.literal("Profile " + getSelectedProfile()), button -> {
+                })
+                .dimensions(x, y - 24, width/2 - 2, 20)
+                .build();
+        profileLabelButton.active = false;
+
         ButtonWidget rangeLabelButton = ButtonWidget.builder(Text.literal(getRangeLabel()), button -> {
                 })
-                .dimensions(x + 24, y + 48, 44, 20)
+                .dimensions(x + width - 20 - 36 - 5, y - 24, 36, 20)
                 .build();
         rangeLabelButton.active = false;
 
@@ -516,29 +524,33 @@ public final class VaultStorageManager {
                         startLoadAll(Screens.getClient(screen));
                     }
                 })
-                .dimensions(x, y, 72, 20)
+                .dimensions(x, y, width/2 - 2, 20)
                 .build());
 
         Screens.getButtons(screen).add(ButtonWidget.builder(Text.literal("View Loaded"), button -> openBrowser(Screens.getClient(screen)))
-                .dimensions(x, y + 24, 72, 20)
+                .dimensions(x + width - (width/2 - 2), y, width/2 - 2, 20)
                 .build());
 
         Screens.getButtons(screen).add(ButtonWidget.builder(Text.literal("<"), button -> {
                     if (selectPreviousProfile()) {
                         rangeLabelButton.setMessage(Text.literal(getRangeLabel()));
+                        profileLabelButton.setMessage(Text.literal("Profile " + getSelectedProfile()));
+
                     }
                 })
-                .dimensions(x, y + 48, 20, 20)
+                .dimensions(x + width - 40 - rangeLabelButton.getWidth() - 10, y - 24, 20, 20)
                 .build());
 
         Screens.getButtons(screen).add(rangeLabelButton);
+        Screens.getButtons(screen).add(profileLabelButton);
 
         Screens.getButtons(screen).add(ButtonWidget.builder(Text.literal(">"), button -> {
                     if (selectNextProfile()) {
                         rangeLabelButton.setMessage(Text.literal(getRangeLabel()));
+                        profileLabelButton.setMessage(Text.literal("Profile " + getSelectedProfile()));
                     }
                 })
-                .dimensions(x + 72, y + 48, 20, 20)
+                .dimensions(x + width - 20, y - 24, 20, 20)
                 .build());
 
     }
