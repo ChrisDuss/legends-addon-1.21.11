@@ -5,6 +5,7 @@ import legends.ultra.cool.addons.hud.HudWidget;
 import legends.ultra.cool.addons.mixin.client.InGameHudAccessor;
 import legends.ultra.cool.addons.util.AddonServerGate;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Style;
@@ -69,7 +70,7 @@ public class Defense extends HudWidget {
         );
 
         String text = getDefense();
-        int width = client.textRenderer.getWidth(text);
+        int width = client.textRenderer.getWidth(text) + 1;
         int height = client.textRenderer.fontHeight;
         if (cachedTextWidth > 0 && cachedTextWidth != width) {
             x = textAlignment.alignedX(x, cachedTextWidth, width);
@@ -86,7 +87,7 @@ public class Defense extends HudWidget {
             drawBorder(context, (int) (x - 3), (int) (y - 3), width + 5, height + 5, brdColor);
         }
 
-        context.drawText(client.textRenderer, text, (int) x, (int) y, textColor, !bgToggle);
+        context.drawText(client.textRenderer, text, (int) x + 1, (int) y + 1, textColor, !bgToggle);
     }
 
     private String getDefense() {
@@ -107,6 +108,23 @@ public class Defense extends HudWidget {
         }
 
         return defense;
+    }
+
+    public double getTextCenterOffsetX() {
+        double x = this.x;
+        double edgeX = x + this.getWidth();
+        double textW = getWidth();
+
+
+        return edgeX - getVisualWidth() - textW/2;
+    }
+
+    public double getTextCenterOffsetY() {
+        double y = this.y;
+        double edgeY = y + this.getHeight();
+        double textH = getHeight();
+
+        return edgeY - getVisualHeight() - textH/2;
     }
 
     private static DefenseMatch findDefenseMatch(String text) {

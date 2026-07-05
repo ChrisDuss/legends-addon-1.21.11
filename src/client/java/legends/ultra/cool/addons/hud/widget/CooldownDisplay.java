@@ -106,7 +106,9 @@ public class CooldownDisplay extends HudWidget {
         int textColor = WidgetConfigManager.getInt(w, "textColor", 0xFFFFFFFF);
 
         int width = rows.isEmpty() ? getPlaceholderWidth(textRenderer) : getRowsWidth(textRenderer, rows);
+        width += 1;
         int height = rows.isEmpty() ? ITEM_SIZE : getRowsHeight(rows);
+        height -= 1;
         int left = (int) x;
         int top = getRenderTop(height);
 
@@ -119,7 +121,7 @@ public class CooldownDisplay extends HudWidget {
         }
 
         if (rows.isEmpty()) {
-            drawPlaceholder(context, textRenderer, left, top, textColor, !bgToggle);
+            drawPlaceholder(context, textRenderer, left + 1, top, textColor, !bgToggle);
             return;
         }
 
@@ -149,7 +151,8 @@ public class CooldownDisplay extends HudWidget {
         }
 
         List<CooldownRow> rows = getCooldownRows(client);
-        return rows.isEmpty() ? getPlaceholderWidth(client.textRenderer) : getRowsWidth(client.textRenderer, rows);
+        int width = rows.isEmpty() ? getPlaceholderWidth(client.textRenderer) : getRowsWidth(client.textRenderer, rows);
+        return width;
     }
 
     @Override
@@ -163,22 +166,22 @@ public class CooldownDisplay extends HudWidget {
 
     @Override
     public double getVisualX() {
-        return usesDecoratedBounds() ? x - PAD : x;
+        return usesDecoratedBounds() ? x - PAD : x + 1;
     }
 
     @Override
     public double getVisualY() {
-        return usesDecoratedBounds() ? getRenderTop((int) Math.ceil(getHeight())) - PAD : getRenderTop((int) Math.ceil(getHeight()));
+        return usesDecoratedBounds() ? getRenderTop((int) Math.ceil(getHeight())) - PAD: getRenderTop((int) Math.ceil(getHeight())) - 1;
     }
 
     @Override
     public double getVisualWidth() {
-        return getWidth() + (usesDecoratedBounds() ? PAD * 2d : 0d);
+        return getWidth() + (usesDecoratedBounds() ? PAD * 2d + 1: 0d);
     }
 
     @Override
     public double getVisualHeight() {
-        return getHeight() + (usesDecoratedBounds() ? PAD * 2d : 0d);
+        return getHeight() + (usesDecoratedBounds() ? PAD * 2d - 1: 1d);
     }
 
     @Override
@@ -426,7 +429,7 @@ public class CooldownDisplay extends HudWidget {
 
     private static void drawPlaceholder(DrawContext context, TextRenderer textRenderer, int x, int y, int color, boolean shadow) {
         context.drawItem(new ItemStack(Items.CLOCK), x, y);
-        context.drawText(textRenderer, "0.0s", x + ITEM_SIZE + TEXT_GAP, y + (ITEM_SIZE - textRenderer.fontHeight) / 2, color, shadow);
+        context.drawText(textRenderer, "0.0s", x + ITEM_SIZE + TEXT_GAP, y + (ITEM_SIZE - textRenderer.fontHeight) / 2 + 1, color, shadow);
     }
 
     private static String formatSeconds(float seconds) {

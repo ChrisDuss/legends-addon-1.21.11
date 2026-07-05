@@ -80,7 +80,7 @@ public class Mana extends HudWidget implements BarDraggable {
         barToggle = WidgetConfigManager.getBool(w, "barToggle", false);
 
         String text = getMana();
-        int width = client.textRenderer.getWidth(text);
+        int width = client.textRenderer.getWidth(text) + 1;
         int height = client.textRenderer.fontHeight;
         if (cachedTextWidth > 0 && cachedTextWidth != width) {
             x = textAlignment.alignedX(x, cachedTextWidth, width);
@@ -97,7 +97,7 @@ public class Mana extends HudWidget implements BarDraggable {
 
         if (bgToggle)   context.fill((int) (x - 3), (int) (y - 3), (int) (x + width + 2), (int) (y + height + 2), bgColor);
         if (brdToggle)  drawBorder(context, (int) (x - 3), (int) (y - 3), width + 5, height + 5, brdColor);
-        if (textToggle) context.drawText(client.textRenderer, text, (int) x, (int) y, textColor, !bgToggle);
+        if (textToggle) context.drawText(client.textRenderer, text, (int) x + 1, (int) y + 1, textColor, !bgToggle);
 
         syncBarPosition();
     }

@@ -25,6 +25,7 @@ public class ItemPickupTracker extends HudWidget {
     private static final int ROW_GAP = 2;
     private static final int TEXT_GAP = 5;
     private static final int PAD = 3;
+    private static final int TEXT_Y_OFFSET = 1;
 
     private static ItemPickupTracker instance;
 
@@ -210,7 +211,7 @@ public class ItemPickupTracker extends HudWidget {
         int removeColor = WidgetConfigManager.getInt(w, REMOVE_COLOR_KEY, 0xFFFF5555);
 
         int width = notifications.isEmpty() ? getPlaceholderWidth(textRenderer) : getRowsWidth(textRenderer);
-        int height = notifications.isEmpty() ? ITEM_SIZE * 2 + TEXT_GAP: getRowsHeight();
+        int height = notifications.isEmpty() ? getPlaceholderHeight() : getRowsHeight();
         int left = (int) x;
         int top = getRenderTop(height);
 
@@ -237,11 +238,12 @@ public class ItemPickupTracker extends HudWidget {
                     textRenderer,
                     formatRow(notification),
                     left + ITEM_SIZE + TEXT_GAP,
-                    rowY + (ITEM_SIZE - textRenderer.fontHeight) / 2,
+                    textYForRow(rowY, ITEM_SIZE, textRenderer),
                     color,
                     !bgToggle
             );
         }
+
     }
 
     @Override
@@ -256,7 +258,7 @@ public class ItemPickupTracker extends HudWidget {
 
     @Override
     public double getHeight() {
-        return notifications.isEmpty() ? ITEM_SIZE : getRowsHeight();
+        return notifications.isEmpty() ? getPlaceholderHeight() : getRowsHeight();
     }
 
     @Override
@@ -359,10 +361,12 @@ public class ItemPickupTracker extends HudWidget {
     }
 
     private void drawPlaceholder(DrawContext context, TextRenderer textRenderer, int x, int y, int colorAdd, int colorRemove, boolean shadow) {
+        int secondRowY = y + ITEM_SIZE + ROW_GAP;
+
         context.drawItem(new ItemStack(Items.DIRT), x, y);
-        context.drawText(textRenderer, "+1 Item", x + ITEM_SIZE + TEXT_GAP,(int) (y + ((getHeight()/2) - (textRenderer.fontHeight) / 2)) + 1, colorAdd, shadow);
-        context.drawItem(new ItemStack(Items.DIRT), x, y + ITEM_SIZE + TEXT_GAP);
-        context.drawText(textRenderer, "-1 Item", x + ITEM_SIZE + TEXT_GAP,(int) ((y + ((getHeight()/2) - (textRenderer.fontHeight) / 2)) + 1)  + ITEM_SIZE + TEXT_GAP, colorRemove, shadow);
+        context.drawText(textRenderer, "+1 Item", x + ITEM_SIZE + TEXT_GAP, textYForRow(y, ITEM_SIZE, textRenderer), colorAdd, shadow);
+        context.drawItem(new ItemStack(Items.DIRT), x, secondRowY);
+        context.drawText(textRenderer, "-1 Item", x + ITEM_SIZE + TEXT_GAP, textYForRow(secondRowY, ITEM_SIZE, textRenderer), colorRemove, shadow);
     }
 
     private boolean usesDecoratedBounds() {
@@ -406,6 +410,14 @@ public class ItemPickupTracker extends HudWidget {
 
     private static int getPlaceholderWidth(TextRenderer textRenderer) {
         return ITEM_SIZE + TEXT_GAP + textRenderer.getWidth("+1 Item");
+    }
+
+    private static int getPlaceholderHeight() {
+        return ITEM_SIZE * 2 + ROW_GAP;
+    }
+
+    private static int textYForRow(int rowY, int rowHeight, TextRenderer textRenderer) {
+        return rowY + (rowHeight - textRenderer.fontHeight) / 2 + TEXT_Y_OFFSET;
     }
 
     private String formatRow(PickupNotification notification) {

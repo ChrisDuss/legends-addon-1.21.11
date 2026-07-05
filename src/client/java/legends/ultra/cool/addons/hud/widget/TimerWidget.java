@@ -52,7 +52,7 @@ public class TimerWidget extends HudWidget {
         int textColor = WidgetConfigManager.getInt(w, "textColor", 0xFFFFFFFF);
 
         String text = "Stopwatch: " + String.format("%.2f", value);
-        int width = client.textRenderer.getWidth(text);
+        int width = client.textRenderer.getWidth(text) + 1;
         int height = client.textRenderer.fontHeight;
 
         if (bgToggle) {
@@ -63,7 +63,7 @@ public class TimerWidget extends HudWidget {
             drawBorder(context, (int) (x - 3), (int) (y - 3), width + 5, height + 5, brdColor);
         }
 
-        context.drawText(client.textRenderer, text, (int) x, (int) y, textColor, !bgToggle);
+        context.drawText(client.textRenderer, text, (int) x + 1, (int) y + 1, textColor, !bgToggle);
     }
 
     @Override
@@ -88,7 +88,7 @@ public class TimerWidget extends HudWidget {
 
     @Override
     public double getVisualWidth() {
-        return getWidth() + (usesDecoratedBounds() ? 5 : 0);
+        return getWidth() + (usesDecoratedBounds() ? 5 + 1: 1);
     }
 
     @Override
