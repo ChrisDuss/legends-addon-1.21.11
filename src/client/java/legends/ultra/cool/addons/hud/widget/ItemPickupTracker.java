@@ -81,17 +81,58 @@ public class ItemPickupTracker extends HudWidget {
     }
 
     private void diff(List<InventoryCount> oldCounts, List<InventoryCount> newCounts) {
-        for (InventoryCount newCount : newCounts) {
-            InventoryCount oldCount = findMatching(oldCounts, newCount.stack);
-            int oldAmount = oldCount == null ? 0 : oldCount.count;
-            enqueue(newCount.stack, newCount.count - oldAmount);
+        List<InventoryCount> oldRemaining = copyCounts(oldCounts);
+        List<InventoryCount> newRemaining = copyCounts(newCounts);
+
+        cancelMatchingCounts(oldRemaining, newRemaining, MatchMode.EXACT);
+        cancelMatchingCounts(oldRemaining, newRemaining, MatchMode.ITEM_ONLY);
+
+        for (InventoryCount newCount : newRemaining) {
+            enqueue(newCount.stack, newCount.count);
         }
 
-        for (InventoryCount oldCount : oldCounts) {
-            if (findMatching(newCounts, oldCount.stack) == null) {
-                enqueue(oldCount.stack, -oldCount.count);
+        for (InventoryCount oldCount : oldRemaining) {
+            enqueue(oldCount.stack, -oldCount.count);
+        }
+    }
+
+    private static List<InventoryCount> copyCounts(List<InventoryCount> counts) {
+        List<InventoryCount> copy = new ArrayList<>();
+        for (InventoryCount count : counts) {
+            copy.add(new InventoryCount(count.stack, count.count));
+        }
+        return copy;
+    }
+
+    private static void cancelMatchingCounts(List<InventoryCount> oldCounts, List<InventoryCount> newCounts, MatchMode mode) {
+        for (InventoryCount newCount : newCounts) {
+            if (newCount.count <= 0) {
+                continue;
+            }
+
+            for (InventoryCount oldCount : oldCounts) {
+                if (oldCount.count <= 0 || !matches(oldCount.stack, newCount.stack, mode)) {
+                    continue;
+                }
+
+                int matched = Math.min(oldCount.count, newCount.count);
+                oldCount.count -= matched;
+                newCount.count -= matched;
+                if (newCount.count <= 0) {
+                    break;
+                }
             }
         }
+
+        oldCounts.removeIf(count -> count.count <= 0);
+        newCounts.removeIf(count -> count.count <= 0);
+    }
+
+    private static boolean matches(ItemStack oldStack, ItemStack newStack, MatchMode mode) {
+        return switch (mode) {
+            case EXACT -> ItemStack.areItemsAndComponentsEqual(oldStack, newStack);
+            case ITEM_ONLY -> oldStack.isOf(newStack.getItem());
+        };
     }
 
     private void enqueue(ItemStack stack, int delta) {
@@ -443,6 +484,11 @@ public class ItemPickupTracker extends HudWidget {
             this.stack = stack;
             this.count = count;
         }
+    }
+
+    private enum MatchMode {
+        EXACT,
+        ITEM_ONLY
     }
 
     private static final class PickupNotification {
