@@ -64,14 +64,17 @@ public class Defense extends HudWidget {
         boolean brdToggle = WidgetConfigManager.getBool(w, "brdToggle", true);
         int brdColor = WidgetConfigManager.getInt(w, "brdColor", 0xFFFFFFFF);
         int textColor = WidgetConfigManager.getInt(w, "textColor", 0xFF54FC54);
+        TextAlignment textAlignment = TextAlignment.fromId(
+                WidgetConfigManager.getString(w, TextAlignment.SETTING_KEY, TextAlignment.DEFAULT_ID)
+        );
 
         String text = getDefense();
         int width = client.textRenderer.getWidth(text);
         int height = client.textRenderer.fontHeight;
         if (cachedTextWidth > 0 && cachedTextWidth != width) {
-            double centerX = x + cachedTextWidth / 2d;
-            x = centerX - width / 2d;
+            x = textAlignment.alignedX(x, cachedTextWidth, width);
         }
+
         cachedTextWidth = width;
         cachedTextHeight = height;
 
@@ -235,6 +238,13 @@ public class Defense extends HudWidget {
                         () -> WidgetConfigManager.getInt(w, "brdColor", 0xFFFFFFFF),
                         c -> WidgetConfigManager.setInt(w, "brdColor", c, true),
                         0xFFFFFFFF
+                ),
+                HudSetting.dropdown(TextAlignment.SETTING_KEY, "Text Align",
+                        () -> WidgetConfigManager.getBool(w, "textToggle", true),
+                        () -> WidgetConfigManager.getString(w, TextAlignment.SETTING_KEY, TextAlignment.DEFAULT_ID),
+                        value -> WidgetConfigManager.setString(w, TextAlignment.SETTING_KEY, value, true),
+                        TextAlignment.DEFAULT_ID,
+                        TextAlignment.options()
                 ),
                 HudSetting.color("textColor", "Text Color",
                         () -> true,

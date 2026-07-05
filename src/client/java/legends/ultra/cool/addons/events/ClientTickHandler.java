@@ -3,6 +3,7 @@ package legends.ultra.cool.addons.events;
 import legends.ultra.cool.addons.hud.HudManager;
 import legends.ultra.cool.addons.hud.widget.CooldownDisplay;
 import legends.ultra.cool.addons.hud.widget.CounterWidget;
+import legends.ultra.cool.addons.hud.widget.ItemPickupTracker;
 import legends.ultra.cool.addons.hud.widget.TimerWidget;
 import legends.ultra.cool.addons.overlay.ContainerOverlay;
 import legends.ultra.cool.addons.storage.VaultStorageManager;
@@ -36,6 +37,16 @@ public class ClientTickHandler {
 
                     if (widget instanceof TimerWidget timer && timer.isEnabled()) {
                         timer.tick(timer.getToggleState());
+                    }
+
+
+                    if (widget instanceof ItemPickupTracker tracker) {
+                        if (!tracker.isEnabled() || client.player == null) {
+                            ItemPickupTracker.reset();
+                            return;
+                        }
+
+                        tracker.tick(client.player.getInventory());
                     }
                 });
             }
