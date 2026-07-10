@@ -5,6 +5,7 @@ import legends.ultra.cool.addons.data.WidgetConfigManager;
 import legends.ultra.cool.addons.hud.widget.settings.ColorPicker;
 import legends.ultra.cool.addons.hud.widget.settings.CustomListFormScreen;
 import legends.ultra.cool.addons.input.Keybinds;
+import legends.ultra.cool.addons.resource.ServerResourcePackCache;
 import legends.ultra.cool.addons.util.AddonServerGate;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gl.RenderPipelines;
@@ -524,6 +525,12 @@ public class HudEditorScreen extends Screen {
                 return true;
             }
 
+            if (serverPackCacheToggleButtonBounds().contains(mouseX, mouseY)) {
+                ServerResourcePackCache.setEnabled(!ServerResourcePackCache.isEnabled());
+                themeDropdownOpen = false;
+                return true;
+            }
+
             themeDropdownOpen = false;
             return true;
         }
@@ -883,6 +890,35 @@ public class HudEditorScreen extends Screen {
         }
         ctx.drawText(textRenderer, status, rowBounds.x, rowBounds.y + 14, UI_SUBTEXT_COLOR, false);
 
+        Rect cacheRowBounds = serverPackCacheToggleRowBounds();
+        Rect cacheValueBounds = serverPackCacheToggleButtonBounds();
+        boolean cacheHovered = cacheValueBounds.contains(mouseX, mouseY);
+        boolean cacheEnabled = ServerResourcePackCache.isEnabled();
+
+        ctx.drawText(textRenderer, "Server pack cache", cacheRowBounds.x, cacheRowBounds.y + 2, UI_BUTTON_TEXT_COLOR, false);
+
+        if (useMinecraftTheme()) {
+            drawMinecraftButton(ctx, cacheValueBounds, cacheHovered || cacheEnabled, false);
+        } else {
+            int valueFill = cacheEnabled
+                    ? BUTTON_FILL_HOVER_COLOR
+                    : (cacheHovered ? BUTTON_FILL_HOVER_COLOR : BUTTON_FILL_COLOR);
+            int valueBorder = cacheEnabled ? UI_BORDER_COLOR : UI_BORDER_DARK;
+            ctx.fill(cacheValueBounds.x, cacheValueBounds.y, cacheValueBounds.right(), cacheValueBounds.bottom(), valueFill);
+            drawBorder(ctx, cacheValueBounds.x, cacheValueBounds.y, cacheValueBounds.width, cacheValueBounds.height, valueBorder);
+        }
+
+        String cacheLabel = cacheEnabled ? "On" : "Off";
+        ctx.drawText(
+                textRenderer,
+                cacheLabel,
+                cacheValueBounds.x + Math.max(0, (cacheValueBounds.width - textRenderer.getWidth(cacheLabel)) / 2),
+                cacheValueBounds.y + 4,
+                useMinecraftTheme() ? minecraftTextColor(cacheHovered || cacheEnabled, false) : UI_BUTTON_TEXT_COLOR,
+                false
+        );
+        ctx.drawText(textRenderer, "Uses verified cached packs.", cacheRowBounds.x, cacheRowBounds.y + 14, UI_SUBTEXT_COLOR, false);
+
         Rect themeRowBounds = themeRowBounds();
         Rect themeButtonBounds = themeDropdownButtonBounds();
         boolean themeHovered = themeButtonBounds.contains(mouseX, mouseY);
@@ -1020,6 +1056,18 @@ public class HudEditorScreen extends Screen {
 
     private Rect serverToggleButtonBounds() {
         Rect rowBounds = serverToggleRowBounds();
+        int valueX = rowBounds.right() - GENERAL_TOGGLE_W;
+        int valueY = rowBounds.y + (rowBounds.height - GENERAL_TOGGLE_H) / 2;
+        return new Rect(valueX, valueY, GENERAL_TOGGLE_W, GENERAL_TOGGLE_H);
+    }
+
+    private Rect serverPackCacheToggleRowBounds() {
+        Rect panel = generalPanelBounds();
+        return new Rect(panel.x + 18, panel.y + 130, panel.width - 36, GENERAL_ROW_H);
+    }
+
+    private Rect serverPackCacheToggleButtonBounds() {
+        Rect rowBounds = serverPackCacheToggleRowBounds();
         int valueX = rowBounds.right() - GENERAL_TOGGLE_W;
         int valueY = rowBounds.y + (rowBounds.height - GENERAL_TOGGLE_H) / 2;
         return new Rect(valueX, valueY, GENERAL_TOGGLE_W, GENERAL_TOGGLE_H);

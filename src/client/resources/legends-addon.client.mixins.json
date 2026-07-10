@@ -5,6 +5,8 @@
   "client": [
     "ChatHudMixin",
     "ClientPlayerInteractionManagerMixin",
+    "ClientCommonNetworkHandlerMixin",
+    "ClientConnectionMixin",
     "EntityRendererDisplayNameMixin",
     "EntityRendererMultilineLabelMixin",
     "EntityRenderStateAccessor",
@@ -18,7 +20,8 @@
     "ItemCooldownEntryAccessor",
     "ItemCooldownManagerAccessor",
     "LivingEntityStatusMixin",
-    "MinecraftClientInputMixin"
+    "MinecraftClientInputMixin",
+    "ServerResourcePackLoaderMixin"
   ],
   "injectors": {
     "defaultRequire": 1
