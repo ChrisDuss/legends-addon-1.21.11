@@ -34,6 +34,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -48,6 +49,10 @@ public class MobKillTracker extends HudWidget {
     private static final String RESET_ON_RESTART_KEY = "resetOnRestart";
     private static final String COUNT_COLOR_KEY = "countColor";
     private static final String RANGED_MAGIC_KEY = "rangedMagicAttribution";
+    private static final String BLACKLIST_KEY = "blacklist";
+    private static final String WHITELIST_KEY = "whitelist";
+    private static final String BLACKLIST_TOGGLE_KEY = "blacklistToggle";
+    private static final String WHITELIST_TOGGLE_KEY = "whitelistToggle";
     private static final Pattern HEART_HEALTH_PATTERN = Pattern.compile("(?i)[♥❤]\\s*\\d+(?:[.,]\\d+)?\\s*/\\s*\\d+(?:[.,]\\d+)?\\s*[♥❤]?");
     private static final Pattern HEALTH_WORD_PATTERN = Pattern.compile("(?i)\\b(?:hp|health)\\s*[:\\-]?\\s*\\d+(?:[.,]\\d+)?\\s*/\\s*\\d+(?:[.,]\\d+)?\\b");
     private static final Pattern HEALTH_SUFFIX_PATTERN = Pattern.compile("(?i)(?:\\s*[-|•]\\s*)?\\d+(?:[.,]\\d+)?\\s*/\\s*\\d+(?:[.,]\\d+)?\\s*(?:hp|health)?\\b");
@@ -319,6 +324,10 @@ public class MobKillTracker extends HudWidget {
         String safeName = snapshot.displayName == null || snapshot.displayName.isBlank()
                 ? entity.getType().getName().getString()
                 : snapshot.displayName;
+        if (!shouldTrackMob(snapshot, safeName)) {
+            return;
+        }
+
         long now = System.currentTimeMillis();
         purgeExpiredEntries(now);
 
@@ -597,6 +606,7 @@ public class MobKillTracker extends HudWidget {
     @Override
     public List<HudSetting> getSettings() {
         final String w = getName();
+        normalizeFilterMode();
 
         return List.of(
                 HudSetting.toggle("bgToggle", "Background",
@@ -668,6 +678,43 @@ public class MobKillTracker extends HudWidget {
                         () -> WidgetConfigManager.getBool(w, RESET_ON_RESTART_KEY, false),
                         b -> WidgetConfigManager.setBool(w, RESET_ON_RESTART_KEY, b, true),
                         false
+                ),
+                HudSetting.section("Filters"),
+                HudSetting.toggle(BLACKLIST_TOGGLE_KEY, "Enable blacklist",
+                        () -> !WidgetConfigManager.getBool(w, WHITELIST_TOGGLE_KEY, false),
+                        () -> WidgetConfigManager.getBool(w, BLACKLIST_TOGGLE_KEY, false),
+                        enabled -> setFilterMode(BLACKLIST_TOGGLE_KEY, WHITELIST_TOGGLE_KEY, enabled),
+                        false
+                ),
+                HudSetting.customList(
+                        BLACKLIST_KEY,
+                        "Blacklist",
+                        () -> WidgetConfigManager.getBool(w, BLACKLIST_TOGGLE_KEY, false),
+                        new CustomListSpec(
+                                List.of(CustomField.text("mob", "Mob", "Name or id", true, 80)),
+                                () -> getMobFilterEntries(BLACKLIST_KEY),
+                                entries -> setMobFilterEntries(BLACKLIST_KEY, entries),
+                                entry -> entry.get("mob"),
+                                entry -> ""
+                        )
+                ),
+                HudSetting.toggle(WHITELIST_TOGGLE_KEY, "Enable whitelist",
+                        () -> !WidgetConfigManager.getBool(w, BLACKLIST_TOGGLE_KEY, false),
+                        () -> WidgetConfigManager.getBool(w, WHITELIST_TOGGLE_KEY, false),
+                        enabled -> setFilterMode(WHITELIST_TOGGLE_KEY, BLACKLIST_TOGGLE_KEY, enabled),
+                        false
+                ),
+                HudSetting.customList(
+                        WHITELIST_KEY,
+                        "Whitelist",
+                        () -> WidgetConfigManager.getBool(w, WHITELIST_TOGGLE_KEY, false),
+                        new CustomListSpec(
+                                List.of(CustomField.text("mob", "Mob", "Name or id", true, 80)),
+                                () -> getMobFilterEntries(WHITELIST_KEY),
+                                entries -> setMobFilterEntries(WHITELIST_KEY, entries),
+                                entry -> entry.get("mob"),
+                                entry -> ""
+                        )
                 )
         );
     }
@@ -706,6 +753,76 @@ public class MobKillTracker extends HudWidget {
 
     private boolean isRangedMagicAttributionEnabled() {
         return WidgetConfigManager.getBool(getName(), RANGED_MAGIC_KEY, true);
+    }
+
+    private void setFilterMode(String enabledKey, String disabledKey, boolean enabled) {
+        WidgetConfigManager.setBool(getName(), enabledKey, enabled, false);
+        if (enabled) {
+            WidgetConfigManager.setBool(getName(), disabledKey, false, false);
+        }
+        WidgetConfigManager.save();
+    }
+
+    private void normalizeFilterMode() {
+        boolean blacklistEnabled = WidgetConfigManager.getBool(getName(), BLACKLIST_TOGGLE_KEY, false);
+        boolean whitelistEnabled = WidgetConfigManager.getBool(getName(), WHITELIST_TOGGLE_KEY, false);
+        if (blacklistEnabled && whitelistEnabled) {
+            WidgetConfigManager.setBool(getName(), WHITELIST_TOGGLE_KEY, false, true);
+        }
+    }
+
+    private boolean shouldTrackMob(MobSnapshot snapshot, String safeName) {
+        boolean whitelistEnabled = WidgetConfigManager.getBool(getName(), WHITELIST_TOGGLE_KEY, false);
+        boolean blacklistEnabled = WidgetConfigManager.getBool(getName(), BLACKLIST_TOGGLE_KEY, false);
+
+        if (whitelistEnabled) {
+            return matchesAnyMobFilter(snapshot, safeName, WHITELIST_KEY);
+        }
+        if (blacklistEnabled) {
+            return !matchesAnyMobFilter(snapshot, safeName, BLACKLIST_KEY);
+        }
+        return true;
+    }
+
+    private boolean matchesAnyMobFilter(MobSnapshot snapshot, String safeName, String key) {
+        Set<String> names = mobFilterNames(snapshot, safeName);
+        for (MobFilter filter : WidgetConfigManager.getObjectList(getName(), key, MobFilter.class)) {
+            if (filter == null || filter.mob == null || filter.mob.isBlank()) {
+                continue;
+            }
+
+            if (names.contains(normalizeFilterName(filter.mob))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private List<CustomEntry> getMobFilterEntries(String key) {
+        List<CustomEntry> entries = new ArrayList<>();
+        for (MobFilter filter : WidgetConfigManager.getObjectList(getName(), key, MobFilter.class)) {
+            if (filter == null || filter.mob == null || filter.mob.isBlank()) {
+                continue;
+            }
+
+            Map<String, String> values = new LinkedHashMap<>();
+            values.put("mob", filter.mob);
+            entries.add(new CustomEntry(values));
+        }
+        return List.copyOf(entries);
+    }
+
+    private void setMobFilterEntries(String key, List<CustomEntry> entries) {
+        List<MobFilter> filters = new ArrayList<>();
+        Set<String> seen = new HashSet<>();
+        for (CustomEntry entry : entries) {
+            String mob = entry.get("mob").trim();
+            String normalized = normalizeFilterName(mob);
+            if (!mob.isBlank() && seen.add(normalized)) {
+                filters.add(new MobFilter(mob));
+            }
+        }
+        WidgetConfigManager.setObjectList(getName(), key, filters, true);
     }
 
     private MobEntity findAimedMob(MinecraftClient client) {
@@ -960,6 +1077,29 @@ public class MobKillTracker extends HudWidget {
         return value == null ? "" : value.trim().toLowerCase(Locale.ROOT).replaceAll("\\s+", " ");
     }
 
+    private static Set<String> mobFilterNames(MobSnapshot snapshot, String safeName) {
+        Set<String> names = new HashSet<>();
+        String typeId = snapshot == null ? "" : snapshot.typeId;
+        if (typeId != null && !typeId.isBlank()) {
+            names.add(normalizeFilterName(typeId));
+            int colon = typeId.indexOf(':');
+            if (colon >= 0 && colon + 1 < typeId.length()) {
+                names.add(normalizeFilterName(typeId.substring(colon + 1)));
+            }
+        }
+
+        names.add(normalizeFilterName(safeName));
+        if (snapshot != null) {
+            names.add(normalizeFilterName(snapshot.displayName));
+            names.add(normalizeMobNameKey(snapshot.displayName));
+        }
+        return names;
+    }
+
+    private static String normalizeFilterName(String value) {
+        return value == null ? "" : value.trim().toLowerCase(Locale.ROOT).replaceAll("\\s+", " ");
+    }
+
     private static String normalizeMobNameKey(String value) {
         String normalized = value == null ? "" : value;
         normalized = HEART_HEALTH_PATTERN.matcher(normalized).replaceAll(" ");
@@ -1026,6 +1166,17 @@ public class MobKillTracker extends HudWidget {
             this.equipment = sanitizeEquipment(equipment);
             this.count = count;
             this.lastUpdatedEpochMs = lastUpdatedEpochMs;
+        }
+    }
+
+    private static final class MobFilter {
+        public String mob;
+
+        public MobFilter() {
+        }
+
+        private MobFilter(String mob) {
+            this.mob = mob;
         }
     }
 }

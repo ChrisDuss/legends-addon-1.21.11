@@ -6,13 +6,21 @@ import legends.ultra.cool.addons.hud.HudWidget;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.screen.ingame.HandledScreen;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
+import net.minecraft.registry.Registries;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 
 public class ItemPickupTracker extends HudWidget {
     private static final String SHOW_REMOVED_KEY = "showRemoved";
@@ -20,12 +28,18 @@ public class ItemPickupTracker extends HudWidget {
     private static final String MAX_ROWS_KEY = "maxRows";
     private static final String GAIN_COLOR_KEY = "gainColor";
     private static final String REMOVE_COLOR_KEY = "removeColor";
+    private static final String TRACK_CONTAINERS_KEY = "trackContainers";
+    private static final String BLACKLIST_KEY = "blacklist";
+    private static final String WHITELIST_KEY = "whitelist";
+    private static final String BLACKLIST_TOGGLE_KEY = "blacklistToggle";
+    private static final String WHITELIST_TOGGLE_KEY = "whitelistToggle";
 
     private static final int ITEM_SIZE = 16;
     private static final int ROW_GAP = 2;
     private static final int TEXT_GAP = 5;
     private static final int PAD = 3;
     private static final int TEXT_Y_OFFSET = 1;
+    private static final int LOGIN_BASELINE_TICKS = 40;
 
     private static ItemPickupTracker instance;
 
@@ -33,28 +47,45 @@ public class ItemPickupTracker extends HudWidget {
     private final List<PickupNotification> notifications = new ArrayList<>();
 
     private boolean hasBaseline = false;
+    private int baselineOnlyTicks = LOGIN_BASELINE_TICKS;
+    private UUID baselinePlayerUuid = null;
 
     public ItemPickupTracker(int x, int y) {
         super("Pickup Tracker", x, y);
         instance = this;
     }
 
-    public void tick(PlayerInventory inventory) {
+    public void tick(MinecraftClient client) {
         tickNotifications();
+        if (client == null || client.player == null) {
+            resetState();
+            return;
+        }
+        if (!client.player.getUuid().equals(baselinePlayerUuid)) {
+            resetState();
+            baselinePlayerUuid = client.player.getUuid();
+        }
 
-        List<InventoryCount> now = countItems(inventory);
+        boolean containerOpen = client.currentScreen instanceof HandledScreen<?>;
+        boolean trackContainers = WidgetConfigManager.getBool(getName(), TRACK_CONTAINERS_KEY, false);
+        boolean baselineOnly = !hasBaseline || baselineOnlyTicks > 0 || (containerOpen && !trackContainers);
+
+        List<InventoryCount> now = countItems(client.player.getInventory());
         ItemStack cursorStack = getCursorStack();
-        if (!cursorStack.isEmpty()) {
+        if (!cursorStack.isEmpty() && (!containerOpen || trackContainers)) {
             addToCounts(now, cursorStack);
         }
 
-        if (hasBaseline) {
+        if (!baselineOnly) {
             diff(lastCounts, now);
         }
 
         lastCounts.clear();
         lastCounts.addAll(now);
         hasBaseline = true;
+        if (baselineOnlyTicks > 0) {
+            baselineOnlyTicks--;
+        }
     }
 
     private static List<InventoryCount> countItems(PlayerInventory inventory) {
@@ -137,6 +168,9 @@ public class ItemPickupTracker extends HudWidget {
 
     private void enqueue(ItemStack stack, int delta) {
         if (delta == 0 || stack.isEmpty()) {
+            return;
+        }
+        if (!shouldTrackStack(stack)) {
             return;
         }
         if (delta < 0 && !WidgetConfigManager.getBool(getName(), SHOW_REMOVED_KEY, true)) {
@@ -230,6 +264,8 @@ public class ItemPickupTracker extends HudWidget {
         lastCounts.clear();
         notifications.clear();
         hasBaseline = false;
+        baselineOnlyTicks = LOGIN_BASELINE_TICKS;
+        baselinePlayerUuid = null;
     }
 
     @Override
@@ -330,6 +366,7 @@ public class ItemPickupTracker extends HudWidget {
     @Override
     public List<HudSetting> getSettings() {
         final String w = getName();
+        normalizeFilterMode();
 
         return List.of(
                 HudSetting.toggle("bgToggle", "Background",
@@ -374,6 +411,12 @@ public class ItemPickupTracker extends HudWidget {
                         b -> WidgetConfigManager.setBool(w, SHOW_REMOVED_KEY, b, true),
                         true
                 ),
+                HudSetting.toggle(TRACK_CONTAINERS_KEY, "Track Containers",
+                        () -> true,
+                        () -> WidgetConfigManager.getBool(w, TRACK_CONTAINERS_KEY, false),
+                        b -> WidgetConfigManager.setBool(w, TRACK_CONTAINERS_KEY, b, true),
+                        false
+                ),
                 HudSetting.dropdown(PickupMode.SETTING_KEY, "Pickup Mode",
                         () -> true,
                         () -> WidgetConfigManager.getString(w, PickupMode.SETTING_KEY, PickupMode.DEFAULT_ID),
@@ -397,6 +440,43 @@ public class ItemPickupTracker extends HudWidget {
                         () -> WidgetConfigManager.getFloat(w, MAX_ROWS_KEY, 4f),
                         value -> WidgetConfigManager.setFloat(w, MAX_ROWS_KEY, (float) value, true),
                         4f
+                ),
+                HudSetting.section("Filters"),
+                HudSetting.toggle(BLACKLIST_TOGGLE_KEY, "Enable blacklist",
+                        () -> !WidgetConfigManager.getBool(w, WHITELIST_TOGGLE_KEY, false),
+                        () -> WidgetConfigManager.getBool(w, BLACKLIST_TOGGLE_KEY, false),
+                        enabled -> setFilterMode(BLACKLIST_TOGGLE_KEY, WHITELIST_TOGGLE_KEY, enabled),
+                        false
+                ),
+                HudSetting.customList(
+                        BLACKLIST_KEY,
+                        "Blacklist",
+                        () -> WidgetConfigManager.getBool(w, BLACKLIST_TOGGLE_KEY, false),
+                        new CustomListSpec(
+                                List.of(CustomField.text("item", "Item", "Name or id", true, 80)),
+                                () -> getItemFilterEntries(BLACKLIST_KEY),
+                                entries -> setItemFilterEntries(BLACKLIST_KEY, entries),
+                                entry -> entry.get("item"),
+                                entry -> ""
+                        )
+                ),
+                HudSetting.toggle(WHITELIST_TOGGLE_KEY, "Enable whitelist",
+                        () -> !WidgetConfigManager.getBool(w, BLACKLIST_TOGGLE_KEY, false),
+                        () -> WidgetConfigManager.getBool(w, WHITELIST_TOGGLE_KEY, false),
+                        enabled -> setFilterMode(WHITELIST_TOGGLE_KEY, BLACKLIST_TOGGLE_KEY, enabled),
+                        false
+                ),
+                HudSetting.customList(
+                        WHITELIST_KEY,
+                        "Whitelist",
+                        () -> WidgetConfigManager.getBool(w, WHITELIST_TOGGLE_KEY, false),
+                        new CustomListSpec(
+                                List.of(CustomField.text("item", "Item", "Name or id", true, 80)),
+                                () -> getItemFilterEntries(WHITELIST_KEY),
+                                entries -> setItemFilterEntries(WHITELIST_KEY, entries),
+                                entry -> entry.get("item"),
+                                entry -> ""
+                        )
                 )
         );
     }
@@ -476,6 +556,93 @@ public class ItemPickupTracker extends HudWidget {
         return Math.max(1, Math.min(8, Math.round(maxRows)));
     }
 
+    private void setFilterMode(String enabledKey, String disabledKey, boolean enabled) {
+        WidgetConfigManager.setBool(getName(), enabledKey, enabled, false);
+        if (enabled) {
+            WidgetConfigManager.setBool(getName(), disabledKey, false, false);
+        }
+        WidgetConfigManager.save();
+    }
+
+    private void normalizeFilterMode() {
+        boolean blacklistEnabled = WidgetConfigManager.getBool(getName(), BLACKLIST_TOGGLE_KEY, false);
+        boolean whitelistEnabled = WidgetConfigManager.getBool(getName(), WHITELIST_TOGGLE_KEY, false);
+        if (blacklistEnabled && whitelistEnabled) {
+            WidgetConfigManager.setBool(getName(), WHITELIST_TOGGLE_KEY, false, true);
+        }
+    }
+
+    private boolean shouldTrackStack(ItemStack stack) {
+        boolean whitelistEnabled = WidgetConfigManager.getBool(getName(), WHITELIST_TOGGLE_KEY, false);
+        boolean blacklistEnabled = WidgetConfigManager.getBool(getName(), BLACKLIST_TOGGLE_KEY, false);
+
+        if (whitelistEnabled) {
+            return matchesAnyFilter(stack, WHITELIST_KEY);
+        }
+        if (blacklistEnabled) {
+            return !matchesAnyFilter(stack, BLACKLIST_KEY);
+        }
+        return true;
+    }
+
+    private boolean matchesAnyFilter(ItemStack stack, String key) {
+        Set<String> names = stackFilterNames(stack);
+        for (ItemFilter filter : WidgetConfigManager.getObjectList(getName(), key, ItemFilter.class)) {
+            if (filter == null || filter.item == null || filter.item.isBlank()) {
+                continue;
+            }
+
+            String normalized = normalizeFilterName(filter.item);
+            if (names.contains(normalized)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private List<CustomEntry> getItemFilterEntries(String key) {
+        List<CustomEntry> entries = new ArrayList<>();
+        for (ItemFilter filter : WidgetConfigManager.getObjectList(getName(), key, ItemFilter.class)) {
+            if (filter == null || filter.item == null || filter.item.isBlank()) {
+                continue;
+            }
+
+            Map<String, String> values = new LinkedHashMap<>();
+            values.put("item", filter.item);
+            entries.add(new CustomEntry(values));
+        }
+        return List.copyOf(entries);
+    }
+
+    private void setItemFilterEntries(String key, List<CustomEntry> entries) {
+        List<ItemFilter> filters = new ArrayList<>();
+        Set<String> seen = new HashSet<>();
+        for (CustomEntry entry : entries) {
+            String item = entry.get("item").trim();
+            String normalized = normalizeFilterName(item);
+            if (!item.isBlank() && seen.add(normalized)) {
+                filters.add(new ItemFilter(item));
+            }
+        }
+        WidgetConfigManager.setObjectList(getName(), key, filters, true);
+    }
+
+    private static Set<String> stackFilterNames(ItemStack stack) {
+        Set<String> names = new HashSet<>();
+        String id = Registries.ITEM.getId(stack.getItem()).toString();
+        names.add(normalizeFilterName(id));
+        int colon = id.indexOf(':');
+        if (colon >= 0 && colon + 1 < id.length()) {
+            names.add(normalizeFilterName(id.substring(colon + 1)));
+        }
+        names.add(normalizeFilterName(stack.getName().getString()));
+        return names;
+    }
+
+    private static String normalizeFilterName(String value) {
+        return value == null ? "" : value.trim().toLowerCase(Locale.ROOT).replaceAll("\\s+", " ");
+    }
+
     private static final class InventoryCount {
         private final ItemStack stack;
         private int count;
@@ -500,6 +667,17 @@ public class ItemPickupTracker extends HudWidget {
             this.stack = stack;
             this.delta = delta;
             this.remainingTicks = remainingTicks;
+        }
+    }
+
+    private static final class ItemFilter {
+        public String item;
+
+        public ItemFilter() {
+        }
+
+        private ItemFilter(String item) {
+            this.item = item;
         }
     }
 }

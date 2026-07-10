@@ -47,7 +47,7 @@ public class ClientTickHandler {
                             return;
                         }
 
-                        tracker.tick(client.player.getInventory());
+                        tracker.tick(client);
                     }
 
                     if (widget instanceof MobKillTracker tracker) {
