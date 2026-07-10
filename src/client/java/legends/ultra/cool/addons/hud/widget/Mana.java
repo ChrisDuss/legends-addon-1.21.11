@@ -82,9 +82,7 @@ public class Mana extends HudWidget implements BarDraggable {
         String text = getMana();
         int width = client.textRenderer.getWidth(text) + 1;
         int height = client.textRenderer.fontHeight;
-        if (cachedTextWidth > 0 && cachedTextWidth != width) {
-            x = textAlignment.alignedX(x, cachedTextWidth, width);
-        }
+        double textX = textAlignment.leftX(x, width);
 
         cachedTextWidth = width;
         cachedTextHeight = height;
@@ -95,9 +93,9 @@ public class Mana extends HudWidget implements BarDraggable {
             manaBar.render(context);
         }
 
-        if (bgToggle)   context.fill((int) (x - 3), (int) (y - 3), (int) (x + width + 2), (int) (y + height + 2), bgColor);
-        if (brdToggle)  drawBorder(context, (int) (x - 3), (int) (y - 3), width + 5, height + 5, brdColor);
-        if (textToggle) context.drawText(client.textRenderer, text, (int) x + 1, (int) y + 1, textColor, !bgToggle);
+        if (bgToggle)   context.fill((int) (textX - 3), (int) (y - 3), (int) (textX + width + 2), (int) (y + height + 2), bgColor);
+        if (brdToggle)  drawBorder(context, (int) (textX - 3), (int) (y - 3), width + 5, height + 5, brdColor);
+        if (textToggle) context.drawText(client.textRenderer, text, (int) textX + 1, (int) y + 1, textColor, !bgToggle);
 
         syncBarPosition();
     }
@@ -294,7 +292,8 @@ public class Mana extends HudWidget implements BarDraggable {
 
     @Override
     public double getVisualX() {
-        return usesDecoratedBounds() ? x - 3 : x;
+        double textX = currentTextAlignment().leftX(x, getWidth());
+        return usesDecoratedBounds() ? textX - 3 : textX;
     }
 
     @Override
@@ -315,6 +314,12 @@ public class Mana extends HudWidget implements BarDraggable {
     private boolean usesDecoratedBounds() {
         return WidgetConfigManager.getBool(getName(), "bgToggle", true)
                 || WidgetConfigManager.getBool(getName(), "brdToggle", true);
+    }
+
+    private TextAlignment currentTextAlignment() {
+        return TextAlignment.fromId(
+                WidgetConfigManager.getString(getName(), TextAlignment.SETTING_KEY, TextAlignment.DEFAULT_ID)
+        );
     }
 
     @Override

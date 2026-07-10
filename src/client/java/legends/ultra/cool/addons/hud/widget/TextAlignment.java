@@ -43,11 +43,11 @@ enum TextAlignment {
         return OPTIONS;
     }
 
-    double alignedX(double x, double oldWidth, double newWidth) {
+    double leftX(double anchorX, double width) {
         return switch (this) {
-            case LEFT -> x;
-            case CENTER -> x + oldWidth / 2d - newWidth / 2d;
-            case RIGHT -> x + oldWidth - newWidth;
+            case LEFT -> anchorX;
+            case CENTER -> anchorX - width / 2d;
+            case RIGHT -> anchorX - width;
         };
     }
 }

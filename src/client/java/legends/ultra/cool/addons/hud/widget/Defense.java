@@ -72,22 +72,20 @@ public class Defense extends HudWidget {
         String text = getDefense();
         int width = client.textRenderer.getWidth(text) + 1;
         int height = client.textRenderer.fontHeight;
-        if (cachedTextWidth > 0 && cachedTextWidth != width) {
-            x = textAlignment.alignedX(x, cachedTextWidth, width);
-        }
+        double textX = textAlignment.leftX(x, width);
 
         cachedTextWidth = width;
         cachedTextHeight = height;
 
         if (bgToggle) {
-            context.fill((int) (x - 3), (int) (y - 3), (int) (x + width + 2), (int) (y + height + 2), bgColor);
+            context.fill((int) (textX - 3), (int) (y - 3), (int) (textX + width + 2), (int) (y + height + 2), bgColor);
         }
 
         if (brdToggle) {
-            drawBorder(context, (int) (x - 3), (int) (y - 3), width + 5, height + 5, brdColor);
+            drawBorder(context, (int) (textX - 3), (int) (y - 3), width + 5, height + 5, brdColor);
         }
 
-        context.drawText(client.textRenderer, text, (int) x + 1, (int) y + 1, textColor, !bgToggle);
+        context.drawText(client.textRenderer, text, (int) textX + 1, (int) y + 1, textColor, !bgToggle);
     }
 
     private String getDefense() {
@@ -204,7 +202,8 @@ public class Defense extends HudWidget {
 
     @Override
     public double getVisualX() {
-        return usesDecoratedBounds() ? x - 3 : x;
+        double textX = currentTextAlignment().leftX(x, getWidth());
+        return usesDecoratedBounds() ? textX - 3 : textX;
     }
 
     @Override
@@ -225,6 +224,12 @@ public class Defense extends HudWidget {
     private boolean usesDecoratedBounds() {
         return WidgetConfigManager.getBool(getName(), "bgToggle", true)
                 || WidgetConfigManager.getBool(getName(), "brdToggle", true);
+    }
+
+    private TextAlignment currentTextAlignment() {
+        return TextAlignment.fromId(
+                WidgetConfigManager.getString(getName(), TextAlignment.SETTING_KEY, TextAlignment.DEFAULT_ID)
+        );
     }
 
     @Override

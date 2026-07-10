@@ -1411,6 +1411,10 @@ public final class VaultStorageManager {
         fallback.copy(DataComponentTypes.LORE, source);
         fallback.copy(DataComponentTypes.ITEM_MODEL, source);
         fallback.copy(DataComponentTypes.CUSTOM_MODEL_DATA, source);
+        fallback.copy(DataComponentTypes.DYED_COLOR, source);
+        fallback.copy(DataComponentTypes.TRIM, source);
+        fallback.copy(DataComponentTypes.EQUIPPABLE, source);
+        fallback.copy(DataComponentTypes.PROFILE, source);
         fallback.copy(DataComponentTypes.MAX_DAMAGE, source);
         fallback.copy(DataComponentTypes.DAMAGE, source);
         if (source.hasGlint()) {
