@@ -4,6 +4,7 @@ import legends.ultra.cool.addons.hud.HudManager;
 import legends.ultra.cool.addons.hud.widget.CooldownDisplay;
 import legends.ultra.cool.addons.hud.widget.CounterWidget;
 import legends.ultra.cool.addons.hud.widget.ItemPickupTracker;
+import legends.ultra.cool.addons.hud.widget.MobKillTracker;
 import legends.ultra.cool.addons.hud.widget.TimerWidget;
 import legends.ultra.cool.addons.overlay.ContainerOverlay;
 import legends.ultra.cool.addons.storage.VaultStorageManager;
@@ -47,6 +48,15 @@ public class ClientTickHandler {
                         }
 
                         tracker.tick(client.player.getInventory());
+                    }
+
+                    if (widget instanceof MobKillTracker tracker) {
+                        if (!tracker.isEnabled() || client.player == null || client.world == null) {
+                            MobKillTracker.clearTransientTracking();
+                            return;
+                        }
+
+                        tracker.tick(client);
                     }
                 });
             }

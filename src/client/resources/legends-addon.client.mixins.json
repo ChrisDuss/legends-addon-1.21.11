@@ -4,6 +4,7 @@
   "compatibilityLevel": "JAVA_21",
   "client": [
     "ChatHudMixin",
+    "ClientPlayerInteractionManagerMixin",
     "EntityRendererDisplayNameMixin",
     "EntityRendererMultilineLabelMixin",
     "EntityRenderStateAccessor",
@@ -15,7 +16,9 @@
     "HudManip",
     "InGameHudAccessor",
     "ItemCooldownEntryAccessor",
-    "ItemCooldownManagerAccessor"
+    "ItemCooldownManagerAccessor",
+    "LivingEntityStatusMixin",
+    "MinecraftClientInputMixin"
   ],
   "injectors": {
     "defaultRequire": 1

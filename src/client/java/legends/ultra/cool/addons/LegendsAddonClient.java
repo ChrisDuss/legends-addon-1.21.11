@@ -47,6 +47,7 @@ public class LegendsAddonClient implements ClientModInitializer {
         CooldownDisplay cooldownDisplay = new CooldownDisplay(10, 90);
         VaultBrowserWidget vaultBrowserWidget = new VaultBrowserWidget();
         ItemPickupTracker itemPickupTracker = new ItemPickupTracker(10, 100);
+        MobKillTracker mobKillTracker = new MobKillTracker(10, 120);
 
 //        addWidget(textWidget);
 //        addWidget(counterWidget);
@@ -59,6 +60,7 @@ public class LegendsAddonClient implements ClientModInitializer {
         addWidget(cooldownDisplay);
         addWidget(vaultBrowserWidget);
         addWidget(itemPickupTracker);
+        addWidget(mobKillTracker);
     }
 
     public void addWidget(HudWidget w) {
