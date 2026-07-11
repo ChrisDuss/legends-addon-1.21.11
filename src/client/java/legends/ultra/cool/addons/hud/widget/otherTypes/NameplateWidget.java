@@ -76,28 +76,7 @@ public class NameplateWidget extends HudWidget {
         final String w = this.getName(); // or a constant like "Nameplates"
 
         return List.of(
-                HudSetting.section("Content"),
-                HudSetting.toggle(
-                        SHOW_NAME_KEY, "Show name",
-                        () -> true,
-                        NameplateWidget::shouldShowNameText,
-                        NameplateWidget::setShowNameText,
-                        DEFAULT_SHOW_NAME
-                ),
-                HudSetting.toggle(
-                        SHOW_BAR_KEY, "Show health bar",
-                        () -> true,
-                        NameplateWidget::shouldShowHealthBar,
-                        NameplateWidget::setShowHealthBar,
-                        DEFAULT_SHOW_BAR
-                ),
-                HudSetting.toggle(
-                        SHOW_STATS_KEY, "Show stats",
-                        () -> true,
-                        NameplateWidget::shouldShowStatsText,
-                        NameplateWidget::setShowStatsText,
-                        DEFAULT_SHOW_STATS
-                ),
+                HudSetting.section("Style"),
                 HudSetting.slider(
                         "yOffset", "Height",
                         0f, 2f, 0.05f,
@@ -128,6 +107,28 @@ public class NameplateWidget extends HudWidget {
                         () -> WidgetConfigManager.getInt(w, "bgColor", 0xFFFF0016),
                         c -> WidgetConfigManager.setInt(w, "bgColor", c, true),
                         0xFFFF0016
+                ),
+                HudSetting.section("Content"),
+                HudSetting.toggle(
+                        SHOW_NAME_KEY, "Show name",
+                        () -> true,
+                        NameplateWidget::shouldShowNameText,
+                        NameplateWidget::setShowNameText,
+                        DEFAULT_SHOW_NAME
+                ),
+                HudSetting.toggle(
+                        SHOW_BAR_KEY, "Show health bar",
+                        () -> true,
+                        NameplateWidget::shouldShowHealthBar,
+                        NameplateWidget::setShowHealthBar,
+                        DEFAULT_SHOW_BAR
+                ),
+                HudSetting.toggle(
+                        SHOW_STATS_KEY, "Show stats",
+                        () -> true,
+                        NameplateWidget::shouldShowStatsText,
+                        NameplateWidget::setShowStatsText,
+                        DEFAULT_SHOW_STATS
                 )
         );
     }

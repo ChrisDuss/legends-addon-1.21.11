@@ -104,13 +104,19 @@ public class CooldownDisplay extends HudWidget {
         boolean brdToggle = WidgetConfigManager.getBool(w, "brdToggle", true);
         int brdColor = WidgetConfigManager.getInt(w, "brdColor", 0xFFFFFFFF);
         int textColor = WidgetConfigManager.getInt(w, "textColor", 0xFFFFFFFF);
+        TextAlignment textAlignment = TextAlignment.fromId(
+                WidgetConfigManager.getString(w, TextAlignment.SETTING_KEY, TextAlignment.LEFT_DEFAULT_ID)
+        );
+        WidgetGrowthDirection growthDirection = WidgetGrowthDirection.fromId(
+                WidgetConfigManager.getString(w, WidgetGrowthDirection.SETTING_KEY, WidgetGrowthDirection.DEFAULT_ID)
+        );
 
         int width = rows.isEmpty() ? getPlaceholderWidth(textRenderer) : getRowsWidth(textRenderer, rows);
         width += 1;
         int height = rows.isEmpty() ? ITEM_SIZE : getRowsHeight(rows);
         height -= 1;
-        int left = (int) x;
-        int top = getRenderTop(height);
+        int left = (int) textAlignment.leftX(x, width);
+        int top = getRenderTop(height, growthDirection);
 
         if (bgToggle) {
             context.fill(left - PAD, top - PAD, left + width + PAD, top + height + PAD, bgColor);
@@ -166,22 +172,24 @@ public class CooldownDisplay extends HudWidget {
 
     @Override
     public double getVisualX() {
-        return usesDecoratedBounds() ? x - PAD : x + 1;
+        double left = currentTextAlignment().leftX(x, getRenderWidth());
+        return usesDecoratedBounds() ? left - PAD : left;
     }
 
     @Override
     public double getVisualY() {
-        return usesDecoratedBounds() ? getRenderTop((int) Math.ceil(getHeight())) - PAD: getRenderTop((int) Math.ceil(getHeight())) - 1;
+        double top = getRenderTop(getRenderHeight(), currentGrowthDirection());
+        return usesDecoratedBounds() ? top - PAD : top;
     }
 
     @Override
     public double getVisualWidth() {
-        return getWidth() + (usesDecoratedBounds() ? PAD * 2d + 1: 0d);
+        return getRenderWidth() + (usesDecoratedBounds() ? PAD * 2d : 0d);
     }
 
     @Override
     public double getVisualHeight() {
-        return getHeight() + (usesDecoratedBounds() ? PAD * 2d - 1: 1d);
+        return getRenderHeight() + (usesDecoratedBounds() ? PAD * 2d : 0d);
     }
 
     @Override
@@ -195,6 +203,7 @@ public class CooldownDisplay extends HudWidget {
         normalizeFilterMode();
 
         return List.of(
+                HudSetting.section("Style"),
                 HudSetting.toggle("bgToggle", "Background",
                         () -> true,
                         () -> WidgetConfigManager.getBool(w, "bgToggle", true),
@@ -227,7 +236,59 @@ public class CooldownDisplay extends HudWidget {
                         c -> WidgetConfigManager.setInt(w, "textColor", c, true),
                         0xFFFFFFFF
                 ),
-
+                HudSetting.section("Alignment"),
+                HudSetting.dropdown(TextAlignment.SETTING_KEY, "Text Align",
+                        () -> true,
+                        () -> WidgetConfigManager.getString(w, TextAlignment.SETTING_KEY, TextAlignment.LEFT_DEFAULT_ID),
+                        value -> TextAlignment.setForWidgetPreservingLeft(this, value, TextAlignment.LEFT_DEFAULT_ID, getRenderWidth()),
+                        TextAlignment.LEFT_DEFAULT_ID,
+                        TextAlignment.options()
+                ),
+                HudSetting.dropdown(WidgetGrowthDirection.SETTING_KEY, "Grow Direction",
+                        () -> true,
+                        () -> WidgetConfigManager.getString(w, WidgetGrowthDirection.SETTING_KEY, WidgetGrowthDirection.DEFAULT_ID),
+                        value -> WidgetConfigManager.setString(w, WidgetGrowthDirection.SETTING_KEY, value, true),
+                        WidgetGrowthDirection.DEFAULT_ID,
+                        WidgetGrowthDirection.options()
+                ),
+                HudSetting.section("Alerts filter"),
+                HudSetting.toggle(BLACKLIST_TOGGLE_KEY, "Enable blacklist",
+                        () -> !WidgetConfigManager.getBool(w, WHITELIST_TOGGLE_KEY, false),
+                        () -> WidgetConfigManager.getBool(w, BLACKLIST_TOGGLE_KEY, false),
+                        enabled -> setFilterMode(BLACKLIST_TOGGLE_KEY, WHITELIST_TOGGLE_KEY, enabled),
+                        false
+                ),
+                HudSetting.customList(
+                        BLACKLIST_KEY,
+                        "Blacklist",
+                        () -> WidgetConfigManager.getBool(w, BLACKLIST_TOGGLE_KEY, false),
+                        new CustomListSpec(
+                                List.of(CustomField.text("item", "Item name", "Item name", true, 80)),
+                                () -> getItemFilterEntries(BLACKLIST_KEY),
+                                entries -> setItemFilterEntries(BLACKLIST_KEY, entries),
+                                entry -> entry.get("item"),
+                                entry -> ""
+                        )
+                ),
+                HudSetting.toggle(WHITELIST_TOGGLE_KEY, "Enable whitelist",
+                        () -> !WidgetConfigManager.getBool(w, BLACKLIST_TOGGLE_KEY, false),
+                        () -> WidgetConfigManager.getBool(w, WHITELIST_TOGGLE_KEY, false),
+                        enabled -> setFilterMode(WHITELIST_TOGGLE_KEY, BLACKLIST_TOGGLE_KEY, enabled),
+                        false
+                ),
+                HudSetting.customList(
+                        WHITELIST_KEY,
+                        "Whitelist",
+                        () -> WidgetConfigManager.getBool(w, WHITELIST_TOGGLE_KEY, false),
+                        new CustomListSpec(
+                                List.of(CustomField.text("item", "Item name", "Item name", true, 80)),
+                                () -> getItemFilterEntries(WHITELIST_KEY),
+                                entries -> setItemFilterEntries(WHITELIST_KEY, entries),
+                                entry -> entry.get("item"),
+                                entry -> ""
+                        )
+                ),
+                HudSetting.section("Other"),
                 HudSetting.customList(
                         CUSTOM_COOLDOWNS_KEY,
                         "Custom Cooldowns",
@@ -248,53 +309,11 @@ public class CooldownDisplay extends HudWidget {
                                 }
                         )
                 ),
-                HudSetting.section("Ready alerts"),
-
                 HudSetting.toggle("titleToggle", "Ready Title",
                         () -> true,
                         () -> WidgetConfigManager.getBool(w, "titleToggle", false),
                         b -> WidgetConfigManager.setBool(w, "titleToggle", b, true),
                         false
-                ),
-
-                HudSetting.toggle(BLACKLIST_TOGGLE_KEY, "Enable blacklist",
-                        () -> !WidgetConfigManager.getBool(w, WHITELIST_TOGGLE_KEY, false),
-                        () -> WidgetConfigManager.getBool(w, BLACKLIST_TOGGLE_KEY, false),
-                        enabled -> setFilterMode(BLACKLIST_TOGGLE_KEY, WHITELIST_TOGGLE_KEY, enabled),
-                        false
-                ),
-
-                HudSetting.customList(
-                        BLACKLIST_KEY,
-                        "Blacklist",
-                        () -> WidgetConfigManager.getBool(w, BLACKLIST_TOGGLE_KEY, false),
-                        new CustomListSpec(
-                                List.of(CustomField.text("item", "Item name", "Item name", true, 80)),
-                                () -> getItemFilterEntries(BLACKLIST_KEY),
-                                entries -> setItemFilterEntries(BLACKLIST_KEY, entries),
-                                entry -> entry.get("item"),
-                                entry -> ""
-                        )
-                ),
-
-                HudSetting.toggle(WHITELIST_TOGGLE_KEY, "Enable whitelist",
-                        () -> !WidgetConfigManager.getBool(w, BLACKLIST_TOGGLE_KEY, false),
-                        () -> WidgetConfigManager.getBool(w, WHITELIST_TOGGLE_KEY, false),
-                        enabled -> setFilterMode(WHITELIST_TOGGLE_KEY, BLACKLIST_TOGGLE_KEY, enabled),
-                        false
-                ),
-
-                HudSetting.customList(
-                        WHITELIST_KEY,
-                        "Whitelist",
-                        () -> WidgetConfigManager.getBool(w, WHITELIST_TOGGLE_KEY, false),
-                        new CustomListSpec(
-                                List.of(CustomField.text("item", "Item name", "Item name", true, 80)),
-                                () -> getItemFilterEntries(WHITELIST_KEY),
-                                entries -> setItemFilterEntries(WHITELIST_KEY, entries),
-                                entry -> entry.get("item"),
-                                entry -> ""
-                        )
                 )
         );
     }
@@ -413,8 +432,28 @@ public class CooldownDisplay extends HudWidget {
                 || WidgetConfigManager.getBool(getName(), "brdToggle", true);
     }
 
-    private int getRenderTop(int height) {
-        return (int) y - Math.max(0, height - ITEM_SIZE);
+    private int getRenderTop(int height, WidgetGrowthDirection growthDirection) {
+        return growthDirection.topY(y, height, ITEM_SIZE);
+    }
+
+    private int getRenderWidth() {
+        return (int) Math.ceil(getWidth()) + 1;
+    }
+
+    private int getRenderHeight() {
+        return Math.max(1, (int) Math.ceil(getHeight()) - 1);
+    }
+
+    private TextAlignment currentTextAlignment() {
+        return TextAlignment.fromId(
+                WidgetConfigManager.getString(getName(), TextAlignment.SETTING_KEY, TextAlignment.LEFT_DEFAULT_ID)
+        );
+    }
+
+    private WidgetGrowthDirection currentGrowthDirection() {
+        return WidgetGrowthDirection.fromId(
+                WidgetConfigManager.getString(getName(), WidgetGrowthDirection.SETTING_KEY, WidgetGrowthDirection.DEFAULT_ID)
+        );
     }
 
     private static void showReadyTitle(MinecraftClient client, List<String> finishedNames) {

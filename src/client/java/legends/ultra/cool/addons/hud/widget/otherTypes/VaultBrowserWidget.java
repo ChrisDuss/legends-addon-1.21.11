@@ -153,12 +153,6 @@ public final class VaultBrowserWidget extends HudWidget {
                         VaultBrowserWidget::setShowBrowserHintSetting,
                         DEFAULT_SHOW_BROWSER_HINT
                 ),
-                HudSetting.toggle("alwaysShowVaultNumber", "Always show vault number",
-                        () -> true,
-                        VaultBrowserWidget::getAlwaysShowVaultNumberSetting,
-                        VaultBrowserWidget::setAlwaysShowVaultNumberSetting,
-                        DEFAULT_ALWAYS_SHOW_VAULT_NUMBER
-                ),
                 HudSetting.slider(
                         "scale", "Vault panel scale",
                         0.6f, 2f, 0.1f,

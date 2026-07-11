@@ -430,11 +430,17 @@ public class MobKillTracker extends HudWidget {
         boolean brdToggle = WidgetConfigManager.getBool(w, "brdToggle", true);
         int brdColor = WidgetConfigManager.getInt(w, "brdColor", 0xFFFFFFFF);
         int countColor = WidgetConfigManager.getInt(w, COUNT_COLOR_KEY, DEFAULT_COUNT_COLOR);
+        TextAlignment textAlignment = TextAlignment.fromId(
+                WidgetConfigManager.getString(w, TextAlignment.SETTING_KEY, TextAlignment.LEFT_DEFAULT_ID)
+        );
+        WidgetGrowthDirection growthDirection = WidgetGrowthDirection.fromId(
+                WidgetConfigManager.getString(w, WidgetGrowthDirection.SETTING_KEY, WidgetGrowthDirection.DEFAULT_ID)
+        );
 
         int width = getRowsWidth(textRenderer, rows);
         int height = getRowsHeight(rows);
-        int left = (int) x;
-        int top = getRenderTop(height);
+        int left = (int) textAlignment.leftX(x, width);
+        int top = getRenderTop(height, growthDirection);
 
         if (bgToggle) {
             context.fill(left - PAD, top - PAD, left + width + PAD, top + height + PAD, bgColor);
@@ -583,14 +589,16 @@ public class MobKillTracker extends HudWidget {
 
     @Override
     public double getVisualX() {
-        return usesDecoratedBounds() ? x - PAD : x;
+        double left = currentTextAlignment().leftX(x, getWidth());
+        return usesDecoratedBounds() ? left - PAD : left;
     }
 
     @Override
     public double getVisualY() {
+        double top = getRenderTop((int) Math.ceil(getHeight()), currentGrowthDirection());
         return usesDecoratedBounds()
-                ? getRenderTop((int) Math.ceil(getHeight())) - PAD
-                : getRenderTop((int) Math.ceil(getHeight()));
+                ? top - PAD
+                : top;
     }
 
     @Override
@@ -609,6 +617,7 @@ public class MobKillTracker extends HudWidget {
         normalizeFilterMode();
 
         return List.of(
+                HudSetting.section("Style"),
                 HudSetting.toggle("bgToggle", "Background",
                         () -> true,
                         () -> WidgetConfigManager.getBool(w, "bgToggle", true),
@@ -639,45 +648,20 @@ public class MobKillTracker extends HudWidget {
                         c -> WidgetConfigManager.setInt(w, COUNT_COLOR_KEY, c, true),
                         DEFAULT_COUNT_COLOR
                 ),
-                HudSetting.slider(MAX_MOBS_KEY, "Tracked Mobs",
-                        1f, 4f, 1f,
+                HudSetting.section("Alignment"),
+                HudSetting.dropdown(TextAlignment.SETTING_KEY, "Text Align",
                         () -> true,
-                        () -> WidgetConfigManager.getFloat(w, MAX_MOBS_KEY, DEFAULT_MAX_MOBS),
-                        value -> {
-                            WidgetConfigManager.setFloat(w, MAX_MOBS_KEY, (float) value, true);
-                            trimEntries();
-                            saveEntries();
-                        },
-                        DEFAULT_MAX_MOBS
+                        () -> WidgetConfigManager.getString(w, TextAlignment.SETTING_KEY, TextAlignment.LEFT_DEFAULT_ID),
+                        value -> TextAlignment.setForWidgetPreservingLeft(this, value, TextAlignment.LEFT_DEFAULT_ID),
+                        TextAlignment.LEFT_DEFAULT_ID,
+                        TextAlignment.options()
                 ),
-                HudSetting.slider(EXPIRY_SECONDS_KEY, "Delay",
-                        0f, 300f, 5f,
+                HudSetting.dropdown(WidgetGrowthDirection.SETTING_KEY, "Grow Direction",
                         () -> true,
-                        () -> WidgetConfigManager.getFloat(w, EXPIRY_SECONDS_KEY, DEFAULT_EXPIRY_SECONDS),
-                        value -> {
-                            WidgetConfigManager.setFloat(w, EXPIRY_SECONDS_KEY, (float) value, true);
-                            if (purgeExpiredEntries(System.currentTimeMillis())) {
-                                saveEntries();
-                            }
-                        },
-                        DEFAULT_EXPIRY_SECONDS
-                ),
-                HudSetting.toggle(RANGED_MAGIC_KEY, "Ranged/Magic",
-                        () -> true,
-                        () -> WidgetConfigManager.getBool(w, RANGED_MAGIC_KEY, true),
-                        b -> {
-                            WidgetConfigManager.setBool(w, RANGED_MAGIC_KEY, b, true);
-                            if (!b) {
-                                recentRangedCandidates.clear();
-                            }
-                        },
-                        true
-                ),
-                HudSetting.toggle(RESET_ON_RESTART_KEY, "Reset on Restart",
-                        () -> true,
-                        () -> WidgetConfigManager.getBool(w, RESET_ON_RESTART_KEY, false),
-                        b -> WidgetConfigManager.setBool(w, RESET_ON_RESTART_KEY, b, true),
-                        false
+                        () -> WidgetConfigManager.getString(w, WidgetGrowthDirection.SETTING_KEY, WidgetGrowthDirection.DEFAULT_ID),
+                        value -> WidgetConfigManager.setString(w, WidgetGrowthDirection.SETTING_KEY, value, true),
+                        WidgetGrowthDirection.DEFAULT_ID,
+                        WidgetGrowthDirection.options()
                 ),
                 HudSetting.section("Filters"),
                 HudSetting.toggle(BLACKLIST_TOGGLE_KEY, "Enable blacklist",
@@ -715,6 +699,47 @@ public class MobKillTracker extends HudWidget {
                                 entry -> entry.get("mob"),
                                 entry -> ""
                         )
+                ),
+                HudSetting.section("Other"),
+                HudSetting.slider(MAX_MOBS_KEY, "Tracked Mobs",
+                        1f, 10f, 1f,
+                        () -> true,
+                        () -> WidgetConfigManager.getFloat(w, MAX_MOBS_KEY, DEFAULT_MAX_MOBS),
+                        value -> {
+                            WidgetConfigManager.setFloat(w, MAX_MOBS_KEY, (float) value, true);
+                            trimEntries();
+                            saveEntries();
+                        },
+                        DEFAULT_MAX_MOBS
+                ),
+                HudSetting.slider(EXPIRY_SECONDS_KEY, "Delay",
+                        0f, 300f, 5f,
+                        () -> true,
+                        () -> WidgetConfigManager.getFloat(w, EXPIRY_SECONDS_KEY, DEFAULT_EXPIRY_SECONDS),
+                        value -> {
+                            WidgetConfigManager.setFloat(w, EXPIRY_SECONDS_KEY, (float) value, true);
+                            if (purgeExpiredEntries(System.currentTimeMillis())) {
+                                saveEntries();
+                            }
+                        },
+                        DEFAULT_EXPIRY_SECONDS
+                ),
+                HudSetting.toggle(RANGED_MAGIC_KEY, "Ranged/Magic",
+                        () -> true,
+                        () -> WidgetConfigManager.getBool(w, RANGED_MAGIC_KEY, true),
+                        b -> {
+                            WidgetConfigManager.setBool(w, RANGED_MAGIC_KEY, b, true);
+                            if (!b) {
+                                recentRangedCandidates.clear();
+                            }
+                        },
+                        true
+                ),
+                HudSetting.toggle(RESET_ON_RESTART_KEY, "Reset on Restart",
+                        () -> true,
+                        () -> WidgetConfigManager.getBool(w, RESET_ON_RESTART_KEY, false),
+                        b -> WidgetConfigManager.setBool(w, RESET_ON_RESTART_KEY, b, true),
+                        false
                 )
         );
     }
@@ -732,8 +757,8 @@ public class MobKillTracker extends HudWidget {
         return rowCount * ENTITY_BOX + Math.max(0, rowCount - 1) * ROW_GAP;
     }
 
-    private int getRenderTop(int height) {
-        return (int) y - Math.max(0, height - ENTITY_BOX);
+    private int getRenderTop(int height, WidgetGrowthDirection growthDirection) {
+        return growthDirection.topY(y, height, ENTITY_BOX);
     }
 
     private boolean usesDecoratedBounds() {
@@ -741,9 +766,21 @@ public class MobKillTracker extends HudWidget {
                 || WidgetConfigManager.getBool(getName(), "brdToggle", true);
     }
 
+    private TextAlignment currentTextAlignment() {
+        return TextAlignment.fromId(
+                WidgetConfigManager.getString(getName(), TextAlignment.SETTING_KEY, TextAlignment.LEFT_DEFAULT_ID)
+        );
+    }
+
+    private WidgetGrowthDirection currentGrowthDirection() {
+        return WidgetGrowthDirection.fromId(
+                WidgetConfigManager.getString(getName(), WidgetGrowthDirection.SETTING_KEY, WidgetGrowthDirection.DEFAULT_ID)
+        );
+    }
+
     private int getMaxMobs() {
         float maxMobs = WidgetConfigManager.getFloat(getName(), MAX_MOBS_KEY, DEFAULT_MAX_MOBS);
-        return Math.max(1, Math.min(4, Math.round(maxMobs)));
+        return Math.max(1, Math.min(10, Math.round(maxMobs)));
     }
 
     private int getExpirySeconds() {

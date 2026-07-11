@@ -327,7 +327,7 @@ public class Mana extends HudWidget implements BarDraggable {
         final String w = this.getName();
 
         return List.of(
-                HudSetting.section("Display"),
+                HudSetting.section("Style"),
                 HudSetting.toggle("bgToggle", "Background",
                         () -> true,
                         () -> WidgetConfigManager.getBool(w, "bgToggle", false),
@@ -357,21 +357,22 @@ public class Mana extends HudWidget implements BarDraggable {
                         () -> WidgetConfigManager.getBool(w, "textToggle", true),
                         b -> WidgetConfigManager.setBool(w, "textToggle", b, true),
                         true
-                ),
-                HudSetting.dropdown(TextAlignment.SETTING_KEY, "Text Align",
-                        () -> WidgetConfigManager.getBool(w, "textToggle", true),
-                        () -> WidgetConfigManager.getString(w, TextAlignment.SETTING_KEY, TextAlignment.DEFAULT_ID),
-                        value -> WidgetConfigManager.setString(w, TextAlignment.SETTING_KEY, value, true),
-                        TextAlignment.DEFAULT_ID,
-                        TextAlignment.options()
-                ),
-                HudSetting.color("textColor", "Text Color",
+                ),HudSetting.color("textColor", "Text Color",
                         () -> true,
                         () -> WidgetConfigManager.getInt(w, "textColor", 0xFF0b50ad),
                         c -> WidgetConfigManager.setInt(w, "textColor", c, true),
                         0xFF0b50ad
                 ),
-                HudSetting.section("Bar"),
+                HudSetting.section("Alignment"),
+                HudSetting.dropdown(TextAlignment.SETTING_KEY, "Text Align",
+                        () -> WidgetConfigManager.getBool(w, "textToggle", true),
+                        () -> WidgetConfigManager.getString(w, TextAlignment.SETTING_KEY, TextAlignment.DEFAULT_ID),
+                        value -> TextAlignment.setForWidgetPreservingLeft(this, value, TextAlignment.DEFAULT_ID),
+                        TextAlignment.DEFAULT_ID,
+                        TextAlignment.options()
+                ),
+
+                HudSetting.section("Mana bar"),
                 HudSetting.toggle("barToggle", "Mana Bar",
                         () -> true,
                         () -> WidgetConfigManager.getBool(w, "barToggle", false),

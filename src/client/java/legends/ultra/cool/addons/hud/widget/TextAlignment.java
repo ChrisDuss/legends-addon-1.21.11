@@ -1,5 +1,6 @@
 package legends.ultra.cool.addons.hud.widget;
 
+import legends.ultra.cool.addons.data.WidgetConfigManager;
 import legends.ultra.cool.addons.hud.HudWidget;
 
 import java.util.List;
@@ -11,6 +12,7 @@ enum TextAlignment {
 
     static final String SETTING_KEY = "textAlignment";
     static final String DEFAULT_ID = "center";
+    static final String LEFT_DEFAULT_ID = "left";
 
     private static final List<HudWidget.HudOption> OPTIONS = List.of(
             HudWidget.HudOption.of(LEFT.id, LEFT.label),
@@ -49,5 +51,27 @@ enum TextAlignment {
             case CENTER -> anchorX - width / 2d;
             case RIGHT -> anchorX - width;
         };
+    }
+
+    double anchorXForLeft(double leftX, double width) {
+        return switch (this) {
+            case LEFT -> leftX;
+            case CENTER -> leftX + width / 2d;
+            case RIGHT -> leftX + width;
+        };
+    }
+
+    static void setForWidgetPreservingLeft(HudWidget widget, String nextId, String defaultId) {
+        setForWidgetPreservingLeft(widget, nextId, defaultId, widget.getWidth());
+    }
+
+    static void setForWidgetPreservingLeft(HudWidget widget, String nextId, String defaultId, double width) {
+        TextAlignment current = fromId(WidgetConfigManager.getString(widget.getName(), SETTING_KEY, defaultId));
+        TextAlignment next = fromId(nextId);
+        double left = current.leftX(widget.x, width);
+
+        widget.x = next.anchorXForLeft(left, width);
+        WidgetConfigManager.setString(widget.getName(), SETTING_KEY, next.id, false);
+        WidgetConfigManager.updateWidget(widget);
     }
 }

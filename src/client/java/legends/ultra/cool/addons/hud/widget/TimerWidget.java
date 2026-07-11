@@ -50,25 +50,29 @@ public class TimerWidget extends HudWidget {
         boolean brdToggle = WidgetConfigManager.getBool(w, "brdToggle", true);
         int brdColor = WidgetConfigManager.getInt(w, "brdColor", 0xFFFFFFFF);
         int textColor = WidgetConfigManager.getInt(w, "textColor", 0xFFFFFFFF);
+        TextAlignment textAlignment = TextAlignment.fromId(
+                WidgetConfigManager.getString(w, TextAlignment.SETTING_KEY, TextAlignment.LEFT_DEFAULT_ID)
+        );
 
-        String text = "Stopwatch: " + String.format("%.2f", value);
+        String text = timerText();
         int width = client.textRenderer.getWidth(text) + 1;
         int height = client.textRenderer.fontHeight;
+        double textX = textAlignment.leftX(x, width);
 
         if (bgToggle) {
-            context.fill((int) (x - 3), (int) (y - 3), (int) (x + width + 2), (int) (y + height + 2), bgColor);
+            context.fill((int) (textX - 3), (int) (y - 3), (int) (textX + width + 2), (int) (y + height + 2), bgColor);
         }
 
         if (brdToggle) {
-            drawBorder(context, (int) (x - 3), (int) (y - 3), width + 5, height + 5, brdColor);
+            drawBorder(context, (int) (textX - 3), (int) (y - 3), width + 5, height + 5, brdColor);
         }
 
-        context.drawText(client.textRenderer, text, (int) x + 1, (int) y + 1, textColor, !bgToggle);
+        context.drawText(client.textRenderer, text, (int) textX + 1, (int) y + 1, textColor, !bgToggle);
     }
 
     @Override
     public double getWidth() {
-        return MinecraftClient.getInstance().textRenderer.getWidth("Stopwatch: 0.00");
+        return MinecraftClient.getInstance().textRenderer.getWidth(timerText()) + 1;
     }
 
     @Override
@@ -78,7 +82,8 @@ public class TimerWidget extends HudWidget {
 
     @Override
     public double getVisualX() {
-        return usesDecoratedBounds() ? x - 3 : x;
+        double textX = currentTextAlignment().leftX(x, getWidth());
+        return usesDecoratedBounds() ? textX - 3 : textX;
     }
 
     @Override
@@ -88,7 +93,7 @@ public class TimerWidget extends HudWidget {
 
     @Override
     public double getVisualWidth() {
-        return getWidth() + (usesDecoratedBounds() ? 5 + 1: 1);
+        return getWidth() + (usesDecoratedBounds() ? 5 : 0);
     }
 
     @Override
@@ -101,11 +106,22 @@ public class TimerWidget extends HudWidget {
                 || WidgetConfigManager.getBool(getName(), "brdToggle", true);
     }
 
+    private TextAlignment currentTextAlignment() {
+        return TextAlignment.fromId(
+                WidgetConfigManager.getString(getName(), TextAlignment.SETTING_KEY, TextAlignment.LEFT_DEFAULT_ID)
+        );
+    }
+
+    private String timerText() {
+        return "Stopwatch: " + String.format("%.2f", value);
+    }
+
     @Override
     public List<HudSetting> getSettings() {
         final String w = this.getName();
 
         return List.of(
+                HudSetting.section("Style"),
                 HudSetting.toggle("bgToggle", "Background",
                         () -> true,
                         () -> WidgetConfigManager.getBool(w, "bgToggle", true),
@@ -137,6 +153,14 @@ public class TimerWidget extends HudWidget {
                         () -> WidgetConfigManager.getInt(w, "textColor", 0xFFFFFFFF),
                         c -> WidgetConfigManager.setInt(w, "textColor", c, true),
                         0xFFFFFFFF
+                ),
+                HudSetting.section("Alignment"),
+                HudSetting.dropdown(TextAlignment.SETTING_KEY, "Text Align",
+                        () -> true,
+                        () -> WidgetConfigManager.getString(w, TextAlignment.SETTING_KEY, TextAlignment.LEFT_DEFAULT_ID),
+                        value -> TextAlignment.setForWidgetPreservingLeft(this, value, TextAlignment.LEFT_DEFAULT_ID),
+                        TextAlignment.LEFT_DEFAULT_ID,
+                        TextAlignment.options()
                 )
         );
     }

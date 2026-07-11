@@ -286,11 +286,17 @@ public class ItemPickupTracker extends HudWidget {
         int brdColor = WidgetConfigManager.getInt(w, "brdColor", 0xFFFFFFFF);
         int gainColor = WidgetConfigManager.getInt(w, GAIN_COLOR_KEY, 0xFF54FC54);
         int removeColor = WidgetConfigManager.getInt(w, REMOVE_COLOR_KEY, 0xFFFF5555);
+        TextAlignment textAlignment = TextAlignment.fromId(
+                WidgetConfigManager.getString(w, TextAlignment.SETTING_KEY, TextAlignment.LEFT_DEFAULT_ID)
+        );
+        WidgetGrowthDirection growthDirection = WidgetGrowthDirection.fromId(
+                WidgetConfigManager.getString(w, WidgetGrowthDirection.SETTING_KEY, WidgetGrowthDirection.DEFAULT_ID)
+        );
 
         int width = notifications.isEmpty() ? getPlaceholderWidth(textRenderer) : getRowsWidth(textRenderer);
         int height = notifications.isEmpty() ? getPlaceholderHeight() : getRowsHeight();
-        int left = (int) x;
-        int top = getRenderTop(height);
+        int left = (int) textAlignment.leftX(x, width);
+        int top = getRenderTop(height, growthDirection);
 
         if (bgToggle) {
             context.fill(left - PAD, top - PAD, left + width + PAD, top + height + PAD, bgColor);
@@ -340,12 +346,14 @@ public class ItemPickupTracker extends HudWidget {
 
     @Override
     public double getVisualX() {
-        return usesDecoratedBounds() ? x - PAD : x;
+        double left = currentTextAlignment().leftX(x, getWidth());
+        return usesDecoratedBounds() ? left - PAD : left;
     }
 
     @Override
     public double getVisualY() {
-        return usesDecoratedBounds() ? getRenderTop((int) Math.ceil(getHeight())) - PAD : getRenderTop((int) Math.ceil(getHeight()));
+        double top = getRenderTop((int) Math.ceil(getHeight()), currentGrowthDirection());
+        return usesDecoratedBounds() ? top - PAD : top;
     }
 
     @Override
@@ -369,6 +377,7 @@ public class ItemPickupTracker extends HudWidget {
         normalizeFilterMode();
 
         return List.of(
+                HudSetting.section("Style"),
                 HudSetting.toggle("bgToggle", "Background",
                         () -> true,
                         () -> WidgetConfigManager.getBool(w, "bgToggle", true),
@@ -405,41 +414,20 @@ public class ItemPickupTracker extends HudWidget {
                         c -> WidgetConfigManager.setInt(w, REMOVE_COLOR_KEY, c, true),
                         0xFFFF5555
                 ),
-                HudSetting.toggle(SHOW_REMOVED_KEY, "Show Removed",
+                HudSetting.section("Alignment"),
+                HudSetting.dropdown(TextAlignment.SETTING_KEY, "Text Align",
                         () -> true,
-                        () -> WidgetConfigManager.getBool(w, SHOW_REMOVED_KEY, true),
-                        b -> WidgetConfigManager.setBool(w, SHOW_REMOVED_KEY, b, true),
-                        true
+                        () -> WidgetConfigManager.getString(w, TextAlignment.SETTING_KEY, TextAlignment.LEFT_DEFAULT_ID),
+                        value -> TextAlignment.setForWidgetPreservingLeft(this, value, TextAlignment.LEFT_DEFAULT_ID),
+                        TextAlignment.LEFT_DEFAULT_ID,
+                        TextAlignment.options()
                 ),
-                HudSetting.toggle(TRACK_CONTAINERS_KEY, "Track Containers",
+                HudSetting.dropdown(WidgetGrowthDirection.SETTING_KEY, "Grow Direction",
                         () -> true,
-                        () -> WidgetConfigManager.getBool(w, TRACK_CONTAINERS_KEY, false),
-                        b -> WidgetConfigManager.setBool(w, TRACK_CONTAINERS_KEY, b, true),
-                        false
-                ),
-                HudSetting.dropdown(PickupMode.SETTING_KEY, "Pickup Mode",
-                        () -> true,
-                        () -> WidgetConfigManager.getString(w, PickupMode.SETTING_KEY, PickupMode.DEFAULT_ID),
-                        value -> {
-                            WidgetConfigManager.setString(w, PickupMode.SETTING_KEY, value, true);
-                            notifications.clear();
-                        },
-                        PickupMode.DEFAULT_ID,
-                        PickupMode.options()
-                ),
-                HudSetting.slider(DURATION_KEY, "Duration",
-                        1f, 10f, 0.5f,
-                        () -> true,
-                        () -> WidgetConfigManager.getFloat(w, DURATION_KEY, 3f),
-                        value -> WidgetConfigManager.setFloat(w, DURATION_KEY, (float) value, true),
-                        3f
-                ),
-                HudSetting.slider(MAX_ROWS_KEY, "Max Rows",
-                        1f, 8f, 1f,
-                        () -> true,
-                        () -> WidgetConfigManager.getFloat(w, MAX_ROWS_KEY, 4f),
-                        value -> WidgetConfigManager.setFloat(w, MAX_ROWS_KEY, (float) value, true),
-                        4f
+                        () -> WidgetConfigManager.getString(w, WidgetGrowthDirection.SETTING_KEY, WidgetGrowthDirection.DEFAULT_ID),
+                        value -> WidgetConfigManager.setString(w, WidgetGrowthDirection.SETTING_KEY, value, true),
+                        WidgetGrowthDirection.DEFAULT_ID,
+                        WidgetGrowthDirection.options()
                 ),
                 HudSetting.section("Filters"),
                 HudSetting.toggle(BLACKLIST_TOGGLE_KEY, "Enable blacklist",
@@ -477,6 +465,43 @@ public class ItemPickupTracker extends HudWidget {
                                 entry -> entry.get("item"),
                                 entry -> ""
                         )
+                ),
+                HudSetting.section("Other"),
+                HudSetting.toggle(SHOW_REMOVED_KEY, "Show Removed",
+                        () -> true,
+                        () -> WidgetConfigManager.getBool(w, SHOW_REMOVED_KEY, true),
+                        b -> WidgetConfigManager.setBool(w, SHOW_REMOVED_KEY, b, true),
+                        true
+                ),
+                HudSetting.toggle(TRACK_CONTAINERS_KEY, "Track Containers",
+                        () -> true,
+                        () -> WidgetConfigManager.getBool(w, TRACK_CONTAINERS_KEY, false),
+                        b -> WidgetConfigManager.setBool(w, TRACK_CONTAINERS_KEY, b, true),
+                        false
+                ),
+                HudSetting.dropdown(PickupMode.SETTING_KEY, "Pickup Mode",
+                        () -> true,
+                        () -> WidgetConfigManager.getString(w, PickupMode.SETTING_KEY, PickupMode.DEFAULT_ID),
+                        value -> {
+                            WidgetConfigManager.setString(w, PickupMode.SETTING_KEY, value, true);
+                            notifications.clear();
+                        },
+                        PickupMode.DEFAULT_ID,
+                        PickupMode.options()
+                ),
+                HudSetting.slider(DURATION_KEY, "Duration",
+                        1f, 10f, 0.5f,
+                        () -> true,
+                        () -> WidgetConfigManager.getFloat(w, DURATION_KEY, 3f),
+                        value -> WidgetConfigManager.setFloat(w, DURATION_KEY, (float) value, true),
+                        3f
+                ),
+                HudSetting.slider(MAX_ROWS_KEY, "Max Rows",
+                        1f, 20f, 1f,
+                        () -> true,
+                        () -> WidgetConfigManager.getFloat(w, MAX_ROWS_KEY, 4f),
+                        value -> WidgetConfigManager.setFloat(w, MAX_ROWS_KEY, (float) value, true),
+                        4f
                 )
         );
     }
@@ -495,8 +520,20 @@ public class ItemPickupTracker extends HudWidget {
                 || WidgetConfigManager.getBool(getName(), "brdToggle", true);
     }
 
-    private int getRenderTop(int height) {
-        return (int) y - Math.max(0, height - ITEM_SIZE);
+    private int getRenderTop(int height, WidgetGrowthDirection growthDirection) {
+        return growthDirection.topY(y, height, ITEM_SIZE);
+    }
+
+    private TextAlignment currentTextAlignment() {
+        return TextAlignment.fromId(
+                WidgetConfigManager.getString(getName(), TextAlignment.SETTING_KEY, TextAlignment.LEFT_DEFAULT_ID)
+        );
+    }
+
+    private WidgetGrowthDirection currentGrowthDirection() {
+        return WidgetGrowthDirection.fromId(
+                WidgetConfigManager.getString(getName(), WidgetGrowthDirection.SETTING_KEY, WidgetGrowthDirection.DEFAULT_ID)
+        );
     }
 
     private static InventoryCount findMatching(List<InventoryCount> counts, ItemStack stack) {
@@ -553,7 +590,7 @@ public class ItemPickupTracker extends HudWidget {
 
     private int getMaxRows() {
         float maxRows = WidgetConfigManager.getFloat(getName(), MAX_ROWS_KEY, 4f);
-        return Math.max(1, Math.min(8, Math.round(maxRows)));
+        return Math.max(1, Math.min(20, Math.round(maxRows)));
     }
 
     private void setFilterMode(String enabledKey, String disabledKey, boolean enabled) {

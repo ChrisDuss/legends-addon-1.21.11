@@ -237,7 +237,7 @@ public class Defense extends HudWidget {
         final String w = this.getName();
 
         return List.of(
-                HudSetting.section("Display"),
+                HudSetting.section("Style"),
                 HudSetting.toggle("bgToggle", "Background",
                         () -> true,
                         () -> WidgetConfigManager.getBool(w, "bgToggle", false),
@@ -262,18 +262,19 @@ public class Defense extends HudWidget {
                         c -> WidgetConfigManager.setInt(w, "brdColor", c, true),
                         0xFFFFFFFF
                 ),
-                HudSetting.dropdown(TextAlignment.SETTING_KEY, "Text Align",
-                        () -> WidgetConfigManager.getBool(w, "textToggle", true),
-                        () -> WidgetConfigManager.getString(w, TextAlignment.SETTING_KEY, TextAlignment.DEFAULT_ID),
-                        value -> WidgetConfigManager.setString(w, TextAlignment.SETTING_KEY, value, true),
-                        TextAlignment.DEFAULT_ID,
-                        TextAlignment.options()
-                ),
                 HudSetting.color("textColor", "Text Color",
                         () -> true,
                         () -> WidgetConfigManager.getInt(w, "textColor", 0xFF54FC54),
                         c -> WidgetConfigManager.setInt(w, "textColor", c, true),
                         0xFF54FC54
+                ),
+                HudSetting.section("Alignment"),
+                HudSetting.dropdown(TextAlignment.SETTING_KEY, "Text Align",
+                        () -> WidgetConfigManager.getBool(w, "textToggle", true),
+                        () -> WidgetConfigManager.getString(w, TextAlignment.SETTING_KEY, TextAlignment.DEFAULT_ID),
+                        value -> TextAlignment.setForWidgetPreservingLeft(this, value, TextAlignment.DEFAULT_ID),
+                        TextAlignment.DEFAULT_ID,
+                        TextAlignment.options()
                 )
         );
     }

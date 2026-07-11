@@ -2127,7 +2127,7 @@ public class HudEditorScreen extends Screen {
 
         ctx.fill(x, y, x + RESET_W, y + RESET_H, bg);
         drawBorder(ctx, x, y, RESET_W, RESET_H, UI_BORDER_DARK);
-        ctx.drawText(textRenderer, "R", x + 3, y + 2, MODAL_TEXT_COLOR, false);
+        ctx.drawText(textRenderer, "R", x + 4, y + 3, MODAL_TEXT_COLOR, false);
     }
 
     private void drawSectionRow(DrawContext ctx, SettingsLayout layout, int rowY, String label) {
