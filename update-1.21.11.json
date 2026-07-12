@@ -1,8 +1,8 @@
 {
-  "version": "1.0.5",
+  "version": "1.5.1",
   "minecraftVersion": "1.21.11",
-  "jarName": "legends-addon-1.21.11-1.0.5.jar",
-  "downloadUrl": "https://github.com/ChrisDuss/legends-addon-1.21.11/releases/download/Release05/legends-addon-1.0.5.jar",
+  "jarName": "legends-addon-1.21.11-1.5.1.jar",
+  "downloadUrl": "https://github.com/ChrisDuss/legends-addon-1.21.11/releases/download/v1.5.1/legends-addon-1.5.1.jar",
   "sha256": "",
   "releasePage": "https://github.com/ChrisDuss/legends-addon-1.21.11/releases"
 }
