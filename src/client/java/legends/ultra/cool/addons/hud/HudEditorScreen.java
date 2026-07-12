@@ -7,6 +7,7 @@ import legends.ultra.cool.addons.hud.widget.settings.CustomListFormScreen;
 import legends.ultra.cool.addons.input.Keybinds;
 import legends.ultra.cool.addons.resource.ServerResourcePackCache;
 import legends.ultra.cool.addons.util.AddonServerGate;
+import legends.ultra.cool.addons.util.ClientRenderCache;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.client.gui.Click;
@@ -531,6 +532,12 @@ public class HudEditorScreen extends Screen {
                 return true;
             }
 
+            if (clientRenderCacheToggleButtonBounds().contains(mouseX, mouseY)) {
+                ClientRenderCache.setEnabled(!ClientRenderCache.isEnabled());
+                themeDropdownOpen = false;
+                return true;
+            }
+
             themeDropdownOpen = false;
             return true;
         }
@@ -919,6 +926,35 @@ public class HudEditorScreen extends Screen {
         );
         ctx.drawText(textRenderer, "Uses verified cached packs.", cacheRowBounds.x, cacheRowBounds.y + 14, UI_SUBTEXT_COLOR, false);
 
+        Rect clientCacheRowBounds = clientRenderCacheToggleRowBounds();
+        Rect clientCacheValueBounds = clientRenderCacheToggleButtonBounds();
+        boolean clientCacheHovered = clientCacheValueBounds.contains(mouseX, mouseY);
+        boolean clientCacheEnabled = ClientRenderCache.isEnabled();
+
+        ctx.drawText(textRenderer, "Super Secret Settings", clientCacheRowBounds.x, clientCacheRowBounds.y + 2, UI_BUTTON_TEXT_COLOR, false);
+
+        if (useMinecraftTheme()) {
+            drawMinecraftButton(ctx, clientCacheValueBounds, clientCacheHovered || clientCacheEnabled, false);
+        } else {
+            int valueFill = clientCacheEnabled
+                    ? BUTTON_FILL_HOVER_COLOR
+                    : (clientCacheHovered ? BUTTON_FILL_HOVER_COLOR : BUTTON_FILL_COLOR);
+            int valueBorder = clientCacheEnabled ? UI_BORDER_COLOR : UI_BORDER_DARK;
+            ctx.fill(clientCacheValueBounds.x, clientCacheValueBounds.y, clientCacheValueBounds.right(), clientCacheValueBounds.bottom(), valueFill);
+            drawBorder(ctx, clientCacheValueBounds.x, clientCacheValueBounds.y, clientCacheValueBounds.width, clientCacheValueBounds.height, valueBorder);
+        }
+
+        String clientCacheLabel = clientCacheEnabled ? "On" : "Off";
+        ctx.drawText(
+                textRenderer,
+                clientCacheLabel,
+                clientCacheValueBounds.x + Math.max(0, (clientCacheValueBounds.width - textRenderer.getWidth(clientCacheLabel)) / 2),
+                clientCacheValueBounds.y + 4,
+                useMinecraftTheme() ? minecraftTextColor(clientCacheHovered || clientCacheEnabled, false) : UI_BUTTON_TEXT_COLOR,
+                false
+        );
+        ctx.drawText(textRenderer, "Enables advanced visual sync.", clientCacheRowBounds.x, clientCacheRowBounds.y + 14, UI_SUBTEXT_COLOR, false);
+
         Rect themeRowBounds = themeRowBounds();
         Rect themeButtonBounds = themeDropdownButtonBounds();
         boolean themeHovered = themeButtonBounds.contains(mouseX, mouseY);
@@ -1068,6 +1104,18 @@ public class HudEditorScreen extends Screen {
 
     private Rect serverPackCacheToggleButtonBounds() {
         Rect rowBounds = serverPackCacheToggleRowBounds();
+        int valueX = rowBounds.right() - GENERAL_TOGGLE_W;
+        int valueY = rowBounds.y + (rowBounds.height - GENERAL_TOGGLE_H) / 2;
+        return new Rect(valueX, valueY, GENERAL_TOGGLE_W, GENERAL_TOGGLE_H);
+    }
+
+    private Rect clientRenderCacheToggleRowBounds() {
+        Rect panel = generalPanelBounds();
+        return new Rect(panel.x + 18, panel.y + 162, panel.width - 36, GENERAL_ROW_H);
+    }
+
+    private Rect clientRenderCacheToggleButtonBounds() {
+        Rect rowBounds = clientRenderCacheToggleRowBounds();
         int valueX = rowBounds.right() - GENERAL_TOGGLE_W;
         int valueY = rowBounds.y + (rowBounds.height - GENERAL_TOGGLE_H) / 2;
         return new Rect(valueX, valueY, GENERAL_TOGGLE_W, GENERAL_TOGGLE_H);

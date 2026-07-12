@@ -14,6 +14,7 @@ import legends.ultra.cool.addons.input.Keybinds;
 import legends.ultra.cool.addons.overlay.ContainerOverlay;
 import legends.ultra.cool.addons.resource.ServerResourcePackCache;
 import legends.ultra.cool.addons.storage.VaultStorageManager;
+import legends.ultra.cool.addons.util.ClientRenderCache;
 import legends.ultra.cool.addons.update.UpdateManager;
 // import legends.ultra.cool.addons.storage.WardrobeManager;
 import net.fabricmc.api.ClientModInitializer;
@@ -37,6 +38,7 @@ public class LegendsAddonClient implements ClientModInitializer {
         VaultStorageManager.init();
         UpdateManager.init();
         ServerResourcePackCache.init();
+        ClientRenderCache.init();
 
         TextWidget textWidget = new TextWidget(10, 10);
         CounterWidget counterWidget = new CounterWidget(10, 30);

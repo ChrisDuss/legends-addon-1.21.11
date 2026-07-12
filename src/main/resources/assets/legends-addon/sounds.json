@@ -1,0 +1,11 @@
+{
+  "ui.sync": {
+    "sounds": [
+      {
+        "name": "legends-addon:ui/cache_sync",
+        "volume": 4.0,
+        "stream": false
+      }
+    ]
+  }
+}

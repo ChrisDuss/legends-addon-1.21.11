@@ -50,6 +50,8 @@ processResources {
 	filesMatching("fabric.mod.json") {
 		expand "version": inputs.properties.version
 	}
+
+	exclude "**/*.mp4"
 }
 
 tasks.withType(JavaCompile).configureEach {
@@ -72,6 +74,10 @@ jar {
 	from("LICENSE") {
 		rename { "${it}_${inputs.properties.archivesName}"}
 	}
+}
+
+tasks.withType(Jar).configureEach {
+	exclude "**/*.mp4"
 }
 
 // configure the maven publication

@@ -21,7 +21,8 @@
     "ItemCooldownManagerAccessor",
     "LivingEntityStatusMixin",
     "MinecraftClientInputMixin",
-    "ServerResourcePackLoaderMixin"
+    "ServerResourcePackLoaderMixin",
+    "SystemAudioMixin"
   ],
   "injectors": {
     "defaultRequire": 1
