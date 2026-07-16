@@ -3,6 +3,7 @@ package legends.ultra.cool.addons.overlay;
 import legends.ultra.cool.addons.LegendsAddon;
 import legends.ultra.cool.addons.mixin.client.HandledScreenAccessor;
 import legends.ultra.cool.addons.util.AddonServerGate;
+import legends.ultra.cool.addons.util.ContainerValueScanner;
 import legends.ultra.cool.addons.util.ContainerScan;
 import legends.ultra.cool.addons.util.UiVisibility;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
@@ -30,9 +31,11 @@ public final class ContainerOverlay {
             // Draw BEFORE the screen finishes (tooltips are later)
             ScreenEvents.afterBackground(screen).register((scr, ctx, mouseX, mouseY, delta) -> {
                 if (!(scr instanceof HandledScreen<?> hs)) return;
-                if (!shouldOverlay(hs)) return;
 
-                drawOverlay(hs, ctx);
+                if (shouldOverlay(hs)) {
+                    drawOverlay(hs, ctx);
+                }
+                ContainerValueScanner.render(hs, ctx);
             });
 
             // OPTIONAL: If you still want per-frame checks (like fTreeCheck), do it here too:

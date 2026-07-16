@@ -12,6 +12,7 @@
     "EntityRenderStateAccessor",
     "EntityRenderStateCustomNameplateMixin",
     "ExperienceBarMixin",
+    "HandledScreenContainerValueDragMixin",
     "HandledScreenTooltipMixin",
     "TitleScreenMixin",
     "HandledScreenAccessor",
@@ -19,8 +20,10 @@
     "InGameHudAccessor",
     "ItemCooldownEntryAccessor",
     "ItemCooldownManagerAccessor",
+    "ItemStackTooltipMixin",
     "LivingEntityStatusMixin",
     "MinecraftClientInputMixin",
+    "ScreenTooltipMixin",
     "ServerResourcePackLoaderMixin",
     "SystemAudioMixin"
   ],

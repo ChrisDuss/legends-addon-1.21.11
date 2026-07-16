@@ -7,6 +7,7 @@ import legends.ultra.cool.addons.hud.HudManager;
 import legends.ultra.cool.addons.hud.HudRenderer;
 import legends.ultra.cool.addons.hud.HudWidget;
 import legends.ultra.cool.addons.hud.widget.*;
+import legends.ultra.cool.addons.hud.widget.otherTypes.ContainerValueWidget;
 import legends.ultra.cool.addons.hud.widget.otherTypes.NameplateWidget;
 import legends.ultra.cool.addons.hud.widget.otherTypes.UIToggle;
 import legends.ultra.cool.addons.hud.widget.otherTypes.VaultBrowserWidget;
@@ -50,6 +51,7 @@ public class LegendsAddonClient implements ClientModInitializer {
         Defense defense = new Defense("Defense Display", 10, 80);
         CooldownDisplay cooldownDisplay = new CooldownDisplay(10, 90);
         VaultBrowserWidget vaultBrowserWidget = new VaultBrowserWidget();
+        ContainerValueWidget containerValueWidget = new ContainerValueWidget();
         ItemPickupTracker itemPickupTracker = new ItemPickupTracker(10, 100);
         MobKillTracker mobKillTracker = new MobKillTracker(10, 120);
 
@@ -63,6 +65,7 @@ public class LegendsAddonClient implements ClientModInitializer {
         addWidget(defense);
         addWidget(cooldownDisplay);
         addWidget(vaultBrowserWidget);
+        addWidget(containerValueWidget);
         addWidget(itemPickupTracker);
         addWidget(mobKillTracker);
     }

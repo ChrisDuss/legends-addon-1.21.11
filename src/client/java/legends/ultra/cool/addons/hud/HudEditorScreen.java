@@ -154,6 +154,7 @@ public class HudEditorScreen extends Screen {
     private static final String DEFENSE_DISPLAY_WIDGET_ICON_PATH = "textures/icon/defense_display_icon.png";
     private static final String COOLDOWN_DISPLAY_WIDGET_ICON_PATH = "textures/icon/cooldown_display_icon.png";
     private static final String VAULT_BROWSER_WIDGET_ICON_PATH = "textures/icon/vault_browser_icon.png";
+    private static final String CONTAINER_VALUE_WIDGET_ICON_PATH = "textures/icon/container_value_icon.png";
     private static final String ITEM_TRACKER_ICON_PATH = "textures/icon/item_tracker_icon.png";
     private static final String MOB_TRACKER_ICON_PATH = "textures/icon/mob_tracker_icon.png";
 
@@ -2772,6 +2773,7 @@ public class HudEditorScreen extends Screen {
             case "Defense Display" -> DEFENSE_DISPLAY_WIDGET_ICON_PATH;
             case "Cooldown Display" -> COOLDOWN_DISPLAY_WIDGET_ICON_PATH;
             case "Vault Browser" -> VAULT_BROWSER_WIDGET_ICON_PATH;
+            case "Container Value" -> CONTAINER_VALUE_WIDGET_ICON_PATH;
             case "Pickup Tracker" -> ITEM_TRACKER_ICON_PATH;
             case "Mob Tracker" -> MOB_TRACKER_ICON_PATH;
             default -> "";
