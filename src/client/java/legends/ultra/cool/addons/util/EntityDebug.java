@@ -39,8 +39,8 @@ public class EntityDebug {
         ItemStack main = e.getMainHandStack();
         String mobName = e.getDisplayName().getString();
 
-        double maxHp = 0;
-        double currentHp = 0;
+        double maxHp = e.getMaxHealth();
+        double currentHp = e.getHealth();
         int itemDef = readCustomInt(main, "def");
         int itemDmg = readCustomInt(main, "dmg");
 

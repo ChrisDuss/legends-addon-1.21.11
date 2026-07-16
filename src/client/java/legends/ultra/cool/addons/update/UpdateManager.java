@@ -28,11 +28,13 @@ import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
+import java.util.regex.Pattern;
 
 public final class UpdateManager {
     private static final String MANIFEST_URL =
             "https://raw.githubusercontent.com/ChrisDuss/legends-addon-1.21.11/main/update-1.21.11.json";
     private static final String MOD_JAR_PREFIX = "legends-addon";
+    private static final Pattern SHA256_PATTERN = Pattern.compile("^[a-fA-F0-9]{64}$");
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(20);
     private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(10))
@@ -184,6 +186,7 @@ public final class UpdateManager {
             }
 
             if (isRemoteVersionNewer(manifest.version())) {
+                validateUpdateManifest(manifest);
                 availableManifest = manifest;
                 state = State.AVAILABLE;
                 statusMessage = "Update " + manifest.version() + " available";
@@ -194,6 +197,18 @@ public final class UpdateManager {
             }
         } catch (Exception exception) {
             failCheck("Could not read update manifest", exception);
+        }
+    }
+
+    private static void validateUpdateManifest(UpdateManifest manifest) throws IOException {
+        String downloadUrl = safeTrim(manifest.downloadUrl());
+        if (downloadUrl.isBlank()) {
+            throw new IOException("Update manifest is missing a download URL");
+        }
+
+        String sha256 = safeTrim(manifest.sha256());
+        if (!isValidSha256(sha256)) {
+            throw new IOException("Update manifest is missing a valid SHA-256");
         }
     }
 
@@ -310,8 +325,8 @@ public final class UpdateManager {
 
     private static void verifySha256(UpdateManifest manifest, byte[] jarBytes) throws IOException {
         String expected = safeTrim(manifest.sha256()).toLowerCase(Locale.ROOT);
-        if (expected.isBlank()) {
-            return;
+        if (!isValidSha256(expected)) {
+            throw new IOException("Update manifest is missing a valid SHA-256");
         }
 
         String actual;
@@ -323,8 +338,12 @@ public final class UpdateManager {
         }
 
         if (!actual.equals(expected)) {
-            throw new IOException("Downloaded jar SHA-256 did not match manifest");
+            throw new IOException("Downloaded jar SHA-256 did not match manifest. Expected " + expected + " but got " + actual);
         }
+    }
+
+    private static boolean isValidSha256(String value) {
+        return value != null && SHA256_PATTERN.matcher(value.trim()).matches();
     }
 
     private static void stageDeferredInstall(byte[] jarBytes, Path modsDir, Path target) throws IOException {
