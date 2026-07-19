@@ -38,7 +38,7 @@ public final class WidgetConfigManager {
     private static boolean loaded = false;
 
     private static Path getConfigPath() {
-        return MinecraftClient.getInstance().runDirectory.toPath().resolve("config/" + FILE_NAME);
+        return AddonConfigPaths.configFile(FILE_NAME);
     }
 
     public static void load() {
@@ -62,6 +62,13 @@ public final class WidgetConfigManager {
 
     public static void save() {
         Path path = getConfigPath();
+        try {
+            Files.createDirectories(path.getParent());
+        } catch (Exception e) {
+            e.printStackTrace();
+            return;
+        }
+
         try (Writer writer = Files.newBufferedWriter(path)) {
             GSON.toJson(widgetDataMap, MAP_TYPE, writer);
         } catch (Exception e) {

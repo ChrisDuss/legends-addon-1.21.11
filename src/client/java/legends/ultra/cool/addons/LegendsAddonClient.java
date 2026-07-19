@@ -1,6 +1,7 @@
 package legends.ultra.cool.addons;
 
 import legends.ultra.cool.addons.data.WidgetConfigManager;
+import legends.ultra.cool.addons.data.AddonConfigPaths;
 import legends.ultra.cool.addons.events.ClientTickHandler;
 import legends.ultra.cool.addons.events.WorldJoinLeaveHandler;
 import legends.ultra.cool.addons.hud.HudManager;
@@ -27,6 +28,7 @@ public class LegendsAddonClient implements ClientModInitializer {
     public void onInitializeClient() {
 
         //load config
+        AddonConfigPaths.migrateKnownLegacyFiles();
         WidgetConfigManager.load();
 
 

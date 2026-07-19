@@ -6,6 +6,7 @@ import com.google.gson.reflect.TypeToken;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.DynamicOps;
 import legends.ultra.cool.addons.LegendsAddon;
+import legends.ultra.cool.addons.data.AddonConfigPaths;
 import legends.ultra.cool.addons.hud.widget.otherTypes.VaultBrowserWidget;
 import legends.ultra.cool.addons.mixin.client.HandledScreenAccessor;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
@@ -1128,7 +1129,7 @@ public final class VaultStorageManager {
         if (client == null || client.runDirectory == null) {
             return null;
         }
-        return client.runDirectory.toPath().resolve("config").resolve(VAULT_NAMES_FILE);
+        return AddonConfigPaths.configFile(client, VAULT_NAMES_FILE);
     }
 
     private static void ensureRangeSettingsLoaded() {
@@ -1192,7 +1193,7 @@ public final class VaultStorageManager {
         if (client == null || client.runDirectory == null) {
             return null;
         }
-        return client.runDirectory.toPath().resolve("config").resolve(VAULT_SETTINGS_FILE);
+        return AddonConfigPaths.configFile(client, VAULT_SETTINGS_FILE);
     }
 
     private static String normalizeCustomName(String customName) {
@@ -1474,7 +1475,7 @@ public final class VaultStorageManager {
         if (client == null || client.runDirectory == null) {
             return null;
         }
-        return client.runDirectory.toPath().resolve("config").resolve(VAULT_SNAPSHOTS_FILE);
+        return AddonConfigPaths.configFile(client, VAULT_SNAPSHOTS_FILE);
     }
 
     private static final class PersistedVaultSnapshot {

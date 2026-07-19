@@ -6,6 +6,7 @@ import com.google.gson.reflect.TypeToken;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.DynamicOps;
 import legends.ultra.cool.addons.LegendsAddon;
+import legends.ultra.cool.addons.data.AddonConfigPaths;
 import legends.ultra.cool.addons.mixin.client.HandledScreenAccessor;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.ingame.HandledScreen;
@@ -87,7 +88,7 @@ public final class ItemDebugDump {
     }
 
     private static Path getDumpPath(MinecraftClient client) {
-        return client.runDirectory.toPath().resolve("config/" + FILE_NAME);
+        return AddonConfigPaths.configFile(client, FILE_NAME);
     }
 
     private static List<ItemDumpEntry> readEntries(Path path) {

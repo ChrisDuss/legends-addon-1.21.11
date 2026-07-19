@@ -8,7 +8,11 @@ import legends.ultra.cool.addons.storage.VaultStorageManager;
 import legends.ultra.cool.addons.util.AddonServerGate;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
+import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
+import net.fabricmc.fabric.api.client.screen.v1.ScreenKeyboardEvents;
 import net.minecraft.client.option.KeyBinding;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.screen.ingame.HandledScreen;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.util.Identifier;
 import org.lwjgl.glfw.GLFW;
@@ -20,6 +24,7 @@ public class Keybinds {
     public static KeyBinding OPEN_VAULT;
     public static KeyBinding OPEN_WARDROBE;
     public static KeyBinding OPEN_BESTIARY;
+    public static KeyBinding TEST;
     public static final KeyBinding.Category MAIN_CATEGORY = KeyBinding.Category.create(Identifier.of(LegendsAddon.MOD_ID, "main"));
 
     public static void init() {
@@ -67,6 +72,27 @@ public class Keybinds {
                         MAIN_CATEGORY
                 ));
 
+        TEST = KeyBindingHelper.registerKeyBinding(
+                new KeyBinding(
+                        "Test",
+                        GLFW.GLFW_KEY_UNKNOWN,
+                        MAIN_CATEGORY
+                ));
+
+        ScreenEvents.AFTER_INIT.register((client, screen, scaledWidth, scaledHeight) -> {
+            if (!(screen instanceof HandledScreen<?>)) {
+                return;
+            }
+
+            ScreenKeyboardEvents.allowKeyPress(screen).register((scr, input) -> {
+                if (TEST == null || TEST.isUnbound() || !TEST.matchesKey(input)) {
+                    return true;
+                }
+
+                return !sendTestCommand(client);
+            });
+        });
+
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
 
@@ -94,6 +120,12 @@ public class Keybinds {
                     client.getNetworkHandler().sendChatCommand("bestiary");
                 }
             }
+//
+//            while (TEST.wasPressed()) {
+//                if (client.currentScreen == null) {
+//                    sendTestCommand(client);
+//                }
+//            }
 
             //TIMER
             HudManager.getWidgets().forEach(widget -> {
@@ -108,5 +140,17 @@ public class Keybinds {
                 }
             });
         });
+    }
+
+    private static boolean sendTestCommand(MinecraftClient client) {
+        if (client == null
+                || client.currentScreen instanceof HudEditorScreen
+                || !AddonServerGate.shouldRunOnCurrentServer()
+                || client.getNetworkHandler() == null) {
+            return false;
+        }
+
+        client.getNetworkHandler().sendChatCommand("lorereload");
+        return true;
     }
 }
