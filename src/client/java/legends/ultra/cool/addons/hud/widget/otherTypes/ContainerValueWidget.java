@@ -13,6 +13,10 @@ public final class ContainerValueWidget extends HudWidget {
     public static final String TEXT_ALIGN_LEFT = "left";
     public static final String TEXT_ALIGN_CENTER = "center";
     public static final String TEXT_ALIGN_RIGHT = "right";
+    public static final String GROWTH_DIRECTION_KEY = "growthDirection";
+    public static final String GROWTH_DIRECTION_UP = "up";
+    public static final String GROWTH_DIRECTION_DOWN = "down";
+    public static final String GROWTH_DIRECTION_CENTER = "center";
     private static final String INCLUDE_PLAYER_INVENTORY_KEY = "includePlayerInventory";
     private static final String SHOW_STACK_TOOLTIP_TOTAL_KEY = "showStackTooltipTotal";
     private static final String DRAG_LABEL_KEY = "dragLabel";
@@ -86,6 +90,14 @@ public final class ContainerValueWidget extends HudWidget {
         };
     }
 
+    public static String growthDirection() {
+        String value = WidgetConfigManager.getString(WIDGET_NAME, GROWTH_DIRECTION_KEY, GROWTH_DIRECTION_DOWN);
+        return switch (value) {
+            case GROWTH_DIRECTION_UP, GROWTH_DIRECTION_CENTER -> value;
+            default -> GROWTH_DIRECTION_DOWN;
+        };
+    }
+
     @Override
     public void render(DrawContext context) {
     }
@@ -144,11 +156,22 @@ public final class ContainerValueWidget extends HudWidget {
                         () -> true,
                         ContainerValueWidget::textAlignment,
                         value -> WidgetConfigManager.setString(WIDGET_NAME, TEXT_ALIGN_KEY, value, true),
-                        TEXT_ALIGN_LEFT,
+                        TEXT_ALIGN_RIGHT,
                         List.of(
                                 HudOption.of(TEXT_ALIGN_LEFT, "Left"),
                                 HudOption.of(TEXT_ALIGN_CENTER, "Center"),
                                 HudOption.of(TEXT_ALIGN_RIGHT, "Right")
+                        )
+                ),
+                HudSetting.dropdown(GROWTH_DIRECTION_KEY, "Growth",
+                        () -> true,
+                        ContainerValueWidget::growthDirection,
+                        value -> WidgetConfigManager.setString(WIDGET_NAME, GROWTH_DIRECTION_KEY, value, true),
+                        GROWTH_DIRECTION_DOWN,
+                        List.of(
+                                HudOption.of(GROWTH_DIRECTION_DOWN, "Down"),
+                                HudOption.of(GROWTH_DIRECTION_UP, "Up"),
+                                HudOption.of(GROWTH_DIRECTION_CENTER, "Center")
                         )
                 ),
                 HudSetting.section("Other"),

@@ -15,6 +15,7 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.math.MathHelper;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -22,14 +23,24 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public final class ContainerValueScanner {
+    private static final BigDecimal ZERO_VALUE = BigDecimal.ZERO;
     private static final Pattern SELL_VALUE_PATTERN = Pattern.compile(
-            "(?i)\\b([0-9][0-9,]*)\\s+Sell\\s+Value\\b"
+            "(?i)\\b([0-9][0-9,]*(?:\\.[0-9]+)?)\\s+Sell\\s+Value\\b"
     );
     private static final int PAD_X = 5;
     private static final int PAD_Y = 4;
     private static final int LINE_GAP = 2;
+    private static final int EDGE_GAP = 8;
+    private static final String ANCHOR_X_KEY = "labelAnchorX";
+    private static final String ANCHOR_Y_KEY = "labelAnchorY";
     private static final String OFFSET_X_KEY = "labelOffsetX";
     private static final String OFFSET_Y_KEY = "labelOffsetY";
+    private static final String ANCHOR_LEFT = "left";
+    private static final String ANCHOR_RIGHT = "right";
+    private static final String ANCHOR_TOP = "container_top";
+    private static final String ANCHOR_BOTTOM = "container_bottom";
+    private static final String LEGACY_ANCHOR_TOP = "top";
+    private static final String LEGACY_ANCHOR_BOTTOM = "bottom";
 
     private static boolean dragging;
     private static double dragOffsetX;
@@ -77,16 +88,41 @@ public final class ContainerValueScanner {
         HandledScreenAccessor accessor = (HandledScreenAccessor) screen;
         int nextLeft = clampLeft((int) Math.round(mouseX - dragOffsetX), box.maxWidth());
         int nextTop = clampTop((int) Math.round(mouseY - dragOffsetY), box.contentHeight());
+        int nextAnchorX = anchorXForLeft(nextLeft, box.maxWidth());
+        int containerTop = accessor.legends$getY();
+        int containerBottom = containerTop + accessor.legends$getBackgroundHeight();
+        int anchorY = anchorYForTop(nextTop, box.contentHeight());
+        boolean anchorToRight = nextAnchorX >= accessor.legends$getX() + accessor.legends$getBackgroundWidth() / 2;
+        boolean anchorToBottom = Math.abs(anchorY - containerBottom) < Math.abs(anchorY - containerTop);
+        int horizontalReference = anchorToRight
+                ? accessor.legends$getX() + accessor.legends$getBackgroundWidth()
+                : accessor.legends$getX();
+        int verticalReference = anchorToBottom
+                ? containerBottom
+                : containerTop;
+
+        WidgetConfigManager.setString(
+                ContainerValueWidget.WIDGET_NAME,
+                ANCHOR_X_KEY,
+                anchorToRight ? ANCHOR_RIGHT : ANCHOR_LEFT,
+                false
+        );
+        WidgetConfigManager.setString(
+                ContainerValueWidget.WIDGET_NAME,
+                ANCHOR_Y_KEY,
+                anchorToBottom ? ANCHOR_BOTTOM : ANCHOR_TOP,
+                false
+        );
         WidgetConfigManager.setFloat(
                 ContainerValueWidget.WIDGET_NAME,
                 OFFSET_X_KEY,
-                anchorXForLeft(nextLeft, box.maxWidth()) - accessor.legends$getX(),
+                nextAnchorX - horizontalReference,
                 false
         );
         WidgetConfigManager.setFloat(
                 ContainerValueWidget.WIDGET_NAME,
                 OFFSET_Y_KEY,
-                nextTop - accessor.legends$getY(),
+                anchorY - verticalReference,
                 false
         );
         return true;
@@ -119,16 +155,16 @@ public final class ContainerValueScanner {
             return tooltip;
         }
 
-        long perItemValue = sellValueFromTooltip(tooltip);
-        if (perItemValue <= 0L) {
+        BigDecimal perItemValue = sellValueFromTooltip(tooltip);
+        if (perItemValue.signum() <= 0) {
             return tooltip;
         }
         if (hasTotalSellValueLine(tooltip)) {
             return tooltip;
         }
 
-        long totalValue = safeMultiply(perItemValue, stack.getCount());
-        if (totalValue <= perItemValue) {
+        BigDecimal totalValue = safeMultiply(perItemValue, stack.getCount());
+        if (totalValue.compareTo(perItemValue) <= 0) {
             return tooltip;
         }
 
@@ -137,21 +173,21 @@ public final class ContainerValueScanner {
         return List.copyOf(withTotal);
     }
 
-    public static long stackSellValue(MinecraftClient client, ItemStack stack) {
+    public static BigDecimal stackSellValue(MinecraftClient client, ItemStack stack) {
         if (client == null || stack == null || stack.isEmpty()) {
-            return 0L;
+            return ZERO_VALUE;
         }
 
-        long perItemValue = sellValueFromTooltip(Screen.getTooltipFromItem(client, stack));
-        if (perItemValue <= 0L) {
-            return 0L;
+        BigDecimal perItemValue = sellValueFromTooltip(Screen.getTooltipFromItem(client, stack));
+        if (perItemValue.signum() <= 0) {
+            return ZERO_VALUE;
         }
         return safeMultiply(perItemValue, stack.getCount());
     }
 
     private static ValueTotals scan(HandledScreen<?> screen, MinecraftClient client) {
-        long containerValue = 0L;
-        long inventoryValue = 0L;
+        BigDecimal containerValue = ZERO_VALUE;
+        BigDecimal inventoryValue = ZERO_VALUE;
         boolean hasContainerSlots = false;
 
         for (Slot slot : screen.getScreenHandler().slots) {
@@ -160,7 +196,7 @@ public final class ContainerValueScanner {
             }
 
             boolean playerInventory = slot.inventory instanceof PlayerInventory;
-            long value = stackSellValue(client, slot.getStack());
+            BigDecimal value = stackSellValue(client, slot.getStack());
             if (playerInventory) {
                 inventoryValue = safeAdd(inventoryValue, value);
             } else {
@@ -176,9 +212,8 @@ public final class ContainerValueScanner {
         List<String> lines = new ArrayList<>();
         if (totals.hasContainerSlots()) {
             lines.add("Container Value: " + formatCoins(totals.containerValue()));
-                lines.add("Inventory Value: " + formatCoins(totals.inventoryValue()));
-                lines.add("Total Value: " + formatCoins(safeAdd(totals.containerValue(), totals.inventoryValue())));
-
+            lines.add("Inventory Value: " + formatCoins(totals.inventoryValue()));
+            lines.add("Total Value: " + formatCoins(safeAdd(totals.containerValue(), totals.inventoryValue())));
         } else {
             lines.add("Inventory Value: " + formatCoins(totals.inventoryValue()));
         }
@@ -213,30 +248,84 @@ public final class ContainerValueScanner {
         int lineHeight = client.textRenderer.fontHeight;
         int contentHeight = lines.size() * lineHeight + Math.max(0, lines.size() - 1) * LINE_GAP;
         HandledScreenAccessor accessor = (HandledScreenAccessor) screen;
-        int anchorX = accessor.legends$getX() + labelAnchorOffsetX(maxWidth);
+        int screenHeight = client.getWindow().getScaledHeight();
+        int anchorX = labelAnchorX(accessor, maxWidth);
         int left = leftForAnchorX(anchorX, maxWidth);
-        int top = accessor.legends$getY() + labelOffsetY();
+        int anchorY = labelAnchorY(accessor, contentHeight, screenHeight);
+        int top = topForAnchorY(anchorY, contentHeight);
+
+        left = clampLeft(left, maxWidth);
+        top = clampTop(top, contentHeight);
         return new OverlayBox(lines, left, top, maxWidth, contentHeight);
     }
 
-    private static int labelAnchorOffsetX(int maxWidth) {
+    private static int labelAnchorX(HandledScreenAccessor accessor, int maxWidth) {
+        int containerLeft = accessor.legends$getX();
+        int containerRight = containerLeft + accessor.legends$getBackgroundWidth();
+        String anchor = WidgetConfigManager.getString(ContainerValueWidget.WIDGET_NAME, ANCHOR_X_KEY, "");
         float saved = WidgetConfigManager.getFloat(ContainerValueWidget.WIDGET_NAME, OFFSET_X_KEY, Float.NaN);
         if (Float.isFinite(saved)) {
-            return Math.round(saved);
+            if (ANCHOR_RIGHT.equals(anchor)) {
+                return containerRight + Math.round(saved);
+            }
+            if (ANCHOR_LEFT.equals(anchor)) {
+                return containerLeft + Math.round(saved);
+            }
+
+            return containerLeft + Math.round(saved);
         }
-        return switch (ContainerValueWidget.textAlignment()) {
-            case ContainerValueWidget.TEXT_ALIGN_CENTER -> 4 - PAD_X * 2 - maxWidth / 2;
-            case ContainerValueWidget.TEXT_ALIGN_RIGHT -> 4 - PAD_X * 2;
-            default -> 4 - (maxWidth + PAD_X * 2);
+
+        int leftOutside = containerLeft - maxWidth - PAD_X - EDGE_GAP;
+        if (leftOutside >= PAD_X) {
+            return anchorXForLeft(leftOutside, maxWidth);
+        }
+
+        return anchorXForLeft(containerRight + PAD_X + EDGE_GAP, maxWidth);
+    }
+
+    private static int labelAnchorY(HandledScreenAccessor accessor, int contentHeight, int screenHeight) {
+        int containerTop = accessor.legends$getY();
+        int containerBottom = containerTop + accessor.legends$getBackgroundHeight();
+        String anchor = WidgetConfigManager.getString(ContainerValueWidget.WIDGET_NAME, ANCHOR_Y_KEY, "");
+        float saved = WidgetConfigManager.getFloat(ContainerValueWidget.WIDGET_NAME, OFFSET_Y_KEY, Float.NaN);
+        if (Float.isFinite(saved)) {
+            if (ANCHOR_BOTTOM.equals(anchor)) {
+                return containerBottom + Math.round(saved);
+            }
+            if (ANCHOR_TOP.equals(anchor)) {
+                return containerTop + Math.round(saved);
+            }
+            if (LEGACY_ANCHOR_BOTTOM.equals(anchor)) {
+                return containerTop + Math.round(saved);
+            }
+            if (LEGACY_ANCHOR_TOP.equals(anchor)) {
+                return containerBottom + Math.round(saved);
+            }
+
+            return containerTop + Math.round(saved);
+        }
+
+        int spaceBelowTopEdge = screenHeight - containerTop - PAD_Y;
+        if (spaceBelowTopEdge >= contentHeight) {
+            return containerTop;
+        }
+        return containerBottom;
+    }
+
+    private static int topForAnchorY(int anchorY, int contentHeight) {
+        return switch (ContainerValueWidget.growthDirection()) {
+            case ContainerValueWidget.GROWTH_DIRECTION_UP -> anchorY - contentHeight;
+            case ContainerValueWidget.GROWTH_DIRECTION_CENTER -> anchorY - contentHeight / 2;
+            default -> anchorY;
         };
     }
 
-    private static int labelOffsetY() {
-        float saved = WidgetConfigManager.getFloat(ContainerValueWidget.WIDGET_NAME, OFFSET_Y_KEY, Float.NaN);
-        if (Float.isFinite(saved)) {
-            return Math.round(saved);
-        }
-        return 4;
+    private static int anchorYForTop(int top, int contentHeight) {
+        return switch (ContainerValueWidget.growthDirection()) {
+            case ContainerValueWidget.GROWTH_DIRECTION_UP -> top + contentHeight;
+            case ContainerValueWidget.GROWTH_DIRECTION_CENTER -> top + contentHeight / 2;
+            default -> top;
+        };
     }
 
     private static int clampLeft(int left, int maxWidth) {
@@ -273,7 +362,7 @@ public final class ContainerValueScanner {
             );
         }
 
-        if (ContainerValueWidget.shouldShowBorder() || ContainerValueWidget.shouldDragLabel()) {
+        if (ContainerValueWidget.shouldShowBorder()) {
             int borderColor = ContainerValueWidget.shouldDragLabel()
                     ? brightenAlpha(ContainerValueWidget.borderColor())
                     : ContainerValueWidget.borderColor();
@@ -323,14 +412,14 @@ public final class ContainerValueScanner {
         return (color & 0x00FFFFFF) | (alpha << 24);
     }
 
-    private static long sellValueFromTooltip(List<Text> tooltip) {
+    private static BigDecimal sellValueFromTooltip(List<Text> tooltip) {
         for (Text line : tooltip) {
-            long value = parseSellValue(line == null ? "" : line.getString());
-            if (value > 0L) {
+            BigDecimal value = parseSellValue(line == null ? "" : line.getString());
+            if (value.signum() > 0) {
                 return value;
             }
         }
-        return 0L;
+        return ZERO_VALUE;
     }
 
     private static boolean hasTotalSellValueLine(List<Text> tooltip) {
@@ -343,42 +432,55 @@ public final class ContainerValueScanner {
         return false;
     }
 
-    private static long parseSellValue(String text) {
+    private static BigDecimal parseSellValue(String text) {
         if (text == null || text.isBlank()) {
-            return 0L;
+            return ZERO_VALUE;
         }
 
         Matcher matcher = SELL_VALUE_PATTERN.matcher(text);
         if (!matcher.find()) {
-            return 0L;
+            return ZERO_VALUE;
         }
 
         try {
-            return Long.parseLong(matcher.group(1).replace(",", ""));
+            return new BigDecimal(matcher.group(1).replace(",", ""));
         } catch (NumberFormatException ignored) {
-            return 0L;
+            return ZERO_VALUE;
         }
     }
 
-    private static String formatCoins(long value) {
-        return String.format(Locale.US, "%,d", Math.max(0L, value));
+    private static String formatCoins(BigDecimal value) {
+        BigDecimal normalized = value == null ? ZERO_VALUE : value.max(ZERO_VALUE).stripTrailingZeros();
+        String plain = normalized.toPlainString();
+        int decimalIndex = plain.indexOf('.');
+        String integerPart = decimalIndex >= 0 ? plain.substring(0, decimalIndex) : plain;
+        String decimalPart = decimalIndex >= 0 ? plain.substring(decimalIndex) : "";
+        return groupIntegerDigits(integerPart) + decimalPart;
     }
 
-    private static long safeAdd(long left, long right) {
-        if (Long.MAX_VALUE - left < right) {
-            return Long.MAX_VALUE;
+    private static String groupIntegerDigits(String digits) {
+        StringBuilder grouped = new StringBuilder(digits.length() + digits.length() / 3);
+        int firstGroupLength = digits.length() % 3;
+        if (firstGroupLength == 0) {
+            firstGroupLength = 3;
         }
-        return left + right;
+
+        grouped.append(digits, 0, firstGroupLength);
+        for (int i = firstGroupLength; i < digits.length(); i += 3) {
+            grouped.append(',').append(digits, i, i + 3);
+        }
+        return grouped.toString();
     }
 
-    private static long safeMultiply(long value, int count) {
-        if (value <= 0L || count <= 0) {
-            return 0L;
+    private static BigDecimal safeAdd(BigDecimal left, BigDecimal right) {
+        return left.add(right);
+    }
+
+    private static BigDecimal safeMultiply(BigDecimal value, int count) {
+        if (value.signum() <= 0 || count <= 0) {
+            return ZERO_VALUE;
         }
-        if (value > Long.MAX_VALUE / count) {
-            return Long.MAX_VALUE;
-        }
-        return value * count;
+        return value.multiply(BigDecimal.valueOf(count));
     }
 
     private static void drawBorder(DrawContext context, int x, int y, int width, int height, int color) {
@@ -389,12 +491,12 @@ public final class ContainerValueScanner {
     }
 
     private record ValueTotals(
-            long containerValue,
-            long inventoryValue,
+            BigDecimal containerValue,
+            BigDecimal inventoryValue,
             boolean hasContainerSlots
     ) {
         private boolean hasAnySellValue() {
-            return containerValue > 0L || inventoryValue > 0L;
+            return containerValue.signum() > 0 || inventoryValue.signum() > 0;
         }
     }
 
