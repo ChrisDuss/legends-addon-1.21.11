@@ -27,6 +27,8 @@ public abstract class ClientCommonNetworkHandlerMixin {
 
     @Inject(method = "onResourcePackSend", at = @At("HEAD"), cancellable = true)
     private void legends$loadCachedServerResourcePack(ResourcePackSendS2CPacket packet, CallbackInfo ci) {
+        ServerResourcePackCache.onPackRequested(packet.id());
+
         NetworkThreadUtils.forceMainThread(
                 packet,
                 (ClientCommonPacketListener) (Object) this,

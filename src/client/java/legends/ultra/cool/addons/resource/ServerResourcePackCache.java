@@ -3,7 +3,9 @@ package legends.ultra.cool.addons.resource;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import legends.ultra.cool.addons.LegendsAddon;
+import legends.ultra.cool.addons.data.AddonConfigPaths;
 import legends.ultra.cool.addons.data.WidgetConfigManager;
+import legends.ultra.cool.addons.util.AddonServerGate;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.resource.server.ServerResourcePackLoader;
@@ -23,6 +25,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -36,6 +39,7 @@ public final class ServerResourcePackCache {
     private static final String GENERAL_SETTINGS_CONFIG_ID = "__general_settings__";
     private static final String ENABLED_KEY = "serverResourcePackCacheEnabled";
     private static final Map<UUID, String> PENDING_HASHES = new ConcurrentHashMap<>();
+    private static final Set<UUID> SERVER_PACK_IDS = ConcurrentHashMap.newKeySet();
 
     private static boolean preloadAttempted;
     private static boolean serverRequestedRemoval;
@@ -69,12 +73,23 @@ public final class ServerResourcePackCache {
         }
 
         UUID id = packet.id();
-        PENDING_HASHES.put(id, hash);
+        Optional<Candidate> savedPreloadCandidate = savedPreloadCandidate(client);
+        if (savedPreloadCandidate.isPresent() && savedPreloadCandidate.get().hash().equals(hash)) {
+            markActive(client, savedPreloadCandidate.get().id(), hash);
+            sendLoaded(connection, id);
+            return true;
+        }
 
         if (hash.equals(activeHash)) {
             sendLoaded(connection, id);
             return true;
         }
+
+        if (!AddonServerGate.isOnLegendsServer()) {
+            return false;
+        }
+
+        PENDING_HASHES.put(id, hash);
 
         Path cachedPack = cachedPackPath(client, id, hash);
         if (!isVerifiedPack(cachedPack, hash)) {
@@ -84,6 +99,12 @@ public final class ServerResourcePackCache {
         loadCachedPack(client, id, hash, cachedPack, true);
         connection.send(new ResourcePackStatusC2SPacket(id, ResourcePackStatusC2SPacket.Status.DOWNLOADED));
         return true;
+    }
+
+    public static void onPackRequested(UUID id) {
+        if (id != null) {
+            SERVER_PACK_IDS.add(id);
+        }
     }
 
     public static void onStatusSent(ResourcePackStatusC2SPacket packet) {
@@ -107,6 +128,7 @@ public final class ServerResourcePackCache {
             activeId = null;
             activeHash = null;
         }
+        SERVER_PACK_IDS.remove(id);
         PENDING_HASHES.remove(id);
     }
 
@@ -114,6 +136,7 @@ public final class ServerResourcePackCache {
         activeId = null;
         activeHash = null;
         PENDING_HASHES.clear();
+        SERVER_PACK_IDS.clear();
     }
 
     public static void beginServerRequestedRemoval() {
@@ -128,6 +151,17 @@ public final class ServerResourcePackCache {
         return isEnabled() && !serverRequestedRemoval && activeHash != null;
     }
 
+    public static Set<UUID> packsToRemoveOnClientDisconnect() {
+        UUID preservedId = activeId;
+        if (preservedId == null) {
+            return Set.copyOf(SERVER_PACK_IDS);
+        }
+
+        return SERVER_PACK_IDS.stream()
+                .filter(id -> !preservedId.equals(id))
+                .collect(java.util.stream.Collectors.toUnmodifiableSet());
+    }
+
     public static boolean isEnabled() {
         return WidgetConfigManager.getBool(GENERAL_SETTINGS_CONFIG_ID, ENABLED_KEY, true);
     }
@@ -138,13 +172,16 @@ public final class ServerResourcePackCache {
             activeId = null;
             activeHash = null;
             PENDING_HASHES.clear();
+            SERVER_PACK_IDS.clear();
         }
     }
 
     private static void preloadBestCachedPack(MinecraftClient client) {
-        Optional<Candidate> candidate = savedCandidate(client)
-                .or(() -> verifiedDefaultCandidate(client))
-                .or(() -> latestLogCandidate(client));
+        Optional<Candidate> candidate = savedPreloadCandidate(client);
+
+        if (candidate.isEmpty() && AddonServerGate.isOnLegendsServer()) {
+            candidate = latestLogCandidate(client);
+        }
 
         candidate.ifPresent(pack -> {
             Path path = cachedPackPath(client, pack.id(), pack.hash());
@@ -152,6 +189,11 @@ public final class ServerResourcePackCache {
                 loadCachedPack(client, pack.id(), pack.hash(), path, false);
             }
         });
+    }
+
+    private static Optional<Candidate> savedPreloadCandidate(MinecraftClient client) {
+        return savedCandidate(client)
+                .or(() -> verifiedDefaultCandidate(client));
     }
 
     private static void loadCachedPack(MinecraftClient client, UUID id, String hash, Path path, boolean forServerJoin) {
@@ -182,6 +224,7 @@ public final class ServerResourcePackCache {
     private static void markActive(MinecraftClient client, UUID id, String hash) {
         activeId = id;
         activeHash = hash;
+        SERVER_PACK_IDS.add(id);
         saveCandidate(client, new Candidate(id, hash));
     }
 
@@ -265,7 +308,7 @@ public final class ServerResourcePackCache {
     }
 
     private static Path configPath(MinecraftClient client) {
-        return client.runDirectory.toPath().resolve("config").resolve(CONFIG_FILE);
+        return AddonConfigPaths.configFile(client, CONFIG_FILE);
     }
 
     private static Path cachedPackPath(MinecraftClient client, UUID id, String hash) {
