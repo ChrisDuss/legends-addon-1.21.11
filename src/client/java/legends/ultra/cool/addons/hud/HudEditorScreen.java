@@ -4,6 +4,7 @@ import legends.ultra.cool.addons.LegendsAddon;
 import legends.ultra.cool.addons.data.WidgetConfigManager;
 import legends.ultra.cool.addons.hud.widget.settings.ColorPicker;
 import legends.ultra.cool.addons.hud.widget.settings.CustomListFormScreen;
+import legends.ultra.cool.addons.hud.widget.settings.RenameWidgetProfileScreen;
 import legends.ultra.cool.addons.input.Keybinds;
 import legends.ultra.cool.addons.resource.ServerResourcePackCache;
 import legends.ultra.cool.addons.util.AddonServerGate;
@@ -55,13 +56,17 @@ public class HudEditorScreen extends Screen {
     private static final int CUSTOM_ENTRY_GAP = 4;
     private static final int SETTINGS_SCROLL_STEP = 24;
     private static final int SETTINGS_CONTROL_W = 60;
-    private static final int SETTINGS_CONTROL_H = 14;
+    private static final int SETTINGS_CONTROL_H = 15;
     private static final int SETTINGS_TOGGLE_W = 42;
     private static final int SETTINGS_SLIDER_W = 120;
     private static final int SETTINGS_RESET_GAP = 4;
     private static final int SETTINGS_COLOR_SWATCH_W = 18;
     private static final int SETTINGS_DROPDOWN_OPTION_H = 16;
     private static final int SETTINGS_DROPDOWN_GAP = 2;
+    private static final int WIDGET_CHROME_BUTTON_SIZE = 12;
+    private static final int WIDGET_CHROME_BUTTON_GAP = 4;
+    private static final int WIDGET_CHROME_OFFSET = 2;
+    private static final int WIDGET_CHROME_HOVER_PAD = 2;
 
     private static final int LAUNCHER_SQUARE = 40;
     private static final int LAUNCHER_WIDE = 100;
@@ -69,6 +74,11 @@ public class HudEditorScreen extends Screen {
     private static final int CHIP_H = 18;
     private static final int BACK_W = 18;
     private static final int SNAP_W = 70;
+    private static final int PROFILE_W = 96;
+    private static final int PROFILE_GAP = 6;
+    private static final int PROFILE_OPTION_H = 18;
+    private static final int PROFILE_DELETE_W = 14;
+    private static final int PROFILE_MAX_VISIBLE_ROWS = 8;
     private static final int MODS_VIEW_TOP = 42;
     private static final int MODS_VIEW_BOTTOM = 18;
     private static final int MODS_SCROLL_STEP = 28;
@@ -171,6 +181,7 @@ public class HudEditorScreen extends Screen {
     private BarDraggable draggingBar;
     private double dragOffsetX;
     private double dragOffsetY;
+    private boolean isDragging = false;
     private boolean snapEnabled = true;
     private double activeSnapGuideX = Double.NaN;
     private double activeSnapGuideY = Double.NaN;
@@ -186,6 +197,8 @@ public class HudEditorScreen extends Screen {
     private KeybindRow editingKeybindRow;
     private GeneralTab activeGeneralTab = GeneralTab.LOOKS_AND_FEEL;
     private boolean themeDropdownOpen = false;
+    private boolean profileDropdownOpen = false;
+    private int profileDropdownScroll = 0;
     private EditorTheme activeTheme = EditorTheme.DEFAULT;
     private int settingsCursorY = 0;
     private int settingsScroll = 0;
@@ -235,6 +248,11 @@ public class HudEditorScreen extends Screen {
                 return true;
             }
 
+            if (profileDropdownOpen) {
+                profileDropdownOpen = false;
+                return true;
+            }
+
             if (viewMode != ViewMode.HOME) {
                 setViewMode(ViewMode.HOME);
                 return true;
@@ -257,12 +275,10 @@ public class HudEditorScreen extends Screen {
             return handleSettingsClick(mouseX, mouseY, button);
         }
 
-        snapEnabled = button != 1;
-
         return switch (viewMode) {
             case HOME -> handleHomeClick(mouseX, mouseY);
             case MODS -> handleModsClick(mouseX, mouseY);
-            case LAYOUT -> handleLayoutClick(mouseX, mouseY);
+            case LAYOUT -> handleLayoutClick(mouseX, mouseY, button);
             case GENERAL -> handleGeneralClick(mouseX, mouseY);
         };
     }
@@ -315,7 +331,6 @@ public class HudEditorScreen extends Screen {
             moveDraggingWidgetToMouse(mouseX, mouseY);
             return true;
         }
-
         return true;
     }
 
@@ -324,6 +339,8 @@ public class HudEditorScreen extends Screen {
         double mouseX = click.x();
         double mouseY = click.y();
         int button = click.button();
+
+        isDragging = false;
 
         if (isSettingsOpen()) {
             draggingSliderKey = null;
@@ -378,6 +395,20 @@ public class HudEditorScreen extends Screen {
             }
         }
 
+        if (viewMode == ViewMode.LAYOUT && profileDropdownOpen) {
+            List<WidgetConfigManager.WidgetProfile> profiles = WidgetConfigManager.getProfiles();
+            Rect list = profileDropdownListBounds(profiles.size());
+            if (list.contains(mouseX, mouseY)) {
+                int totalRows = profileDropdownTotalRows(profiles.size());
+                profileDropdownScroll = MathHelper.clamp(
+                        profileDropdownScroll - (int) Math.round(verticalAmount),
+                        0,
+                        profileDropdownMaxScroll(totalRows)
+                );
+                return true;
+            }
+        }
+
         return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
     }
 
@@ -401,9 +432,11 @@ public class HudEditorScreen extends Screen {
         switch (viewMode) {
             case HOME -> renderHome(ctx, uiMouseX, uiMouseY);
             case MODS -> renderMods(ctx, uiMouseX, uiMouseY);
-            case LAYOUT -> renderLayoutChrome(ctx, uiMouseX, uiMouseY);
+            case LAYOUT -> {if (!isDragging) renderLayoutChrome(ctx, uiMouseX, uiMouseY);}
             case GENERAL -> renderGeneral(ctx, uiMouseX, uiMouseY);
         }
+
+        renderHoveredWidgetChrome(ctx, uiMouseX, uiMouseY);
 
         renderSettingsModal(ctx, mouseX, mouseY);
     }
@@ -457,9 +490,13 @@ public class HudEditorScreen extends Screen {
         return true;
     }
 
-    private boolean handleLayoutClick(double mouseX, double mouseY) {
+    private boolean handleLayoutClick(double mouseX, double mouseY, int button) {
         if (backChipBounds().contains(mouseX, mouseY)) {
             setViewMode(ViewMode.HOME);
+            return true;
+        }
+
+        if (handleProfileDropdownClick(mouseX, mouseY, button)) {
             return true;
         }
 
@@ -468,6 +505,12 @@ public class HudEditorScreen extends Screen {
             WidgetConfigManager.setBool(EDITOR_CONFIG_ID, SNAP_ENABLED_KEY, snapEnabled, true);
             return true;
         }
+
+        if (handleWidgetClick(mouseX, mouseY)) {
+            return true;
+        }
+
+        snapEnabled = button != GLFW.GLFW_MOUSE_BUTTON_RIGHT;
 
         BarDraggable bar = getBarUnderMouse(mouseX, mouseY);
         if (bar != null) {
@@ -485,6 +528,94 @@ public class HudEditorScreen extends Screen {
             }
         }
 
+        return true;
+    }
+
+    private boolean handleWidgetClick(double mouseX, double mouseY) {
+        for (int i = HudManager.getWidgets().size() - 1; i >= 0; i--) {
+            HudWidget widget = HudManager.getWidgets().get(i);
+            if (!widget.isEnabled() || !isWidgetChromeVisible(widget, mouseX, mouseY)) {
+                continue;
+            }
+
+            WidgetChrome chrome = widgetChromeBounds(widget);
+            if (widget.hasSettings() && chrome.settingsButton != null && chrome.settingsButton.contains(mouseX, mouseY)) {
+                openWidgetSettings(widget);
+                return true;
+            }
+
+            if (chrome.disableButton.contains(mouseX, mouseY)) {
+                widget.toggle();
+                WidgetConfigManager.updateWidget(widget);
+                clearDragState();
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private boolean handleProfileDropdownClick(double mouseX, double mouseY, int button) {
+        if (profileDropdownButtonBounds().contains(mouseX, mouseY)) {
+            profileDropdownOpen = !profileDropdownOpen;
+            return true;
+        }
+
+        if (!profileDropdownOpen) {
+            return false;
+        }
+
+        List<WidgetConfigManager.WidgetProfile> profiles = WidgetConfigManager.getProfiles();
+        Rect listBounds = profileDropdownListBounds(profiles.size());
+        clampProfileDropdownScroll(profiles.size());
+        if (!listBounds.contains(mouseX, mouseY)) {
+            profileDropdownOpen = false;
+            return true;
+        }
+
+        int visibleRows = profileDropdownVisibleRows(profileDropdownTotalRows(profiles.size()));
+        for (int visibleIndex = 0; visibleIndex < visibleRows; visibleIndex++) {
+            int rowIndex = profileDropdownScroll + visibleIndex;
+            if (rowIndex >= profiles.size()) {
+                continue;
+            }
+
+            Rect option = profileDropdownOptionBounds(listBounds, visibleIndex);
+            if (option.contains(mouseX, mouseY)) {
+                WidgetConfigManager.WidgetProfile profile = profiles.get(rowIndex);
+                if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT
+                        && profileDeleteButtonBounds(option).contains(mouseX, mouseY)
+                        && WidgetConfigManager.deleteProfile(profile.id, HudManager.getWidgets())) {
+                    refreshEditorStateFromConfig();
+                    clearDragState();
+                    return true;
+                }
+
+                if (button == GLFW.GLFW_MOUSE_BUTTON_RIGHT && client != null) {
+                    profileDropdownOpen = false;
+                    client.setScreen(new RenameWidgetProfileScreen(this, profile.id, profile.name));
+                    return true;
+                }
+
+                if (WidgetConfigManager.setActiveProfile(profile.id, HudManager.getWidgets())) {
+                    refreshEditorStateFromConfig();
+                }
+                clearDragState();
+                return true;
+            }
+        }
+
+        int addRowIndex = profiles.size();
+        if (addRowIndex >= profileDropdownScroll && addRowIndex < profileDropdownScroll + visibleRows
+                && profileDropdownOptionBounds(listBounds, addRowIndex - profileDropdownScroll).contains(mouseX, mouseY)) {
+            WidgetConfigManager.createProfileFromCurrent(HudManager.getWidgets());
+            refreshEditorStateFromConfig();
+            profileDropdownOpen = false;
+            clearDragState();
+            return true;
+        }
+
+        profileDropdownOpen = false;
         return true;
     }
 
@@ -620,6 +751,7 @@ public class HudEditorScreen extends Screen {
 
     private void renderLayoutChrome(DrawContext ctx, int mouseX, int mouseY) {
         drawChip(ctx, backChipBounds(),  mouseX, mouseY, "x", BUTTON_FILL_HOVER_COLOR, UI_BUTTON_TEXT_COLOR);
+        renderProfileDropdown(ctx, mouseX, mouseY);
 
         String hint = "Drag enabled widgets. Press ESC to return.";
         String hint2 = "Hold right click to disable snap";
@@ -627,6 +759,184 @@ public class HudEditorScreen extends Screen {
         int hint2X = this.width - textRenderer.getWidth(hint2) - 10;
         ctx.drawText(textRenderer, hint, Math.max(14, hintX), this.height - 14, UI_SUBTEXT_COLOR, false);
         ctx.drawText(textRenderer, hint2, Math.max(14, hint2X), this.height - 27, UI_SUBTEXT_COLOR, false);
+    }
+
+    private void renderProfileDropdown(DrawContext ctx, int mouseX, int mouseY) {
+        Rect button = profileDropdownButtonBounds();
+        boolean hovered = button.contains(mouseX, mouseY);
+        drawProfileButton(ctx, button, WidgetConfigManager.getActiveProfileName(), hovered || profileDropdownOpen);
+
+        if (!profileDropdownOpen) {
+            return;
+        }
+
+        List<WidgetConfigManager.WidgetProfile> profiles = WidgetConfigManager.getProfiles();
+        clampProfileDropdownScroll(profiles.size());
+        Rect list = profileDropdownListBounds(profiles.size());
+        drawPanel(ctx, list, UI_PANEL_COLOR, UI_PANEL_COLOR, UI_BORDER_COLOR);
+
+        String activeProfileId = WidgetConfigManager.getActiveProfileId();
+        int totalRows = profileDropdownTotalRows(profiles.size());
+        int visibleRows = profileDropdownVisibleRows(totalRows);
+        for (int visibleIndex = 0; visibleIndex < visibleRows; visibleIndex++) {
+            int rowIndex = profileDropdownScroll + visibleIndex;
+            Rect option = profileDropdownOptionBounds(list, visibleIndex);
+            if (rowIndex >= profiles.size()) {
+                renderCreateProfileOption(ctx, option, mouseX, mouseY);
+                continue;
+            }
+
+            WidgetConfigManager.WidgetProfile profile = profiles.get(rowIndex);
+            boolean optionHovered = option.contains(mouseX, mouseY);
+            boolean selected = Objects.equals(profile.id, activeProfileId);
+            int fill = selected ? BUTTON_FILL_HOVER_COLOR : (optionHovered ? UI_PANEL_HOVER_COLOR : UI_PANEL_COLOR);
+            ctx.fill(option.x + 1, option.y, option.right() - 1, option.bottom(), fill);
+
+            String marker = selected ? "*" : "";
+            int labelWidth = option.width - 10;
+            if (!"default".equals(profile.id)) {
+                labelWidth -= PROFILE_DELETE_W;
+            }
+            String label = trimToWidth(marker + profile.name, labelWidth);
+            ctx.drawText(textRenderer, label, option.x + 5, option.y + 5, selected ? UI_BUTTON_TEXT_COLOR : UI_SUBTEXT_COLOR, false);
+            if (!"default".equals(profile.id)) {
+                Rect delete = profileDeleteButtonBounds(option);
+                boolean deleteHovered = delete.contains(mouseX, mouseY);
+                ctx.drawText(
+                        textRenderer,
+                        "x",
+                        delete.x + 4,
+                        delete.y + 5,
+                        deleteHovered ? UI_BUTTON_TEXT_COLOR : UI_SUBTEXT_COLOR,
+                        false
+                );
+            }
+        }
+
+        renderProfileDropdownScrollbar(ctx, list, totalRows, visibleRows);
+    }
+
+    private void renderCreateProfileOption(DrawContext ctx, Rect add, int mouseX, int mouseY) {
+        boolean addHovered = add.contains(mouseX, mouseY);
+        ctx.fill(add.x + 1, add.y, add.right() - 1, add.bottom(), addHovered ? BUTTON_FILL_HOVER_COLOR : BUTTON_FILL_COLOR);
+        ctx.drawHorizontalLine(add.x + 1, add.right() - 1, add.y, DIVIDER_COLOR);
+        ctx.drawText(textRenderer, "+ New profile", add.x + 5, add.y + 5, UI_BUTTON_TEXT_COLOR, false);
+    }
+
+    private void renderProfileDropdownScrollbar(DrawContext ctx, Rect list, int totalRows, int visibleRows) {
+        int maxScroll = profileDropdownMaxScroll(totalRows);
+        if (maxScroll <= 0) {
+            return;
+        }
+
+        int trackW = 3;
+        int trackX = list.right() - trackW - 2;
+        int trackY = list.y + 2;
+        int trackH = Math.max(1, list.height - 4);
+        int thumbH = Math.max(10, (int) Math.round(trackH * (visibleRows / (double) totalRows)));
+        int thumbTravel = Math.max(0, trackH - thumbH);
+        int thumbY = trackY + (int) Math.round((profileDropdownScroll / (double) maxScroll) * thumbTravel);
+
+        ctx.fill(trackX, trackY, trackX + trackW, trackY + trackH, SCROLL_TRACK_COLOR);
+        ctx.fill(trackX, thumbY, trackX + trackW, thumbY + thumbH, SCROLL_THUMB_COLOR);
+    }
+
+    private void drawProfileButton(DrawContext ctx, Rect rect, String label, boolean hovered) {
+        if (useMinecraftTheme()) {
+            drawMinecraftButton(ctx, rect, hovered, false);
+        } else {
+            ctx.fill(rect.x, rect.y, rect.right(), rect.bottom(), hovered ? BUTTON_FILL_HOVER_COLOR : BUTTON_FILL_COLOR);
+            drawBorder(ctx, rect.x, rect.y, rect.width, rect.height, hovered ? BUTTON_BORDER_HOVER_COLOR : BUTTON_BORDER_COLOR);
+        }
+
+        String trimmed = trimToWidth(label, rect.width - 18);
+        int textColor = useMinecraftTheme() ? minecraftTextColor(hovered, false) : UI_BUTTON_TEXT_COLOR;
+        ctx.drawText(textRenderer, trimmed, rect.x + 6, rect.y + 5, textColor, false);
+        ctx.drawText(textRenderer, profileDropdownOpen ? "^" : "v", rect.right() - 10, rect.y + 5, textColor, false);
+    }
+
+    private void renderHoveredWidgetChrome(DrawContext ctx, int mouseX, int mouseY) {
+        if (viewMode != ViewMode.LAYOUT || isSettingsOpen() || isDragging) {
+            return;
+        }
+
+        for (int i = HudManager.getWidgets().size() - 1; i >= 0; i--) {
+            HudWidget widget = HudManager.getWidgets().get(i);
+            if (!widget.isEnabled() || !isWidgetChromeVisible(widget, mouseX, mouseY)) {
+                continue;
+            }
+
+            renderWidgetChrome(ctx, widget, mouseX, mouseY);
+            return;
+        }
+    }
+
+    private boolean isWidgetChromeVisible(HudWidget widget, double mouseX, double mouseY) {
+        WidgetChrome chrome = widgetChromeBounds(widget);
+        return widgetHoverBounds(widget).contains(mouseX, mouseY)
+                || (chrome.settingsButton != null && chrome.settingsButton.contains(mouseX, mouseY))
+                || chrome.disableButton.contains(mouseX, mouseY);
+    }
+
+    private Rect widgetHoverBounds(HudWidget widget) {
+        int left = (int) Math.floor(widget.getVisualX()) - WIDGET_CHROME_HOVER_PAD;
+        int top = (int) Math.floor(widget.getVisualY()) - WIDGET_CHROME_HOVER_PAD;
+        int width = (int) Math.ceil(widget.getVisualWidth()) + WIDGET_CHROME_HOVER_PAD * 2;
+        int height = (int) Math.ceil(widget.getVisualHeight()) + WIDGET_CHROME_HOVER_PAD * 2;
+        return new Rect(left, top, width, height);
+    }
+
+    private WidgetChrome widgetChromeBounds(HudWidget widget) {
+        boolean hasSettings = widget.hasSettings();
+        int buttonCount = hasSettings ? 2 : 1;
+        int rowWidth = buttonCount * WIDGET_CHROME_BUTTON_SIZE + (buttonCount - 1) * WIDGET_CHROME_BUTTON_GAP;
+        int maxRowX = Math.max(0, this.width - rowWidth);
+        int rowX = MathHelper.clamp(
+                (int) Math.round(widget.getVisualX() + widget.getVisualWidth()) - rowWidth,
+                0,
+                maxRowX
+        );
+
+        int rowY = (int) Math.round(widget.getVisualY()) - WIDGET_CHROME_BUTTON_SIZE - WIDGET_CHROME_OFFSET;
+        if (rowY < 0) {
+            rowY = (int) Math.round(widget.getVisualY() + widget.getVisualHeight()) + WIDGET_CHROME_OFFSET;
+        }
+        rowY = MathHelper.clamp(rowY, 0, Math.max(0, this.height - WIDGET_CHROME_BUTTON_SIZE));
+
+        Rect settingsButton = hasSettings
+                ? new Rect(rowX, rowY, WIDGET_CHROME_BUTTON_SIZE, WIDGET_CHROME_BUTTON_SIZE)
+                : null;
+        int disableX = hasSettings
+                ? rowX + WIDGET_CHROME_BUTTON_SIZE + WIDGET_CHROME_BUTTON_GAP
+                : rowX;
+        Rect disableButton = new Rect(disableX, rowY, WIDGET_CHROME_BUTTON_SIZE, WIDGET_CHROME_BUTTON_SIZE);
+        return new WidgetChrome(settingsButton, disableButton);
+    }
+
+    private void renderWidgetChrome(DrawContext ctx, HudWidget widget, int mouseX, int mouseY) {
+        WidgetChrome chrome = widgetChromeBounds(widget);
+        if (chrome.settingsButton != null) {
+            drawWidgetChromeButton(ctx, chrome.settingsButton, mouseX, mouseY, true);
+        }
+        drawWidgetChromeButton(ctx, chrome.disableButton, mouseX, mouseY, false);
+    }
+
+    private void drawWidgetChromeButton(DrawContext ctx, Rect rect, int mouseX, int mouseY, boolean settings) {
+        boolean hovered = rect.contains(mouseX, mouseY);
+        if (useMinecraftTheme()) {
+            drawMinecraftButton(ctx, rect, hovered, false);
+        } else {
+            ctx.fill(rect.x, rect.y, rect.right(), rect.bottom(), hovered ? BUTTON_FILL_HOVER_COLOR : BUTTON_FILL_COLOR);
+            drawBorder(ctx, rect.x, rect.y, rect.width, rect.height, hovered ? BUTTON_BORDER_HOVER_COLOR : UI_BORDER_DARK);
+        }
+
+        if (settings) {
+            drawMiniSettingsIcon(ctx, rect);
+            return;
+        }
+
+        int color = useMinecraftTheme() ? minecraftTextColor(hovered, false) : UI_BUTTON_TEXT_COLOR;
+        ctx.drawCenteredTextWithShadow(textRenderer, Text.literal("x"), rect.x + rect.width / 2, rect.y + 2, color);
     }
 
     private void renderGeneral(DrawContext ctx, int mouseX, int mouseY) {
@@ -1291,6 +1601,53 @@ public class HudEditorScreen extends Screen {
         return new Rect(backChipBounds().right() + 8, 14, SNAP_W, CHIP_H);
     }
 
+    private Rect profileDropdownButtonBounds() {
+        Rect back = backChipBounds();
+        int x = Math.max(14, back.x - PROFILE_GAP - PROFILE_W);
+        return new Rect(x, back.y, PROFILE_W, CHIP_H);
+    }
+
+    private Rect profileDropdownListBounds(int profileCount) {
+        Rect button = profileDropdownButtonBounds();
+        int rows = profileDropdownVisibleRows(profileDropdownTotalRows(profileCount));
+        return new Rect(button.x, button.bottom() + 3, button.width, rows * PROFILE_OPTION_H);
+    }
+
+    private Rect profileDropdownOptionBounds(Rect listBounds, int index) {
+        return new Rect(
+                listBounds.x,
+                listBounds.y + index * PROFILE_OPTION_H,
+                listBounds.width,
+                PROFILE_OPTION_H
+        );
+    }
+
+    private Rect profileDeleteButtonBounds(Rect optionBounds) {
+        return new Rect(optionBounds.right() - PROFILE_DELETE_W - 2, optionBounds.y, PROFILE_DELETE_W, optionBounds.height);
+    }
+
+    private int profileDropdownTotalRows(int profileCount) {
+        return profileCount + 1;
+    }
+
+    private int profileDropdownVisibleRows(int totalRows) {
+        int listY = profileDropdownButtonBounds().bottom() + 3;
+        int availableRows = Math.max(1, (this.height - listY - 2) / PROFILE_OPTION_H);
+        return Math.max(1, Math.min(Math.min(PROFILE_MAX_VISIBLE_ROWS, availableRows), totalRows));
+    }
+
+    private int profileDropdownMaxScroll(int totalRows) {
+        return Math.max(0, totalRows - profileDropdownVisibleRows(totalRows));
+    }
+
+    private void clampProfileDropdownScroll(int profileCount) {
+        profileDropdownScroll = MathHelper.clamp(
+                profileDropdownScroll,
+                0,
+                profileDropdownMaxScroll(profileDropdownTotalRows(profileCount))
+        );
+    }
+
     private void openWidgetSettings(HudWidget widget) {
         settingsWidget = widget;
         colorPicker = null;
@@ -1318,6 +1675,11 @@ public class HudEditorScreen extends Screen {
         settingsMaxScroll = 0;
     }
 
+    private void refreshEditorStateFromConfig() {
+        snapEnabled = WidgetConfigManager.getBool(EDITOR_CONFIG_ID, SNAP_ENABLED_KEY, snapEnabled);
+        applyTheme(EditorTheme.fromId(WidgetConfigManager.getString(GENERAL_SETTINGS_CONFIG_ID, THEME_KEY, activeTheme.id)));
+    }
+
     private void setViewMode(ViewMode nextMode) {
         viewMode = nextMode;
         if (viewMode != ViewMode.LAYOUT) {
@@ -1326,6 +1688,9 @@ public class HudEditorScreen extends Screen {
         if (viewMode != ViewMode.GENERAL) {
             editingKeybindRow = null;
             themeDropdownOpen = false;
+        }
+        if (viewMode != ViewMode.LAYOUT) {
+            profileDropdownOpen = false;
         }
         if (viewMode == ViewMode.MODS) {
             updateModsScrollBounds();
@@ -1375,17 +1740,20 @@ public class HudEditorScreen extends Screen {
     private void clearDragState() {
         dragging = null;
         draggingBar = null;
+        isDragging = false;
         clearSnapGuides();
     }
 
     private void beginWidgetDrag(HudWidget widget, double mouseX, double mouseY) {
         dragging = widget;
+        isDragging = true;
         dragOffsetX = mouseX - widget.x;
         dragOffsetY = mouseY - widget.y;
     }
 
     private void beginBarDrag(BarDraggable bar, double mouseX, double mouseY) {
         draggingBar = bar;
+        isDragging = true;
         dragOffsetX = mouseX - bar.getBarX();
         dragOffsetY = mouseY - bar.getBarY();
     }
@@ -1835,7 +2203,7 @@ public class HudEditorScreen extends Screen {
                     boolean enabled = setting.enabled().getAsBoolean();
                     boolean value = setting.getBool().getAsBoolean();
                     ctx.drawText(textRenderer, setting.label(), labelX, rowY, enabled ? MODAL_TEXT_COLOR : MODAL_DISABLED_TEXT_COLOR, false);
-                    drawTogglePill(ctx, layout.toggleX, rowY - 2, layout.toggleW, layout.btnH, value, enabled);
+                    drawTogglePill(ctx, layout.toggleX, rowY - 1, layout.toggleW, layout.btnH, value, enabled);
                 }
                 case COLOR -> {
                     boolean enabled = setting.enabled().getAsBoolean();
@@ -2922,6 +3290,9 @@ public class HudEditorScreen extends Screen {
     }
 
     private record WidgetTile(HudWidget widget, Rect bounds, Rect settingsButton) {
+    }
+
+    private record WidgetChrome(Rect settingsButton, Rect disableButton) {
     }
 
     private record KeybindRow(String label, KeyBindingSupplier bindingSupplier) {

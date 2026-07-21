@@ -57,6 +57,8 @@ public abstract class HudWidget {
         return getHeight();
     }
 
+
+
     public boolean isMouseOver(double mouseX, double mouseY) {
         double left = getVisualX();
         double top = getVisualY();

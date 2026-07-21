@@ -14,9 +14,13 @@ import java.io.Writer;
 import java.lang.reflect.Type;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 public final class WidgetConfigManager {
 
@@ -24,6 +28,10 @@ public final class WidgetConfigManager {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final String FILE_NAME = "legendsaddon_widgets.json";
+    private static final String PROFILE_INDEX_FILE_NAME = "legendsaddon_widget_profiles.json";
+    private static final String PROFILE_DIR_NAME = "widget_profiles";
+    private static final String DEFAULT_PROFILE_ID = "default";
+    private static final String DEFAULT_PROFILE_NAME = "Default";
 
     private static final Type MAP_TYPE = new TypeToken<Map<String, WidgetData>>() {}.getType();
 
@@ -35,10 +43,21 @@ public final class WidgetConfigManager {
     private static final String VERTICAL_ANCHOR_BOTTOM = "bottom";
 
     private static Map<String, WidgetData> widgetDataMap = new HashMap<>();
+    private static List<WidgetProfile> profiles = new ArrayList<>();
+    private static String activeProfileId = DEFAULT_PROFILE_ID;
     private static boolean loaded = false;
+    private static boolean profileIndexLoaded = false;
 
     private static Path getConfigPath() {
-        return AddonConfigPaths.configFile(FILE_NAME);
+        ensureProfileIndexLoaded();
+        return getConfigPath(activeProfileId);
+    }
+
+    private static Path getConfigPath(String profileId) {
+        if (DEFAULT_PROFILE_ID.equals(profileId)) {
+            return AddonConfigPaths.configFile(FILE_NAME);
+        }
+        return AddonConfigPaths.configFile(PROFILE_DIR_NAME + "/" + profileId + ".json");
     }
 
     public static void load() {
@@ -57,6 +76,131 @@ public final class WidgetConfigManager {
         } catch (Exception e) {
             e.printStackTrace();
             widgetDataMap = new HashMap<>();
+        }
+    }
+
+    public static List<WidgetProfile> getProfiles() {
+        ensureProfileIndexLoaded();
+        return List.copyOf(profiles);
+    }
+
+    public static String getActiveProfileId() {
+        ensureProfileIndexLoaded();
+        return activeProfileId;
+    }
+
+    public static String getActiveProfileName() {
+        ensureProfileIndexLoaded();
+        for (WidgetProfile profile : profiles) {
+            if (profile.id.equals(activeProfileId)) {
+                return profile.name;
+            }
+        }
+        return DEFAULT_PROFILE_NAME;
+    }
+
+    public static boolean setActiveProfile(String profileId, List<HudWidget> widgets) {
+        ensureProfileIndexLoaded();
+        if (profileId == null || profileId.equals(activeProfileId) || profileById(profileId) == null) {
+            return false;
+        }
+
+        save();
+        activeProfileId = profileId;
+        loaded = false;
+        load();
+        saveProfileIndex();
+        applyActiveProfileToWidgets(widgets);
+        return true;
+    }
+
+    public static WidgetProfile createProfileFromCurrent(List<HudWidget> widgets) {
+        ensureProfileIndexLoaded();
+        load();
+        save();
+
+        String name = nextProfileName();
+        String id = uniqueProfileId(name);
+        WidgetProfile profile = new WidgetProfile(id, name);
+        profiles.add(profile);
+
+        Map<String, WidgetData> copiedData = copyWidgetData(widgetDataMap);
+        activeProfileId = id;
+        widgetDataMap = copiedData;
+        loaded = true;
+
+        saveProfileIndex();
+        save();
+        applyActiveProfileToWidgets(widgets);
+        return profile;
+    }
+
+    public static boolean renameProfile(String profileId, String newName) {
+        ensureProfileIndexLoaded();
+        if (profileId == null || newName == null) {
+            return false;
+        }
+
+        String trimmedName = newName.trim();
+        if (trimmedName.isBlank()) {
+            return false;
+        }
+        if (trimmedName.length() > 32) {
+            trimmedName = trimmedName.substring(0, 32).trim();
+        }
+
+        for (WidgetProfile profile : profiles) {
+            if (!profile.id.equals(profileId) && profile.name.equalsIgnoreCase(trimmedName)) {
+                return false;
+            }
+        }
+
+        WidgetProfile profile = profileById(profileId);
+        if (profile == null) {
+            return false;
+        }
+
+        profile.name = trimmedName;
+        saveProfileIndex();
+        return true;
+    }
+
+    public static boolean deleteProfile(String profileId, List<HudWidget> widgets) {
+        ensureProfileIndexLoaded();
+        if (profileId == null || DEFAULT_PROFILE_ID.equals(profileId) || profiles.size() <= 1) {
+            return false;
+        }
+
+        WidgetProfile profile = profileById(profileId);
+        if (profile == null) {
+            return false;
+        }
+
+        save();
+        profiles.removeIf(candidate -> candidate.id.equals(profileId));
+        boolean deletedActiveProfile = profileId.equals(activeProfileId);
+        if (deletedActiveProfile) {
+            activeProfileId = DEFAULT_PROFILE_ID;
+            loaded = false;
+            load();
+        }
+        saveProfileIndex();
+        deleteProfileFile(profileId);
+
+        if (deletedActiveProfile) {
+            applyActiveProfileToWidgets(widgets);
+        }
+        return true;
+    }
+
+    public static void applyActiveProfileToWidgets(List<HudWidget> widgets) {
+        if (widgets == null) {
+            return;
+        }
+
+        load();
+        for (HudWidget widget : widgets) {
+            registerWidget(widget);
         }
     }
 
@@ -346,6 +490,175 @@ public final class WidgetConfigManager {
         return d;
     }
 
+    private static void ensureProfileIndexLoaded() {
+        if (profileIndexLoaded) {
+            return;
+        }
+
+        profileIndexLoaded = true;
+        Path path = AddonConfigPaths.configFile(PROFILE_INDEX_FILE_NAME);
+        ProfileIndex index = null;
+        if (Files.exists(path)) {
+            try (Reader reader = Files.newBufferedReader(path)) {
+                index = GSON.fromJson(reader, ProfileIndex.class);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+
+        profiles = sanitizeProfiles(index == null ? null : index.profiles);
+        activeProfileId = index == null ? DEFAULT_PROFILE_ID : index.activeProfileId;
+        if (profileById(activeProfileId) == null) {
+            activeProfileId = DEFAULT_PROFILE_ID;
+        }
+
+        if (index == null || index.profiles == null || profileById(DEFAULT_PROFILE_ID) == null) {
+            saveProfileIndex();
+        }
+    }
+
+    private static List<WidgetProfile> sanitizeProfiles(List<WidgetProfile> rawProfiles) {
+        List<WidgetProfile> result = new ArrayList<>();
+        result.add(new WidgetProfile(DEFAULT_PROFILE_ID, defaultProfileName(rawProfiles)));
+
+        Set<String> seenIds = new HashSet<>();
+        seenIds.add(DEFAULT_PROFILE_ID);
+
+        if (rawProfiles == null) {
+            return result;
+        }
+
+        for (WidgetProfile profile : rawProfiles) {
+            if (profile == null || profile.id == null || profile.name == null) {
+                continue;
+            }
+
+            String id = sanitizeProfileId(profile.id);
+            String name = profile.name.trim();
+            if (id.isBlank() || DEFAULT_PROFILE_ID.equals(id) || name.isBlank() || seenIds.contains(id)) {
+                continue;
+            }
+
+            result.add(new WidgetProfile(id, name));
+            seenIds.add(id);
+        }
+
+        return result;
+    }
+
+    private static String defaultProfileName(List<WidgetProfile> rawProfiles) {
+        if (rawProfiles == null) {
+            return DEFAULT_PROFILE_NAME;
+        }
+
+        for (WidgetProfile profile : rawProfiles) {
+            if (profile != null && DEFAULT_PROFILE_ID.equals(profile.id) && profile.name != null && !profile.name.trim().isBlank()) {
+                return profile.name.trim();
+            }
+        }
+
+        return DEFAULT_PROFILE_NAME;
+    }
+
+    private static void saveProfileIndex() {
+        Path path = AddonConfigPaths.configFile(PROFILE_INDEX_FILE_NAME);
+        try {
+            Files.createDirectories(path.getParent());
+        } catch (Exception e) {
+            e.printStackTrace();
+            return;
+        }
+
+        ProfileIndex index = new ProfileIndex();
+        index.activeProfileId = activeProfileId;
+        index.profiles = new ArrayList<>(profiles);
+
+        try (Writer writer = Files.newBufferedWriter(path)) {
+            GSON.toJson(index, ProfileIndex.class, writer);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static void deleteProfileFile(String profileId) {
+        if (DEFAULT_PROFILE_ID.equals(profileId)) {
+            return;
+        }
+
+        try {
+            Files.deleteIfExists(getConfigPath(profileId));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static WidgetProfile profileById(String id) {
+        for (WidgetProfile profile : profiles) {
+            if (profile.id.equals(id)) {
+                return profile;
+            }
+        }
+        return null;
+    }
+
+    private static String nextProfileName() {
+        Set<String> names = new HashSet<>();
+        for (WidgetProfile profile : profiles) {
+            names.add(profile.name);
+        }
+
+        for (int index = 2; index < 1000; index++) {
+            String candidate = "Profile " + index;
+            if (!names.contains(candidate)) {
+                return candidate;
+            }
+        }
+
+        return "Profile " + (profiles.size() + 1);
+    }
+
+    private static String uniqueProfileId(String name) {
+        String base = sanitizeProfileId(name);
+        if (base.isBlank()) {
+            base = "profile";
+        }
+
+        String candidate = base;
+        int suffix = 2;
+        while (profileById(candidate) != null) {
+            candidate = base + "-" + suffix;
+            suffix++;
+        }
+        return candidate;
+    }
+
+    private static String sanitizeProfileId(String value) {
+        String lower = value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
+        StringBuilder result = new StringBuilder();
+        boolean lastDash = false;
+        for (int i = 0; i < lower.length(); i++) {
+            char c = lower.charAt(i);
+            boolean allowed = (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9');
+            if (allowed) {
+                result.append(c);
+                lastDash = false;
+            } else if (!lastDash && result.length() > 0) {
+                result.append('-');
+                lastDash = true;
+            }
+        }
+
+        while (result.length() > 0 && result.charAt(result.length() - 1) == '-') {
+            result.deleteCharAt(result.length() - 1);
+        }
+        return result.toString();
+    }
+
+    private static Map<String, WidgetData> copyWidgetData(Map<String, WidgetData> source) {
+        Map<String, WidgetData> copy = GSON.fromJson(GSON.toJson(source, MAP_TYPE), MAP_TYPE);
+        return copy == null ? new HashMap<>() : copy;
+    }
+
     private static void migrateWidgetDataIfNeeded(WidgetData data) {
         if (data.horizontalAnchor != null && data.verticalAnchor != null) {
             return;
@@ -544,6 +857,21 @@ public final class WidgetConfigManager {
     }
 
     private record AnchorPosition(String horizontalAnchor, String verticalAnchor, double offsetX, double offsetY) {}
+
+    public static final class WidgetProfile {
+        public String id;
+        public String name;
+
+        public WidgetProfile(String id, String name) {
+            this.id = id;
+            this.name = name;
+        }
+    }
+
+    private static final class ProfileIndex {
+        public String activeProfileId = DEFAULT_PROFILE_ID;
+        public List<WidgetProfile> profiles = new ArrayList<>();
+    }
 
     public static final class WidgetData {
         public double x;
