@@ -20,6 +20,9 @@
 		],
 		"client": [
 			"legends.ultra.cool.addons.LegendsAddonClient"
+		],
+		"modmenu": [
+			"legends.ultra.cool.addons.modmenu.ModMenuIntegration"
 		]
 	},
 	"mixins": [

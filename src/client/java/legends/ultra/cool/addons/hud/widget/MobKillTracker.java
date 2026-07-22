@@ -412,13 +412,13 @@ public class MobKillTracker extends HudWidget {
     @Override
     public void render(DrawContext context) {
         MinecraftClient client = MinecraftClient.getInstance();
-        if (client.player == null) {
+        boolean editorPreview = client.currentScreen instanceof HudEditorScreen;
+        if (client.player == null && !editorPreview) {
             return;
         }
 
         TextRenderer textRenderer = client.textRenderer;
         flushInitialEntrySaveIfNeeded();
-        boolean editorPreview = client.currentScreen instanceof HudEditorScreen;
         List<MobEntry> rows = entries.isEmpty() && editorPreview ? placeholderRows() : List.copyOf(entries);
         if (rows.isEmpty()) {
             return;

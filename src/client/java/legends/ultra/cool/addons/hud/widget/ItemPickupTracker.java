@@ -271,10 +271,10 @@ public class ItemPickupTracker extends HudWidget {
     @Override
     public void render(DrawContext context) {
         MinecraftClient client = MinecraftClient.getInstance();
-        if (client.player == null) return;
+        boolean editorPreview = client.currentScreen instanceof HudEditorScreen;
+        if (client.player == null && !editorPreview) return;
 
         TextRenderer textRenderer = client.textRenderer;
-        boolean editorPreview = client.currentScreen instanceof HudEditorScreen;
         if (notifications.isEmpty() && !editorPreview) {
             return;
         }

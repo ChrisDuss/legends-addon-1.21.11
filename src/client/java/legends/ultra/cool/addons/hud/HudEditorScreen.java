@@ -174,9 +174,12 @@ public class HudEditorScreen extends Screen {
             new KeybindRow("Reset timer", () -> Keybinds.RESET_TIMER),
             new KeybindRow("Open Vault", () -> Keybinds.OPEN_VAULT),
             new KeybindRow("Open Wardrobe", () -> Keybinds.OPEN_WARDROBE),
-            new KeybindRow("Open Bestiary", () -> Keybinds.OPEN_BESTIARY)
+            new KeybindRow("Open Bestiary", () -> Keybinds.OPEN_BESTIARY),
+            new KeybindRow("Open Bazaar", ()-> Keybinds.OPEN_BAZAAR),
+            new KeybindRow("Open Bazaar", ()-> Keybinds.OPEN_DAILY)
     );
 
+    private final Screen parent;
     private HudWidget dragging;
     private BarDraggable draggingBar;
     private double dragOffsetX;
@@ -205,9 +208,31 @@ public class HudEditorScreen extends Screen {
     private int settingsMaxScroll = 0;
 
     public HudEditorScreen() {
+        this(null);
+    }
+
+    public HudEditorScreen(Screen parent) {
         super(Text.literal("HUD Editor"));
+        this.parent = parent;
         snapEnabled = WidgetConfigManager.getBool(EDITOR_CONFIG_ID, SNAP_ENABLED_KEY, true);
         applyTheme(EditorTheme.fromId(WidgetConfigManager.getString(GENERAL_SETTINGS_CONFIG_ID, THEME_KEY, EditorTheme.DEFAULT.id)));
+    }
+
+    @Override
+    protected void init() {
+        WidgetConfigManager.applyActiveProfileToWidgets(HudManager.getWidgets());
+        for (HudWidget widget : HudManager.getWidgets()) {
+            widget.onScreenSizeChanged(this.width, this.height, this.width, this.height);
+        }
+    }
+
+    @Override
+    public void close() {
+        if (parent != null && client != null) {
+            client.setScreen(parent);
+            return;
+        }
+        super.close();
     }
 
     @Override

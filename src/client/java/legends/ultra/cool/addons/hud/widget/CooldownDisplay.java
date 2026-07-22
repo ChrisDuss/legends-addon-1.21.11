@@ -91,11 +91,11 @@ public class CooldownDisplay extends HudWidget {
     @Override
     public void render(DrawContext context) {
         MinecraftClient client = MinecraftClient.getInstance();
-        if (client.player == null) return;
+        boolean editorPreview = client.currentScreen instanceof HudEditorScreen;
+        if (client.player == null && !editorPreview) return;
 
         TextRenderer textRenderer = client.textRenderer;
         List<CooldownRow> rows = getCooldownRows(client);
-        boolean editorPreview = client.currentScreen instanceof HudEditorScreen;
         if (rows.isEmpty() && !editorPreview) return;
 
         final String w = getName();
