@@ -24,6 +24,8 @@ public class Keybinds {
     public static KeyBinding OPEN_VAULT;
     public static KeyBinding OPEN_WARDROBE;
     public static KeyBinding OPEN_BESTIARY;
+    public static KeyBinding OPEN_BAZAAR;
+    public static KeyBinding OPEN_DAILY;
     public static KeyBinding TEST;
     public static final KeyBinding.Category MAIN_CATEGORY = KeyBinding.Category.create(Identifier.of(LegendsAddon.MOD_ID, "main"));
 
@@ -68,6 +70,20 @@ public class Keybinds {
         OPEN_BESTIARY = KeyBindingHelper.registerKeyBinding(
                 new KeyBinding(
                         "Open Bestiary",
+                        GLFW.GLFW_KEY_UNKNOWN,
+                        MAIN_CATEGORY
+                ));
+
+        OPEN_BAZAAR = KeyBindingHelper.registerKeyBinding(
+                new KeyBinding(
+                        "Open Bazaar",
+                        GLFW.GLFW_KEY_UNKNOWN,
+                        MAIN_CATEGORY
+                ));
+
+        OPEN_DAILY = KeyBindingHelper.registerKeyBinding(
+                new KeyBinding(
+                        "Open Dailies",
                         GLFW.GLFW_KEY_UNKNOWN,
                         MAIN_CATEGORY
                 ));
@@ -118,6 +134,18 @@ public class Keybinds {
             while (OPEN_BESTIARY.wasPressed()) {
                 if (client.currentScreen == null && client.getNetworkHandler() != null) {
                     client.getNetworkHandler().sendChatCommand("bestiary");
+                }
+            }
+
+            while (OPEN_BAZAAR.wasPressed()) {
+                if (client.currentScreen == null && client.getNetworkHandler() != null) {
+                    client.getNetworkHandler().sendChatCommand("bz");
+                }
+            }
+
+            while (OPEN_DAILY.wasPressed()) {
+                if (client.currentScreen == null && client.getNetworkHandler() != null) {
+                    client.getNetworkHandler().sendChatCommand("daily");
                 }
             }
 //
