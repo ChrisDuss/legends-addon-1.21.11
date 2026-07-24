@@ -15,9 +15,9 @@ import net.minecraft.util.Identifier;
 import java.util.Locale;
 import java.util.concurrent.ThreadLocalRandom;
 
-public final class ClientRenderCache {
+public final class Jumpscare {
     private static final String CONFIG_ID = "__general_settings__";
-    private static final String ENABLED_KEY = "superSecretSettings";
+    private static final String ENABLED_KEY = "foxyJumpscare";
     private static final Identifier SOUND_ID = Identifier.of(LegendsAddon.MOD_ID, "ui.sync");
 
     private static final int ODDS = 1_000_000;
@@ -35,7 +35,7 @@ public final class ClientRenderCache {
     private static long startedAtNanos = -1L;
     private static long nextRollAtNanos = 0L;
 
-    private ClientRenderCache() {
+    private Jumpscare() {
     }
 
     public static void init() {
@@ -44,12 +44,12 @@ public final class ClientRenderCache {
         }
         initialized = true;
 
-        ClientTickEvents.END_CLIENT_TICK.register(ClientRenderCache::tick);
+        ClientTickEvents.END_CLIENT_TICK.register(Jumpscare::tick);
         HudRenderCallback.EVENT.register((context, tickDelta) -> render(context));
     }
 
     public static boolean isEnabled() {
-        return WidgetConfigManager.getBool(CONFIG_ID, ENABLED_KEY, true);
+        return WidgetConfigManager.getBool(CONFIG_ID, ENABLED_KEY, false);
     }
 
     public static void setEnabled(boolean enabled) {

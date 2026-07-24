@@ -8,7 +8,7 @@ import legends.ultra.cool.addons.hud.widget.settings.RenameWidgetProfileScreen;
 import legends.ultra.cool.addons.input.Keybinds;
 import legends.ultra.cool.addons.resource.ServerResourcePackCache;
 import legends.ultra.cool.addons.util.AddonServerGate;
-import legends.ultra.cool.addons.util.ClientRenderCache;
+import legends.ultra.cool.addons.util.Jumpscare;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.client.gui.Click;
@@ -689,8 +689,8 @@ public class HudEditorScreen extends Screen {
                 return true;
             }
 
-            if (clientRenderCacheToggleButtonBounds().contains(mouseX, mouseY)) {
-                ClientRenderCache.setEnabled(!ClientRenderCache.isEnabled());
+            if (jumpscareToggleButtonBounds().contains(mouseX, mouseY)) {
+                Jumpscare.setEnabled(!Jumpscare.isEnabled());
                 themeDropdownOpen = false;
                 return true;
             }
@@ -1263,11 +1263,11 @@ public class HudEditorScreen extends Screen {
         ctx.drawText(textRenderer, "Uses verified cached packs.", cacheRowBounds.x, cacheRowBounds.y + 14, UI_SUBTEXT_COLOR, false);
 
         Rect clientCacheRowBounds = clientRenderCacheToggleRowBounds();
-        Rect clientCacheValueBounds = clientRenderCacheToggleButtonBounds();
+        Rect clientCacheValueBounds = jumpscareToggleButtonBounds();
         boolean clientCacheHovered = clientCacheValueBounds.contains(mouseX, mouseY);
-        boolean clientCacheEnabled = ClientRenderCache.isEnabled();
+        boolean clientCacheEnabled = Jumpscare.isEnabled();
 
-        ctx.drawText(textRenderer, "Super Secret Settings", clientCacheRowBounds.x, clientCacheRowBounds.y + 2, UI_BUTTON_TEXT_COLOR, false);
+        ctx.drawText(textRenderer, "Foxy Jumpscare (1/1,000,000)", clientCacheRowBounds.x, clientCacheRowBounds.y + 2, UI_BUTTON_TEXT_COLOR, false);
 
         if (useMinecraftTheme()) {
             drawMinecraftButton(ctx, clientCacheValueBounds, clientCacheHovered || clientCacheEnabled, false);
@@ -1289,7 +1289,7 @@ public class HudEditorScreen extends Screen {
                 useMinecraftTheme() ? minecraftTextColor(clientCacheHovered || clientCacheEnabled, false) : UI_BUTTON_TEXT_COLOR,
                 false
         );
-        ctx.drawText(textRenderer, "Enables advanced visual sync.", clientCacheRowBounds.x, clientCacheRowBounds.y + 14, UI_SUBTEXT_COLOR, false);
+        ctx.drawText(textRenderer, "Volume warning.", clientCacheRowBounds.x, clientCacheRowBounds.y + 14, UI_SUBTEXT_COLOR, false);
 
         Rect themeRowBounds = themeRowBounds();
         Rect themeButtonBounds = themeDropdownButtonBounds();
@@ -1450,7 +1450,7 @@ public class HudEditorScreen extends Screen {
         return new Rect(panel.x + 18, panel.y + 162, panel.width - 36, GENERAL_ROW_H);
     }
 
-    private Rect clientRenderCacheToggleButtonBounds() {
+    private Rect jumpscareToggleButtonBounds() {
         Rect rowBounds = clientRenderCacheToggleRowBounds();
         int valueX = rowBounds.right() - GENERAL_TOGGLE_W;
         int valueY = rowBounds.y + (rowBounds.height - GENERAL_TOGGLE_H) / 2;
