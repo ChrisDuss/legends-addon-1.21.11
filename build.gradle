@@ -28,6 +28,10 @@ repositories {
 		}
 	}
 	maven { url "https://maven.shedaniel.me/" }
+	maven {
+		name = "Jared's Maven"
+		url = "https://maven.blamejared.com/"
+	}
 }
 
 loom {
@@ -55,6 +59,7 @@ dependencies {
 	modApi "me.shedaniel.cloth:cloth-config-fabric:21.11.153"
 
 	modCompileOnly "maven.modrinth:${project.modmenu_project_id}:${project.modmenu_version_id}"
+	modCompileOnly "mezz.jei:jei-${project.minecraft_version}-common-api-intermediary:${project.jei_version}"
 }
 
 processResources {

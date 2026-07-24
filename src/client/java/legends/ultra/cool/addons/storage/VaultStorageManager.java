@@ -17,6 +17,7 @@ import net.fabricmc.fabric.api.client.screen.v1.Screens;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.ChatScreen;
+import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.ingame.HandledScreen;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.component.ComponentType;
@@ -436,6 +437,19 @@ public final class VaultStorageManager {
         client.setScreen(null);
         client.getNetworkHandler().sendChatCommand("pv " + vaultNumber);
         return true;
+    }
+
+    public static boolean shouldHideJeiOverlay(Screen screen) {
+        if (!VaultBrowserWidget.isEnabledGlobal()) {
+            return false;
+        }
+
+        if (screen instanceof VaultBrowserScreen || screen instanceof VaultRenameScreen) {
+            return true;
+        }
+
+        return screen instanceof HandledScreen<?> handledScreen
+                && (isStorageMenuScreen(handledScreen) || isVaultScreen(handledScreen, -1));
     }
 
     public static boolean clickStorageMenuVault(

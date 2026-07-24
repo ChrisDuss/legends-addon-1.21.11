@@ -21,6 +21,9 @@
 		"client": [
 			"legends.ultra.cool.addons.LegendsAddonClient"
 		],
+		"jei_mod_plugin": [
+			"legends.ultra.cool.addons.compat.jei.LegendsJeiPlugin"
+		],
 		"modmenu": [
 			"legends.ultra.cool.addons.modmenu.ModMenuIntegration"
 		]
@@ -37,5 +40,8 @@
 		"minecraft": "~1.21.11",
 		"java": ">=21",
 		"fabric-api": "*"
+	},
+	"suggests": {
+		"jei": "*"
 	}
 }
